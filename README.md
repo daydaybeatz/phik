@@ -13,6 +13,7 @@
   *{box-sizing:border-box;font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);}
   #app{display:grid;grid-template-rows:auto 1fr auto; height:100%;}
+
   /* top bar */
   .topbar{display:flex;gap:.5rem;align-items:center;padding:.5rem;background:linear-gradient(180deg,var(--panel),var(--panel-2)); border-bottom:1px solid var(--line)}
   .brand{font-weight:700;letter-spacing:.5px;margin-right:.5rem}
@@ -28,22 +29,37 @@
   .seg .btn:last-child{border-right:0}
   .kbd{background:#0008;border:1px solid var(--line);padding:0 .35rem;border-radius:.3rem;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;font-size:.85rem}
   .pill{padding:.1rem .45rem;border:1px solid var(--line);border-radius:999px;background:#0006}
-  .bubble{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);cursor:pointer;position:relative}
-  .bubble.active{outline:2px solid var(--accent)}
   .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
   .hide{display:none!important}
+
   /* main area */
-  .main{display:grid;grid-template-columns: 60px 1fr 320px; gap:.5rem; padding:.5rem}
+  .main{
+    display:grid;
+    grid-template-columns: 90px minmax(480px, 1fr) 380px;
+    gap:.5rem; padding:.5rem;
+  }
+  @media (min-width:1600px){
+    .main{ grid-template-columns: 100px minmax(800px, 1fr) 440px; }
+  }
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:.6rem;overflow:hidden}
   .tools{padding:.5rem;display:flex;flex-direction:column;gap:.4rem}
-  .tools .tbtn{display:flex;flex-direction:column;align-items:center;gap:.2rem;border:1px solid var(--line);background:var(--panel-2);padding:.35rem;border-radius:.4rem;cursor:pointer}
-  .tools .tbtn.active{outline:2px solid var(--accent)}
+  .tbtn{display:flex;flex-direction:column;align-items:center;gap:.2rem;border:1px solid var(--line);background:var(--panel-2);padding:.35rem;border-radius:.4rem;cursor:pointer}
+  .tbtn.active{outline:2px solid var(--accent)}
+
+  /* small color cluster on the left */
+  .colors{margin-top:.4rem; display:flex; flex-direction:column; gap:.35rem}
+  .bubbles{display:grid; grid-template-columns:repeat(3, 18px); gap:6px; justify-content:start}
+  .bubble{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);cursor:pointer}
+  .bubble.active{outline:2px solid var(--accent)}
+  .sf-mini{display:flex; gap:.35rem; align-items:center}
+  .swatch{width:18px;height:18px;border-radius:4px;border:1px solid var(--line);cursor:pointer}
+
   .canvasWrap{position:relative; overflow:hidden;
-    background:
-      conic-gradient(from 90deg at 1px 1px, #0000 90deg, #0002 0) 0 0/10px 10px;
+    background: conic-gradient(from 90deg at 1px 1px, #0000 90deg, #0002 0) 0 0/10px 10px;
   }
   canvas{display:block;background:transparent;width:100%;height:100%}
   .overlay{position:absolute;inset:0;pointer-events:none}
+
   .right{display:flex;flex-direction:column}
   .section{padding:.5rem;border-bottom:1px solid var(--line)}
   .section h3{margin:.2rem 0 .6rem 0;font-size:1rem}
@@ -52,36 +68,44 @@
     width:100%; background:#0006;color:var(--fg);border:1px solid var(--line);
     border-radius:.35rem;padding:.4rem .5rem;
   }
-  textarea{min-height:72px;resize:vertical}
+  textarea{min-height:140px;resize:vertical} /* taller notes */
   input[type="range"]{width:100%}
   input[type="color"]{width:100%; height:2rem; padding:0; border:1px solid var(--line); background:#0000}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
   .stack{display:flex;flex-direction:column;gap:.35rem}
+
   /* layers list */
-  #layerList{max-height:160px;overflow:auto;display:flex;flex-direction:column;gap:.25rem}
-  .layerItem{display:flex;align-items:center;gap:.4rem;padding:.25rem .35rem;border:1px solid var(--line);border-radius:.35rem;background:#0003;cursor:pointer}
+  #layerList{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:.25rem}
+  .layerItem{display:flex;align-items:center;gap:.35rem;padding:.25rem .35rem;border:1px solid var(--line);border-radius:.35rem;background:#0003;cursor:pointer}
   .layerItem.active{outline:2px solid var(--accent)}
-  .eye{width:18px;height:18px;border:1px solid var(--line);border-radius:.25rem;background:#0006;display:grid;place-items:center;font-size:12px}
+  .eye{min-width:24px;display:grid;place-items:center;border:1px solid var(--line);border-radius:.25rem;background:#0006;font-family:ui-monospace}
+  .thumb{width:48px;height:34px;border:1px solid var(--line);border-radius:.25rem;background:#000;flex:0 0 auto}
   .layerItem input[type="text"]{flex:1;min-width:0;background:#0006;border:1px solid #0000}
-  /* bottom nav */
+
+  /* bottom bar */
   .bottombar{display:flex;gap:.5rem;align-items:center;padding:.5rem;background:linear-gradient(0deg,var(--panel),var(--panel-2)); border-top:1px solid var(--line)}
   /* floating UI toggle */
   #uiToggle{position:fixed;top:.5rem;left:.5rem;z-index:9999;background:var(--accent3);color:#0b1020;border:none;border-radius:999px; width:34px;height:34px;cursor:pointer;font-weight:900}
-  .ui-hidden .topbar,.ui-hidden .main,.ui-hidden .bottombar,.ui-hidden .floaters{display:none!important}
+  .ui-hidden .topbar,.ui-hidden .main,.ui-hidden .bottombar{display:none!important}
+
   /* marquee + handles + page frame */
   .marquee{position:absolute;border:1px dashed var(--accent);background:rgba(122,162,247,.08);pointer-events:none}
-  .handle{position:absolute;width:10px;height:10px;border:2px solid #000a;background:#fff;box-shadow:0 0 0 1px #0003;pointer-events:auto;cursor:nwse-resize}
+  .handle{position:absolute;width:10px;height:10px;border:2px solid #000a;background:#fff;box-shadow:0 0 0 1px #0003;pointer-events:auto}
+  .handle[data-dir="move"]{width:12px;height:12px;border-radius:50%; cursor:move}
   .handle[data-dir="n"], .handle[data-dir="s"]{cursor:ns-resize}
   .handle[data-dir="e"], .handle[data-dir="w"]{cursor:ew-resize}
+  .handle[data-dir="nw"], .handle[data-dir="se"]{cursor:nwse-resize}
+  .handle[data-dir="ne"], .handle[data-dir="sw"]{cursor:nesw-resize}
   .pageFrame{position:absolute;border:2px dashed var(--accent5);pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.25) inset}
-  /* text editor overlay */
+
+  /* inline text editor */
   #textEditor{position:absolute;min-width:40px;min-height:20px;background:#000a;border:1px dashed var(--accent);color:var(--fg);padding:.2rem .3rem;outline:none;white-space:pre-wrap;pointer-events:auto;display:none}
+
   .badge{font-size:.8rem;background:#0005;border:1px solid var(--line);border-radius:.35rem;padding:.1rem .4rem}
-  .muted{color:var(--muted)}
   .note{font-size:.86rem;color:var(--muted)}
   .hr{height:1px;background:var(--line);margin:.25rem 0 .45rem}
+
   dialog{border:1px solid var(--line);background:#111827;color:var(--fg);border-radius:.6rem;max-width:min(680px,90vw);padding:1rem}
-  /* error toast */
   #err{position:fixed;right:.75rem;bottom:.75rem;max-width:60ch;padding:.6rem .8rem;background:#2b1a1a;color:#ffd2d2;border:1px solid #5c2b2b;border-radius:.5rem;font-size:.9rem;display:none;z-index:99999;box-shadow:0 8px 24px #0005}
 </style>
 </head>
@@ -92,7 +116,7 @@
 <div id="app">
   <!-- ===== TOPBAR ===== -->
   <div class="topbar">
-    <div class="brand">??? <span id="appName">phik</span> <span class="pill" id="versionPill">v0.8</span> <span class="pill" id="modePill">PANEL MODE</span></div>
+    <div class="brand"><span id="appName">phik</span> <span class="pill" id="versionPill">v0.8</span> <span class="pill" id="modePill">PANEL MODE</span></div>
 
     <div class="seg" id="modeSeg">
       <button class="btn" data-mode="panel" type="button" title="Panel Mode">Panels</button>
@@ -110,23 +134,33 @@
 
     <div class="row">
       <div class="seg">
-        <button class="btn" id="btnUndo" type="button" title="Undo">? Undo</button>
-        <button class="btn" id="btnRedo" type="button" title="Redo">? Redo</button>
+        <button class="btn" id="btnUndo" type="button" title="Undo">Undo</button>
+        <button class="btn" id="btnRedo" type="button" title="Redo">Redo</button>
       </div>
-    </div>
-
-    <!-- Always-visible palette -->
-    <div class="row" id="paletteBar" title="Left-click to select, right-click to edit">
-      <span>Palette:</span>
-      <div id="palBubbles" class="row"></div>
-      <span class="badge" id="activeColorBadge">—</span>
+      <div class="seg">
+        <button class="btn" id="btnZoomOut" type="button">-</button>
+        <button class="btn" id="btnZoomFit" type="button">Fit</button>
+        <button class="btn" id="btnZoom100" type="button">100%</button>
+        <button class="btn" id="btnZoomIn" type="button">+</button>
+      </div>
+      <button class="btn" id="btnSettings" type="button">Settings</button>
     </div>
   </div>
 
   <!-- ===== MAIN ===== -->
   <div class="main">
-    <!-- TOOLS -->
-    <div class="panel tools" id="toolPanel"></div>
+    <!-- LEFT: TOOLS + mini color cluster -->
+    <div class="panel tools">
+      <div id="toolPanel" class="stack"></div>
+
+      <div class="colors">
+        <div class="bubbles" id="palBubbles"></div>
+        <div class="sf-mini">
+          <div id="swStroke" class="swatch" title="Stroke"></div>
+          <div id="swFill" class="swatch" title="Fill"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- CANVAS -->
     <div class="panel canvasWrap" id="canvasPanel">
@@ -135,7 +169,6 @@
       <div class="marquee hide" id="marquee"></div>
       <div class="pageFrame" id="pageFrame"></div>
       <div id="textEditor" contenteditable="true"></div>
-      <!-- handles get injected here -->
     </div>
 
     <!-- RIGHT SIDEBAR -->
@@ -182,10 +215,6 @@
           <button class="btn" id="btnDupPage" type="button">Duplicate Page</button>
           <button class="btn danger" id="btnDelPage" type="button">Delete Page</button>
         </div>
-        <div class="hr"></div>
-        <div class="row wrap">
-          <span class="note">Eraser uses transparent punch-through unless BG is set (then it erases to that color).</span>
-        </div>
       </div>
 
       <div class="section">
@@ -210,7 +239,7 @@
             <div class="stack"><label>Text</label><input type="text" id="textContent" placeholder="Edit text"></div>
             <div class="stack"><label>Size</label><input type="number" id="textSize" min="6" max="256" value="24"></div>
           </div>
-          <span class="note">Tip: click a text object to edit inline. Shift+Enter for a newline.</span>
+          <span class="note">Click a text object to edit inline. <b>Enter</b> makes a newline. <b>Ctrl+Enter</b> finishes.</span>
         </div>
         <div id="starControls" class="grid" style="margin-top:.5rem; display:none">
           <div class="stack"><label>Points</label><input id="uiStarPoints" type="number" min="3" max="24" value="5"/></div>
@@ -220,35 +249,8 @@
       </div>
 
       <div class="section">
-        <h3>Stroke & Fill</h3>
-        <div class="grid">
-          <div class="stack">
-            <label>Stroke</label>
-            <input type="color" id="strokeColor" value="#e8eaf0"/>
-          </div>
-          <div class="stack">
-            <label>Fill</label>
-            <input type="color" id="fillColor" value="#00000000"/>
-          </div>
-          <div class="stack">
-            <label>Width</label>
-            <input type="range" id="strokeWidth" min="1" max="32" value="2"/>
-          </div>
-          <div class="stack">
-            <label>Opacity</label>
-            <input type="range" id="opacityRange" min="10" max="100" value="100"/>
-          </div>
-        </div>
-        <div class="hr"></div>
-        <div class="row">
-          <span class="note">Active color:</span>
-          <span class="badge" id="activeColorSmall">#e8eaf0</span>
-        </div>
-        <div class="hr"></div>
-        <div class="row">
-          <span class="note">Layer:</span>
-          <div id="layerList" style="flex:1"></div>
-        </div>
+        <h3>Layers</h3>
+        <div id="layerList"></div>
       </div>
 
       <div class="section">
@@ -277,25 +279,13 @@
   <!-- ===== BOTTOM BAR ===== -->
   <div class="bottombar">
     <div class="seg">
-      <button class="btn" id="btnPrev" type="button">? Prev</button>
-      <button class="btn" id="btnNext" type="button">Next ?</button>
-    </div>
-    <div class="spacer"></div>
-    <div class="seg">
-      <button class="btn" id="btnZoomOut" type="button">?</button>
-      <button class="btn" id="btnZoomFit" type="button">Fit</button>
-      <button class="btn" id="btnZoom100" type="button">100%</button>
-      <button class="btn" id="btnZoomIn" type="button">+</button>
-    </div>
-    <div class="spacer"></div>
-    <div class="row">
-      <button class="btn" id="btnSettings" type="button">Settings</button>
-      <span class="note">Tip: mid-mouse = pan. In Hatch tool, mid-drag sets angle with a live guide.</span>
+      <button class="btn" id="btnPrev" type="button">Prev</button>
+      <button class="btn" id="btnNext" type="button">Next</button>
     </div>
   </div>
 </div>
 
-<!-- SETTINGS (with Theme + Hotkeys) -->
+<!-- SETTINGS -->
 <dialog id="dlgSettings">
   <form method="dialog">
     <h3>Settings</h3>
@@ -320,7 +310,7 @@
         <input id="hkUndo" type="text" placeholder="Ctrl+Z"/>
         <label>Redo</label>
         <input id="hkRedo" type="text" placeholder="Ctrl+Y / Ctrl+Shift+Z"/>
-        <label>Tools (press in box then hit a key)</label>
+        <label>Tools</label>
         <div class="grid">
           <input id="hkBrush" type="text" placeholder="Brush"/>
           <input id="hkErase" type="text" placeholder="Erase"/>
@@ -330,6 +320,8 @@
           <input id="hkStar"  type="text" placeholder="Star"/>
           <input id="hkSelect"type="text" placeholder="Select"/>
           <input id="hkHatch" type="text" placeholder="Hatch"/>
+          <input id="hkBucket"type="text" placeholder="Bucket"/>
+          <input id="hkCrop"  type="text" placeholder="Crop"/>
           <input id="hkText"  type="text" placeholder="Text"/>
         </div>
         <div class="hr"></div>
@@ -374,7 +366,7 @@
 
 <script>
 (() => {
-  /* ===== Helpers (safe bind + toast) ===== */
+  /* ===== Helpers ===== */
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
   const bind = (sel, ev, fn) => { const el = $(sel); if(!el){ console.warn('Missing', sel); return; } el.addEventListener(ev, fn); };
@@ -383,7 +375,6 @@
   window.addEventListener('error', e=> toast('Script error: '+(e.message||e.error)));
   window.addEventListener('unhandledrejection', e=> toast('Unhandled: '+(e.reason?.message||e.reason)));
 
-  /* ===== Utils ===== */
   const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const uid=()=>Math.random().toString(36).slice(2,9);
@@ -398,36 +389,35 @@
 
   /* ===== State ===== */
   const state = {
-    mode:'panel',   // 'panel'|'draw'
+    mode:'panel',
     project:null,
     pageIndex:0,
     layer:0,
     tool:'panel-select',
     mouse:{x:0,y:0,down:false,ox:0,oy:0,button:0},
-    camera:{x:0,y:0,scale:1},
+    camera:{x:0,y:0,scale:1,fit:true}, // fit flag -> auto-fit on resize/zoom
     selection:new Set(),
     marquee:null,
     tmpPath:[],
     draw:{hatchAngle:45,hatchGap:8, hatchGuide:null},
     draggingSel:false, dragStartPositions:new Map(),
     panning:false, panStart:{x:0,y:0,cx:0,cy:0},
-    resizing:null,      // {dir, startMouse, bbox0, items: Map(id,{...})}
+    resizing:null,
     stroke:'#e8eaf0', fill:'#00000000', strokeWidth:2, opacity:100,
     currentColor:'#e8eaf0',
     templates: LS.get(TEMPLATES_KEY, []),
     stamps: LS.get(STAMPS_KEY, []),
     palette: LS.get(PALETTE_KEY, ['#e8eaf0','#f7768e','#9ece6a','#e0af68','#7aa2f7','#7dcfff']),
     settings: Object.assign({
-      hotkeys:{ mode:'Tab', save:'Ctrl+S', undo:'Ctrl+Z', redo:'Ctrl+Y', brush:'B', erase:'E', line:'L', rect:'R', circle:'C', star:'S', select:'V', hatch:'H', text:'T' }
+      hotkeys:{ mode:'Tab', save:'Ctrl+S', undo:'Ctrl+Z', redo:'Ctrl+Y', brush:'B', erase:'E', line:'L', rect:'R', circle:'C', star:'S', select:'V', hatch:'H', bucket:'K', crop:'X', text:'T' }
     }, LS.get(SETTINGS_KEY, {})),
     theme: Object.assign({ accent1:'#7aa2f7', accent2:'#f7768e', accent3:'#9ece6a', accent4:'#e0af68', accent5:'#7dcfff' }, LS.get(THEME_KEY, {})),
     history:{stack:[], idx:-1, lock:false},
-    editingText:null // {id}
+    editingText:null
   };
 
-  /* ===== Project schema ===== */
+  /* ===== Project ===== */
   function normalizeLayers(layers){
-    // convert [0,1,2] -> [{id:0,name:'Layer 0',visible:true},...]
     if(Array.isArray(layers) && typeof layers[0]==='number'){
       return layers.map(id=>({id, name:`Layer ${id}`, visible:true}));
     }
@@ -451,12 +441,11 @@
   const allObjects = ()=> currPage().objects;
   const getById = id => allObjects().find(o=>o.id===id);
 
-  /* ===== History (Undo/Redo) ===== */
+  /* ===== History ===== */
   function snapshot(){ return JSON.stringify(state.project); }
-  function pushHistory(note=''){
-    if(state.history.lock) return; // avoid recursive push during undo/redo
+  function pushHistory(){
+    if(state.history.lock) return;
     const s=snapshot();
-    // ignore if same as last
     if(state.history.stack[state.history.idx]===s) return;
     state.history.stack = state.history.stack.slice(0,state.history.idx+1);
     state.history.stack.push(s);
@@ -464,8 +453,7 @@
   }
   function undo(){
     if(state.history.idx<=0) return;
-    state.history.lock=true;
-    state.history.idx--;
+    state.history.lock=true; state.history.idx--;
     state.project = JSON.parse(state.history.stack[state.history.idx]);
     state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null;
     refreshUIAfterProjectChange();
@@ -473,21 +461,22 @@
   }
   function redo(){
     if(state.history.idx>=state.history.stack.length-1) return;
-    state.history.lock=true;
-    state.history.idx++;
+    state.history.lock=true; state.history.idx++;
     state.project = JSON.parse(state.history.stack[state.history.idx]);
     state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null;
     refreshUIAfterProjectChange();
     state.history.lock=false;
   }
 
-  /* ===== Canvas & render ===== */
+  /* ===== Canvas ===== */
   const canvas=$('#canvas'), ctx=canvas.getContext('2d'), overlay=$('#overlay'), marqueeEl=$('#marquee'), canvasPanel=$('#canvasPanel'), pageFrame=$('#pageFrame'), textEditor=$('#textEditor');
+
   function resizeCanvas(){
     const rect=canvasPanel.getBoundingClientRect();
     canvas.width = Math.max(200, Math.floor(rect.width));
     canvas.height= Math.max(200, Math.floor(rect.height));
     overlay.style.width=canvas.width+'px'; overlay.style.height=canvas.height+'px';
+    if(state.camera.fit) fitPage(false);
     drawPageFrame();
   }
   function drawPageFrame(){
@@ -500,24 +489,16 @@
 
   function clearCanvas(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    // page background (just for preview inside page frame)
     const p=currPage();
     const a=worldToScreen(0,0), b=worldToScreen(p.w,p.h);
     if(!p.bgTransparent){
-      ctx.save();
-      ctx.fillStyle=p.bgColor||'#000000';
-      ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);
-      ctx.restore();
+      ctx.save(); ctx.fillStyle=p.bgColor||'#000000'; ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y); ctx.restore();
     }
-    // draw page border
-    ctx.save();
-    ctx.strokeStyle='rgba(255,255,255,.4)';
-    ctx.setLineDash([8,6]);
-    ctx.lineWidth=1;
-    ctx.strokeRect(a.x+0.5,a.y+0.5,(b.x-a.x)-1,(b.y-a.y)-1);
-    ctx.setLineDash([]);
-    ctx.restore();
+    ctx.save(); ctx.strokeStyle='rgba(255,255,255,.4)'; ctx.setLineDash([8,6]); ctx.lineWidth=1;
+    ctx.strokeRect(a.x+0.5,a.y+0.5,(b.x-a.x)-1,(b.y-a.y)-1); ctx.setLineDash([]); ctx.restore();
   }
+
+  function layerVisible(Lid){ const L = state.project.layers.find(l=>l.id===+Lid); return !L || L.visible!==false; }
 
   function drawObject(o){
     if(!layerVisible(o.layer)) return;
@@ -527,7 +508,7 @@
     ctx.save();
     ctx.globalAlpha = (o.opacity ?? 1);
 
-    // rotate about center (average center)
+    // rotate about center
     const px = sc.x + (o.w*s)/2, py = sc.y + (o.h*s)/2;
     ctx.translate(px, py);
     ctx.rotate((o.r||0)*Math.PI/180);
@@ -536,7 +517,6 @@
     if(o.type==='erase'){
       ctx.globalCompositeOperation='destination-out';
       ctx.lineWidth = Math.max(1, (o.strokeWidth||10)*s);
-      ctx.strokeStyle = '#000';
       if(o.points.length>=2){
         ctx.beginPath();
         ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s);
@@ -546,7 +526,6 @@
       ctx.restore(); return;
     }
 
-    // normal drawing
     ctx.lineWidth = Math.max(1, (o.strokeWidth||1)*s);
     ctx.strokeStyle = rgba(o.stroke||'#e8eaf0', 1);
     ctx.fillStyle   = rgba(o.fill||'#00000000', 1);
@@ -577,7 +556,6 @@
     }
     ctx.restore();
 
-    // selection box
     if(state.selection.has(o.id)){
       const p = worldToScreen(o.x,o.y);
       ctx.save(); ctx.setLineDash([6,6]); ctx.strokeStyle='#7aa2f7'; ctx.lineWidth=1;
@@ -597,27 +575,28 @@
   }
 
   function drawHandles(){
-    // remove old
     $$('#canvasPanel .handle').forEach(h=>h.remove());
     const bb=selectionBBox(); if(!bb) return;
-    const points=[
+    const pts=[
       {dir:'nw', x:bb.x,           y:bb.y},
-      {dir:'n',  x:bb.x+bb.w/2,    y:bb.y},
       {dir:'ne', x:bb.x+bb.w,      y:bb.y},
-      {dir:'w',  x:bb.x,           y:bb.y+bb.h/2},
-      {dir:'e',  x:bb.x+bb.w,      y:bb.y+bb.h/2},
       {dir:'sw', x:bb.x,           y:bb.y+bb.h},
-      {dir:'s',  x:bb.x+bb.w/2,    y:bb.y+bb.h},
       {dir:'se', x:bb.x+bb.w,      y:bb.y+bb.h},
+      {dir:'move',x:bb.x+bb.w/2,   y:bb.y+bb.h/2}
     ];
-    for(const p of points){
+    for(const p of pts){
       const sp=worldToScreen(p.x,p.y);
       const h=document.createElement('div'); h.className='handle'; h.dataset.dir=p.dir;
-      h.style.left=(sp.x-5)+'px'; h.style.top=(sp.y-5)+'px';
+      h.style.left=(sp.x-6)+'px'; h.style.top=(sp.y-6)+'px';
       canvasPanel.appendChild(h);
       h.addEventListener('mousedown', e=>{
         e.stopPropagation(); e.preventDefault();
-        startResize(p.dir);
+        if(p.dir==='move'){
+          state.draggingSel=true; state.dragStartPositions.clear();
+          for(const id of state.selection){ const o=getById(id); if(o) state.dragStartPositions.set(id,{x:o.x,y:o.y}); }
+        } else {
+          startResize(p.dir);
+        }
       });
     }
   }
@@ -628,20 +607,13 @@
     const objs = allObjects().slice().sort((a,b)=> a.layer-b.layer);
     for(const o of objs) drawObject(o);
 
-    // hatch angle guide line (middle-drag in Hatch)
     if(state.draw.hatchGuide){
       const s=worldToScreen(state.draw.hatchGuide.a.x, state.draw.hatchGuide.a.y);
       const e=worldToScreen(state.draw.hatchGuide.b.x, state.draw.hatchGuide.b.y);
-      ctx.save();
-      ctx.strokeStyle=rgba(state.currentColor,.9);
-      ctx.setLineDash([4,4]);
-      ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(e.x,e.y); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
+      ctx.save(); ctx.strokeStyle=rgba(state.currentColor,.9); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(e.x,e.y); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
     }
 
-    // marquee
     if(state.marquee){
       const m=state.marquee;
       marqueeEl.style.left = Math.min(m.x,m.x+m.w)+'px';
@@ -651,33 +623,25 @@
       marqueeEl.classList.remove('hide');
     } else marqueeEl.classList.add('hide');
 
-    // handles (only in select)
-    if(state.tool.endsWith('select') && state.selection.size){
-      drawHandles();
-    } else {
-      $$('#canvasPanel .handle').forEach(h=>h.remove());
-    }
+    if(state.tool.endsWith('select') && state.selection.size) drawHandles();
+    else $$('#canvasPanel .handle').forEach(h=>h.remove());
 
     drawPageFrame();
     requestAnimationFrame(render);
   }
 
-  /* ===== Hit / selection ===== */
+  /* ===== Hit / select ===== */
   const aabb = o => ({x:o.x,y:o.y,w:o.w,h:o.h});
   const pointInAABB=(px,py,bb)=> px>=bb.x && py>=bb.y && px<=bb.x+bb.w && py<=bb.y+bb.h;
   const rectsIntersect = (A,B)=> !(B.x>A.x+A.w || B.x+B.w<A.x || B.y>A.y+A.h || B.y+B.h<A.y);
 
-  function layerVisible(Lid){ const L = state.project.layers.find(l=>l.id===+Lid); return !L || L.visible!==false; }
-
   function hitTest(world, preferKind=state.mode){
-    // Top-most in current mode & visible layer
     const objects = allObjects().slice().reverse();
     for(const o of objects){
       if(o.kind!==preferKind) continue;
       if(!layerVisible(o.layer)) continue;
       if(pointInAABB(world.x,world.y,aabb(o))) return o;
     }
-    // fall back across modes
     for(const o of objects){
       if(!layerVisible(o.layer)) continue;
       if(pointInAABB(world.x,world.y,aabb(o))) return o;
@@ -696,8 +660,7 @@
     for(const o of allObjects()){
       if(o.kind!==state.mode) continue;
       if(!layerVisible(o.layer)) continue;
-      const bb=aabb(o);
-      if(rectsIntersect(bb, box)) state.selection.add(o.id);
+      if(rectsIntersect(aabb(o), box)) state.selection.add(o.id);
     }
   }
 
@@ -714,6 +677,8 @@
     {id:'draw-line',  label:'Line'},
     {id:'draw-rect',  label:'Rect'},
     {id:'draw-circle',label:'Circle'},
+    {id:'draw-bucket',label:'Bucket'},
+    {id:'draw-crop',  label:'Crop'},
     {id:'draw-text',  label:'Text'},
     {id:'draw-hatch', label:'Hatch'},
     {id:'draw-select',label:'Select'}
@@ -728,6 +693,7 @@
       b.addEventListener('click', ()=>{ state.tool=d.id; buildDynamicControls(); updateToolButtons(); });
       tpanel.appendChild(b);
     });
+    buildPaletteBar();
   }
   function updateToolButtons(){ $$('#toolPanel .tbtn').forEach(btn=> btn.classList.toggle('active', btn.textContent.trim().toLowerCase()===toolLabel(state.tool).toLowerCase())); }
   function setMode(mode){ state.mode=mode; $('#modePill').textContent = mode==='panel' ? 'PANEL MODE' : 'DRAW MODE'; $('#sidebarTitle').textContent = mode==='panel'? 'Panel Tools':'Draw Tools'; buildToolButtons(); buildDynamicControls(); state.selection.clear(); }
@@ -735,16 +701,15 @@
   function buildDynamicControls(){
     const wrap=$('#dynamicControls'); wrap.innerHTML='';
     const add=html=>wrap.insertAdjacentHTML('beforeend',html);
-
     if(state.mode==='panel'){
-      if(state.tool==='panel-rect'){ add(`<div class="stack"><label>Panel Rect</label><p class="note">Drag to create rectangles. Use Select to move/scale.</p></div>`); }
+      if(state.tool==='panel-rect'){ add(`<p class="note">Drag to create rectangles. Use Select to move/scale.</p>`); }
       if(state.tool==='panel-star'){ add(`<div class="grid">
         <div class="stack"><label>Points</label><input id="starPoints" type="number" value="5" min="3" max="24"/></div>
         <div class="stack"><label>Inner Radius</label><input id="starInner" type="number" value="40" min="5" /></div>
         <div class="stack"><label>Outer Radius</label><input id="starOuter" type="number" value="100" min="5" /></div>
       </div><p class="note">Click an existing star to edit; click-drag to place a new star (scales while dragging).</p>`); }
-      if(state.tool==='panel-line'){ add(`<p class="note">Drag to place a straight line. Hold Shift to snap angles.</p>`); }
-      if(state.tool==='panel-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (selects anything it touches). Drag inside to move; use handles to scale.</p>`); }
+      if(state.tool==='panel-line'){ add(`<p class="note">Click-drag to place an axis-locked line (horizontal/vertical).</p>`); }
+      if(state.tool==='panel-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (selects anything it touches). Drag inside to move; handles to scale.</p>`); }
     } else {
       if(state.tool==='draw-brush' || state.tool==='draw-erase'){
         add(`<div class="grid">
@@ -760,16 +725,25 @@
       }
       if(state.tool==='draw-hatch'){
         add(`<div class="grid">
-          <div class="stack"><label>Angle</label><input id="hatchAngle" type="range" min="-90" max="90" value="${state.draw.hatchAngle}"/></div>
+          <div class="stack"><label>Angle</label><input id="hatchAngle" type="range" min="-180" max="180" value="${state.draw.hatchAngle}"/></div>
           <div class="stack"><label>Gap</label><input id="hatchGap" type="range" min="4" max="32" value="${state.draw.hatchGap}"/></div>
-        </div><p class="note">Click-drag to shade. <strong>Middle-drag</strong> shows a guide and sets the hatch angle.</p>`);
+        </div><p class="note">Click-drag to shade. <b>Middle-drag</b> shows a guide and sets the hatch angle (exact to your stroke).</p>`);
       }
-      if(state.tool==='draw-line' || state.tool==='draw-rect' || state.tool==='draw-circle'){ add(`<p class="note">Drag to place ${toolLabel(state.tool)}. Hold Shift to constrain.</p>`); }
-      if(state.tool==='draw-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (touch). Drag inside to move; handles to scale.</p>`); }
+      if(['draw-line','draw-rect','draw-circle','draw-bucket','draw-crop'].includes(state.tool)){
+        const tips={
+          'draw-line':'Click-drag; line is previewed and axis-locked.',
+          'draw-rect':'Drag from corner.',
+          'draw-circle':'Drag from center.',
+          'draw-bucket':'Click a fill-capable shape to set its fill color.',
+          'draw-crop':'Drag a rectangle; drawings outside are removed, paths/lines get trimmed.'
+        };
+        add(`<p class="note">${tips[state.tool]}</p>`);
+      }
+      if(state.tool==='draw-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (touch). Drag inside to move; corner handles to scale; center handle to grab.</p>`); }
     }
   }
 
-  /* ===== Theme & Palette ===== */
+  /* ===== Theme & Palette on left ===== */
   function applyTheme(){
     const r=document.documentElement, t=state.theme;
     r.style.setProperty('--accent',t.accent1); r.style.setProperty('--accent2',t.accent2);
@@ -779,7 +753,7 @@
     const wrap=$('#palBubbles'); wrap.innerHTML='';
     state.palette.forEach((c,i)=>{
       const b=document.createElement('div'); b.className='bubble'+(c===state.currentColor?' active':''); b.style.background=c; b.title=`Color ${i+1}`;
-      b.addEventListener('click', ()=>{ state.currentColor=c; state.stroke=c; $('#activeColorBadge').textContent=c; $('#activeColorSmall').textContent=c; buildPaletteBar(); });
+      b.addEventListener('click', ()=>{ state.currentColor=c; state.stroke=c; updateMiniSwatches(); buildPaletteBar(); });
       b.addEventListener('contextmenu', ev=>{
         ev.preventDefault();
         const inp=document.createElement('input'); inp.type='color'; inp.value=c; inp.style.position='fixed'; inp.style.left='-9999px'; document.body.appendChild(inp);
@@ -789,42 +763,76 @@
       });
       wrap.appendChild(b);
     });
-    $('#activeColorBadge').textContent = state.currentColor;
-    $('#activeColorSmall').textContent = state.currentColor;
-    $('#strokeColor').value = state.currentColor;
+    updateMiniSwatches();
+  }
+  function updateMiniSwatches(){
+    $('#swStroke').style.background=state.stroke=state.currentColor;
+    $('#swFill').style.background=state.fill;
+    $('#swStroke').onclick=()=>{ const inp=document.createElement('input'); inp.type='color'; inp.value=state.stroke; inp.style.position='fixed'; inp.style.left='-9999px'; document.body.appendChild(inp);
+      inp.addEventListener('input', ()=>{ state.stroke=state.currentColor=inp.value; buildPaletteBar(); });
+      inp.addEventListener('change', ()=>document.body.removeChild(inp)); inp.click();
+    };
+    $('#swFill').onclick=()=>{ const inp=document.createElement('input'); inp.type='color'; inp.value=(state.fill==='#00000000')?'#000000':state.fill; inp.style.position='fixed'; inp.style.left='-9999px'; document.body.appendChild(inp);
+      inp.addEventListener('input', ()=>{ state.fill=inp.value; $('#swFill').style.background=state.fill; });
+      inp.addEventListener('change', ()=>document.body.removeChild(inp)); inp.click();
+    };
   }
 
-  /* ===== Layers UI ===== */
+  /* ===== Layers UI (+ thumbnails) ===== */
   function buildLayerList(){
     const list=$('#layerList'); list.innerHTML='';
     for(const L of state.project.layers){
       const row=document.createElement('div'); row.className='layerItem'+(state.layer===L.id?' active':''); row.dataset.id=L.id;
-      const eye=document.createElement('div'); eye.className='eye'; eye.textContent = (L.visible===false)?'??':'???';
+      const eye=document.createElement('div'); eye.className='eye'; eye.textContent = (L.visible===false)?'--':'O';
       const name=document.createElement('input'); name.type='text'; name.value=L.name||`Layer ${L.id}`;
-      row.appendChild(eye); row.appendChild(name);
+      const thumb=document.createElement('canvas'); thumb.width=96; thumb.height=68; thumb.className='thumb';
+      row.appendChild(eye); row.appendChild(thumb); row.appendChild(name);
       list.appendChild(row);
+      drawLayerThumb(thumb, L.id);
       eye.addEventListener('click', e=>{ e.stopPropagation(); L.visible = !(L.visible!==false); buildLayerList(); });
       name.addEventListener('input', ()=>{ L.name=name.value; });
       row.addEventListener('click', ()=>{ state.layer=L.id; buildLayerList(); });
+      // prevent middle-click autoscroll here too
+      row.addEventListener('mousedown', e=>{ if(e.button===1){ e.preventDefault(); }});
+      row.addEventListener('auxclick', e=>{ if(e.button===1){ e.preventDefault(); }});
     }
   }
-  function layerIdsVisible(){ return new Set(state.project.layers.filter(l=>l.visible!==false).map(l=>l.id)); }
+  function drawLayerThumb(cv, lid){
+    const tctx=cv.getContext('2d');
+    tctx.clearRect(0,0,cv.width,cv.height);
+    const p=currPage();
+    const s=Math.min((cv.width-6)/p.w, (cv.height-6)/p.h);
+    const ox=(cv.width - p.w*s)/2, oy=(cv.height - p.h*s)/2;
+    tctx.fillStyle='#000'; tctx.fillRect(0,0,cv.width,cv.height);
+    if(!p.bgTransparent){ tctx.fillStyle=p.bgColor; tctx.fillRect(ox,oy,p.w*s,p.h*s); }
+    const objs=allObjects().filter(o=>o.layer===lid);
+    const drawObj=(o)=>{
+      tctx.save();
+      tctx.globalAlpha=o.opacity??1;
+      tctx.translate(ox+(o.x+o.w/2)*s, oy+(o.y+o.h/2)*s); tctx.rotate((o.r||0)*Math.PI/180); tctx.translate(-(o.w/2)*s, -(o.h/2)*s);
+      tctx.lineWidth=Math.max(1,(o.strokeWidth||1)*s); tctx.strokeStyle=o.stroke||'#e8eaf0'; tctx.fillStyle=o.fill||'#0000';
+      if(o.type==='rect'||o.type==='panel-rect'){ tctx.beginPath(); tctx.rect(0,0,o.w*s,o.h*s); if((o.fill??'')!=='#00000000') tctx.fill(); tctx.stroke(); }
+      else if(o.type==='circle'){ tctx.beginPath(); tctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') tctx.fill(); tctx.stroke(); }
+      else if(o.type==='line' && o.points?.length>=2){ tctx.beginPath(); tctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); tctx.lineTo((o.points[1].x-o.x)*s,(o.points[1].y-o.y)*s); tctx.stroke(); }
+      else if((o.type==='path'||o.type==='star') && o.points?.length>=2){ tctx.beginPath(); tctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){ const p=o.points[k]; tctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} if(o.type==='star'||o.meta?.closed){ tctx.closePath(); if((o.fill??'')!=='#00000000') tctx.fill(); } tctx.stroke(); }
+      tctx.restore();
+    };
+    objs.forEach(drawObj);
+    tctx.strokeStyle='#3a455f'; tctx.strokeRect(0.5,0.5,cv.width-1,cv.height-1);
+  }
 
   /* ===== Library ===== */
   function buildLibrary(){
     const P=$('#libPanels'); const S=$('#libStamps'); P.innerHTML=''; S.innerHTML='';
-    const mk=(arr,wrap)=> arr.length? arr.map((t,i)=>{ const r=document.createElement('div'); r.className='row'; const b=document.createElement('button'); b.className='btn small'; b.textContent='Place'; const lbl=document.createElement('span'); lbl.className='note'; lbl.textContent=t.name; r.appendChild(b); r.appendChild(lbl); wrap.appendChild(r); b.addEventListener('click', ()=> placeTemplate(t.items)); }): (wrap.innerHTML='<span class="note">Empty — save some!</span>');
+    const mk=(arr,wrap)=> arr.length? arr.map((t)=>{ const r=document.createElement('div'); r.className='row'; const b=document.createElement('button'); b.className='btn small'; b.textContent='Place'; const lbl=document.createElement('span'); lbl.className='note'; lbl.textContent=t.name; r.appendChild(b); r.appendChild(lbl); wrap.appendChild(r); b.addEventListener('click', ()=> placeTemplate(t.items)); }): (wrap.innerHTML='<span class="note">Empty — save some!</span>');
     mk(state.templates, P); mk(state.stamps, S);
   }
   function placeTemplate(items){
-    const placed = items.map(o=>{
-      const n=deepClone(o); n.id=uid(); currPage().objects.push(n); return n.id;
-    });
-    state.selection=new Set(placed);
-    pushHistory('place template');
+    const placed = items.map(o=>{ const n=deepClone(o); n.id=uid(); currPage().objects.push(n); return n.id; });
+    state.selection=new Set(placed); pushHistory();
   }
 
-  /* ===== Page/meta ===== */
+  /* ===== Dynamic bits ===== */
   function refreshTopMeta(){
     set('#projName','textContent', state.project?.title || '—');
     set('#pageInfo','textContent', (state.pageIndex+1)+' / '+(state.project?.pages.length||0));
@@ -832,11 +840,10 @@
     $('#pageBg').value=currPage().bgColor||'#000000';
     $('#pageBgTransparent').value = currPage().bgTransparent?'true':'false';
     $('#pageNote').value = currPage().note||'';
-    buildLayerList();
-    buildLibrary();
+    buildLayerList(); buildLibrary();
   }
 
-  /* ===== Resize / Scale ===== */
+  /* ===== Resizing / scaling selection ===== */
   function startResize(dir){
     const bb=selectionBBox(); if(!bb) return;
     const items=new Map();
@@ -847,19 +854,14 @@
     state.resizing={dir, bbox0:bb, items};
   }
   function applyResize(world){
-    const R=state.resizing; if(!R) return;
-    const bb0=R.bbox0;
+    const R=state.resizing; if(!R) return; const bb0=R.bbox0;
     const anchors={
       'nw':{ax:bb0.x+bb0.w, ay:bb0.y+bb0.h},
-      'n': {ax:bb0.x+bb0.w/2, ay:bb0.y+bb0.h},
       'ne':{ax:bb0.x, ay:bb0.y+bb0.h},
-      'w': {ax:bb0.x+bb0.w, ay:bb0.y+bb0.h/2},
-      'e': {ax:bb0.x, ay:bb0.y+bb0.h/2},
       'sw':{ax:bb0.x+bb0.w, ay:bb0.y},
-      's': {ax:bb0.x+bb0.w/2, ay:bb0.y},
       'se':{ax:bb0.x, ay:bb0.y}
     };
-    const {ax,ay}=anchors[R.dir];
+    const {ax,ay}=anchors[R.dir]||anchors.se;
     const nx=Math.min(ax,world.x), ny=Math.min(ay,world.y);
     const nw=Math.abs(world.x-ax), nh=Math.abs(world.y-ay);
     const sx = (nw||0.0001)/bb0.w, sy=(nh||0.0001)/bb0.h;
@@ -867,8 +869,7 @@
     for(const [id,base] of R.items){
       const o=getById(id); if(!o) continue;
       const relx = (base.x - bb0.x); const rely = (base.y - bb0.y);
-      o.x = nx + relx*sx;
-      o.y = ny + rely*sy;
+      o.x = nx + relx*sx; o.y = ny + rely*sy;
       o.w = base.w * sx; o.h = base.h * sy;
       if(base.points?.length){
         o.points = base.points.map(p=>({ x: nx + (p.x - bb0.x)*sx, y: ny + (p.y - bb0.y)*sy }));
@@ -876,32 +877,63 @@
     }
   }
 
+  /* ===== Zoom / Fit ===== */
+  function setZoom(scale, px=canvas.width/2, py=canvas.height/2){
+    const before=screenToWorld(px,py);
+    state.camera.scale = clamp(scale, 0.1, 6);
+    const after=screenToWorld(px,py);
+    state.camera.x += (before.x-after.x);
+    state.camera.y += (before.y-after.y);
+    state.camera.fit=false;
+  }
+  function fitPage(setFlag=true){
+    const p=currPage(), pad=40;
+    const sx=(canvas.width-pad)/p.w, sy=(canvas.height-pad)/p.h;
+    const s=clamp(Math.min(sx,sy),0.1,6);
+    const prev=state.camera.scale;
+    state.camera.scale=s;
+    const tl=worldToScreen(0,0), br=worldToScreen(p.w,p.h);
+    const dx=((canvas.width - (br.x - tl.x))/2) - tl.x;
+    const dy=((canvas.height - (br.y - tl.y))/2) - tl.y;
+    state.camera.x -= dx/state.camera.scale;
+    state.camera.y -= dy/state.camera.scale;
+    if(setFlag) state.camera.fit=true;
+    if(prev!==s) drawPageFrame();
+  }
+
   /* ===== Events ===== */
-  // Settings + hotkeys UI
+  // prevent OS auto-scroll on middle button
+  const preventMMB = el => {
+    el.addEventListener('mousedown', e=>{ if(e.button===1){ e.preventDefault(); }});
+    el.addEventListener('auxclick', e=>{ if(e.button===1){ e.preventDefault(); }});
+  };
+  preventMMB(canvasPanel);
+  preventMMB($('#layerList'));
+
+  // Settings dialog
   bind('#btnSettings','click', ()=>{
     const HK=state.settings.hotkeys, t=state.theme;
     $('#hkMode').value=HK.mode; $('#hkSave').value=HK.save; $('#hkUndo').value=HK.undo; $('#hkRedo').value=HK.redo;
-    $('#hkBrush').value=HK.brush; $('#hkErase').value=HK.erase; $('#hkLine').value=HK.line; $('#hkRect').value=HK.rect; $('#hkCircle').value=HK.circle; $('#hkStar').value=HK.star; $('#hkSelect').value=HK.select; $('#hkHatch').value=HK.hatch; $('#hkText').value=HK.text;
+    $('#hkBrush').value=HK.brush; $('#hkErase').value=HK.erase; $('#hkLine').value=HK.line; $('#hkRect').value=HK.rect; $('#hkCircle').value=HK.circle; $('#hkStar').value=HK.star; $('#hkSelect').value=HK.select; $('#hkHatch').value=HK.hatch; $('#hkBucket').value=HK.bucket; $('#hkCrop').value=HK.crop; $('#hkText').value=HK.text;
     $('#th1').value=t.accent1; $('#th2').value=t.accent2; $('#th3').value=t.accent3; $('#th4').value=t.accent4; $('#th5').value=t.accent5;
-    updateHotkeySummary();
-    $('#dlgSettings').showModal();
+    updateHotkeySummary(); $('#dlgSettings').showModal();
   });
   bind('#btnSettingsClose','click', ()=> $('#dlgSettings').close());
   const captureKeyIn = el => el.addEventListener('keydown', e=>{
     e.preventDefault(); const parts=[]; if(e.ctrlKey) parts.push('Ctrl'); if(e.altKey) parts.push('Alt'); if(e.shiftKey) parts.push('Shift');
     const key = e.key.length===1 ? e.key.toUpperCase() : e.key; if(!['Control','Alt','Shift'].includes(key)) parts.push(key); el.value=parts.join('+');
   });
-  ['#hkMode','#hkSave','#hkUndo','#hkRedo','#hkBrush','#hkErase','#hkLine','#hkRect','#hkCircle','#hkStar','#hkSelect','#hkHatch','#hkText'].forEach(sel=>{ const el=$(sel); el && captureKeyIn(el); });
+  ['#hkMode','#hkSave','#hkUndo','#hkRedo','#hkBrush','#hkErase','#hkLine','#hkRect','#hkCircle','#hkStar','#hkSelect','#hkHatch','#hkBucket','#hkCrop','#hkText'].forEach(sel=>{ const el=$(sel); el && captureKeyIn(el); });
   function updateHotkeySummary(){
     const HK=state.settings.hotkeys;
     $('#hkSummary').innerHTML = `Mode: <b>${HK.mode}</b> • Save: <b>${HK.save}</b> • Undo: <b>${HK.undo}</b> • Redo: <b>${HK.redo}</b><br>
-      Brush: <b>${HK.brush}</b> • Erase: <b>${HK.erase}</b> • Line: <b>${HK.line}</b> • Rect: <b>${HK.rect}</b> • Circle: <b>${HK.circle}</b> • Star: <b>${HK.star}</b> • Select: <b>${HK.select}</b> • Hatch: <b>${HK.hatch}</b> • Text: <b>${HK.text}</b>`;
+      Brush: <b>${HK.brush}</b> • Erase: <b>${HK.erase}</b> • Line: <b>${HK.line}</b> • Rect: <b>${HK.rect}</b> • Circle: <b>${HK.circle}</b> • Star: <b>${HK.star}</b> • Select: <b>${HK.select}</b> • Hatch: <b>${HK.hatch}</b> • Bucket: <b>${HK.bucket}</b> • Crop: <b>${HK.crop}</b> • Text: <b>${HK.text}</b>`;
   }
   bind('#btnSaveSettings','click', ()=>{
     const HK=state.settings.hotkeys, t=state.theme;
     Object.assign(HK, {
       mode:$('#hkMode').value||HK.mode, save:$('#hkSave').value||HK.save, undo:$('#hkUndo').value||HK.undo, redo:$('#hkRedo').value||HK.redo,
-      brush:$('#hkBrush').value||HK.brush, erase:$('#hkErase').value||HK.erase, line:$('#hkLine').value||HK.line, rect:$('#hkRect').value||HK.rect, circle:$('#hkCircle').value||HK.circle, star:$('#hkStar').value||HK.star, select:$('#hkSelect').value||HK.select, hatch:$('#hkHatch').value||HK.hatch, text:$('#hkText').value||HK.text
+      brush:$('#hkBrush').value||HK.brush, erase:$('#hkErase').value||HK.erase, line:$('#hkLine').value||HK.line, rect:$('#hkRect').value||HK.rect, circle:$('#hkCircle').value||HK.circle, star:$('#hkStar').value||HK.star, select:$('#hkSelect').value||HK.select, hatch:$('#hkHatch').value||HK.hatch, bucket:$('#hkBucket').value||HK.bucket, crop:$('#hkCrop').value||HK.crop, text:$('#hkText').value||HK.text
     });
     state.theme.accent1=$('#th1').value; state.theme.accent2=$('#th2').value; state.theme.accent3=$('#th3').value; state.theme.accent4=$('#th4').value; state.theme.accent5=$('#th5').value;
     LS.set(SETTINGS_KEY,state.settings); LS.set(THEME_KEY,state.theme); applyTheme(); $('#saveKbd').textContent=HK.save; updateHotkeySummary(); $('#dlgSettings').close();
@@ -913,14 +945,13 @@
   bind('#btnCreateProj','click', ()=>{
     const t=$('#newTitle').value.trim()||('phik-'+uid()); const w=+$('#newW').value||1024; const h=+$('#newH').value||576;
     state.project=newProject(t,w,h); state.pageIndex=0; state.layer=0; state.selection.clear();
-    refreshUIAfterProjectChange(); pushHistory('new');
-    $('#dlgNew').close();
+    refreshUIAfterProjectChange(); pushHistory(); $('#dlgNew').close();
   });
   bind('#btnLoad','click', ()=> $('#dlgLoad').showModal());
   bind('#btnLoadClose','click', ()=> $('#dlgLoad').close());
   bind('#btnDoLoad','click', async ()=>{
     const f=$('#loadFile').files[0]; if(!f) return alert('Pick a file');
-    try{ const proj=JSON.parse(await f.text()); if(!proj.pages) throw new Error('Invalid project file'); proj.layers=normalizeLayers(proj.layers); state.project=proj; state.pageIndex=0; state.layer=proj.layers[0]?.id??0; state.selection.clear(); refreshUIAfterProjectChange(); pushHistory('load'); $('#dlgLoad').close(); }catch(err){ alert('Failed to load project: '+err.message); }
+    try{ const proj=JSON.parse(await f.text()); if(!proj.pages) throw new Error('Invalid project file'); proj.layers=normalizeLayers(proj.layers); state.project=proj; state.pageIndex=0; state.layer=proj.layers[0]?.id??0; state.selection.clear(); refreshUIAfterProjectChange(); pushHistory(); $('#dlgLoad').close(); }catch(err){ alert('Failed to load project: '+err.message); }
   });
   bind('#btnSave','click', ()=>{ if(!state.project) return alert('No project'); downloadFile((state.project.title||'phik')+'.project.json', JSON.stringify(state.project,null,2)); });
   bind('#btnExport','click', ()=>{ if(!state.project) return alert('No project'); const html=makeExportHTML(state.project); downloadFile((state.project.title||'comic')+'.html', html); });
@@ -937,62 +968,33 @@
   // page controls
   bind('#btnNext','click', ()=>{ if(!state.project) return; state.pageIndex=(state.pageIndex+1)%state.project.pages.length; refreshUIAfterProjectChange(); });
   bind('#btnPrev','click', ()=>{ if(!state.project) return; state.pageIndex=(state.pageIndex-1+state.project.pages.length)%state.project.pages.length; refreshUIAfterProjectChange(); });
-  bind('#btnApplySize','click', ()=>{ const w=+$('#pageW').value||currPage().w; const h=+$('#pageH').value||currPage().h; currPage().w=w; currPage().h=h; resizeCanvas(); pushHistory('page size'); });
-  bind('#btnNewPage','click', ()=>{ const last=currPage(); state.project.pages.push(newPage(last.w,last.h)); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange(); pushHistory('new page'); });
-  bind('#btnDupPage','click', ()=>{ const cp=currPage(); const dup=deepClone(cp); dup.objects.forEach(o=>o.id=uid()); state.project.pages.push(dup); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange(); pushHistory('dup page'); });
-  bind('#btnDelPage','click', ()=>{ if(state.project.pages.length<=1) return alert('At least one page required.'); if(!confirm('Delete current page?')) return; state.project.pages.splice(state.pageIndex,1); state.pageIndex=Math.max(0,state.pageIndex-1); refreshUIAfterProjectChange(); pushHistory('del page'); });
+  bind('#btnApplySize','click', ()=>{ const w=+$('#pageW').value||currPage().w; const h=+$('#pageH').value||currPage().h; currPage().w=w; currPage().h=h; resizeCanvas(); pushHistory(); });
+  bind('#btnNewPage','click', ()=>{ const last=currPage(); state.project.pages.push(newPage(last.w,last.h)); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange(); pushHistory(); });
+  bind('#btnDupPage','click', ()=>{ const cp=currPage(); const dup=deepClone(cp); dup.objects.forEach(o=>o.id=uid()); state.project.pages.push(dup); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange(); pushHistory(); });
+  bind('#btnDelPage','click', ()=>{ if(state.project.pages.length<=1) return alert('At least one page required.'); if(!confirm('Delete current page?')) return; state.project.pages.splice(state.pageIndex,1); state.pageIndex=Math.max(0,state.pageIndex-1); refreshUIAfterProjectChange(); pushHistory(); });
   bind('#pageBg','input',  ()=>{ currPage().bgColor=$('#pageBg').value; });
   bind('#pageBgTransparent','change', ()=>{ currPage().bgTransparent = $('#pageBgTransparent').value==='true'; });
   bind('#pageNote','input', ()=>{ currPage().note=$('#pageNote').value; });
 
   // selection actions
-  bind('#btnDeleteSel','click', ()=>{ const ids=[...state.selection]; currPage().objects = currPage().objects.filter(o=>!ids.includes(o.id)); state.selection.clear(); pushHistory('delete'); });
-  bind('#btnCombineSel','click', ()=>{ if(state.selection.size<2) return; const items=[...state.selection].map(getById).filter(Boolean); const minx=Math.min(...items.map(o=>o.x)), miny=Math.min(...items.map(o=>o.y)); const maxx=Math.max(...items.map(o=>o.x+o.w)), maxy=Math.max(...items.map(o=>o.y+o.h)); const group=newObj('group',{x:minx,y:miny,w:maxx-minx,h:maxy-miny, meta:{children:items.map(i=>i.id)}}); currPage().objects.push(group); state.selection=new Set([group.id]); pushHistory('combine'); });
-  bind('#btnToLayer','click', ()=>{ if(!state.selection.size) return; const L=prompt('Send selection to which layer id?', state.layer); if(L===null) return; for(const id of state.selection){ const o=getById(id); if(o) o.layer=+L; } pushHistory('to layer'); });
+  bind('#btnDeleteSel','click', ()=>{ const ids=[...state.selection]; currPage().objects = currPage().objects.filter(o=>!ids.includes(o.id)); state.selection.clear(); pushHistory(); });
+  bind('#btnCombineSel','click', ()=>{ if(state.selection.size<2) return; const items=[...state.selection].map(getById).filter(Boolean); const minx=Math.min(...items.map(o=>o.x)), miny=Math.min(...items.map(o=>o.y)); const maxx=Math.max(...items.map(o=>o.x+o.w)), maxy=Math.max(...items.map(o=>o.y+o.h)); const group=newObj('group',{x:minx,y:miny,w:maxx-minx,h:maxy-miny, meta:{children:items.map(i=>i.id)}}); currPage().objects.push(group); state.selection=new Set([group.id]); pushHistory(); });
+  bind('#btnToLayer','click', ()=>{ if(!state.selection.size) return; const L=prompt('Send selection to which layer id?', state.layer); if(L===null) return; for(const id of state.selection){ const o=getById(id); if(o) o.layer=+L; } pushHistory(); });
   bind('#btnSaveAsPanel','click', ()=>{ const items=[...state.selection].map(getById).filter(Boolean).filter(o=>o.kind==='panel'); if(!items.length) return alert('Select panels first'); const name=prompt('Template name?','tpl-'+uid()); if(!name) return; state.templates.push({name,items:items.map(deepClone)}); LS.set(TEMPLATES_KEY,state.templates); buildLibrary(); alert('Saved to panel_templates'); });
   bind('#btnSaveAsStamp','click', ()=>{ const items=[...state.selection].map(getById).filter(Boolean); if(!items.length) return alert('Select items first'); const name=prompt('Stamp name?','stamp-'+uid()); if(!name) return; state.stamps.push({name,items:items.map(deepClone)}); LS.set(STAMPS_KEY,state.stamps); buildLibrary(); alert('Saved to stamps'); });
-  bind('#btnSelectAll','click', ()=>{ const vis=layerIdsVisible(); state.selection = new Set(allObjects().filter(o=>o.kind===state.mode && vis.has(o.layer)).map(o=>o.id)); });
+  bind('#btnSelectAll','click', ()=>{ const vis=new Set(state.project.layers.filter(l=>l.visible!==false).map(l=>l.id)); state.selection = new Set(allObjects().filter(o=>o.kind===state.mode && vis.has(o.layer)).map(o=>o.id)); });
   bind('#btnDeselect','click', ()=> state.selection.clear());
   bind('#rotRange','input', e=>{ for(const id of state.selection){ const o=getById(id); if(o) o.r=+e.target.value; } });
 
-  // stroke/fill/live color
-  bind('#strokeColor','input', e=>{ state.stroke = e.target.value; state.currentColor=e.target.value; buildPaletteBar(); });
-  bind('#fillColor','input',   e=> state.fill   = e.target.value);
-  bind('#strokeWidth','input', e=> state.strokeWidth = +e.target.value);
-  bind('#opacityRange','input',e=> state.opacity = +e.target.value);
-
-  // zoom
-  function setZoom(scale, px=canvas.width/2, py=canvas.height/2){
-    // zoom around screen point (px,py)
-    const before=screenToWorld(px,py);
-    state.camera.scale = clamp(scale, 0.1, 6);
-    const after=screenToWorld(px,py);
-    state.camera.x += (before.x-after.x);
-    state.camera.y += (before.y-after.y);
-  }
+  // zoom buttons
   bind('#btnZoomIn','click', ()=> setZoom(state.camera.scale*1.2));
   bind('#btnZoomOut','click', ()=> setZoom(state.camera.scale/1.2));
-  bind('#btnZoom100','click', ()=> setZoom(1));
-  bind('#btnZoomFit','click', ()=>{
-    const p=currPage(), pad=40;
-    const sx=(canvas.width-pad)/p.w, sy=(canvas.height-pad)/p.h;
-    const s=clamp(Math.min(sx,sy),0.1,6);
-    state.camera.scale=s;
-    // center page
-    const tl=worldToScreen(0,0), br=worldToScreen(p.w,p.h);
-    const dx=((canvas.width - (br.x - tl.x))/2) - tl.x;
-    const dy=((canvas.height - (br.y - tl.y))/2) - tl.y;
-    state.camera.x -= dx/state.camera.scale;
-    state.camera.y -= dy/state.camera.scale;
-  });
+  bind('#btnZoom100','click', ()=> { setZoom(1); });
+  bind('#btnZoomFit','click', ()=> fitPage(true));
 
-  // canvas interactions
-  function endInteractions(){
-    state.mouse.down=false; state.draggingSel=false; state.resizing=null; state.marquee=null; state.panning=false;
-    // commit history after interactions
-    pushHistory('edit');
-  }
-  window.addEventListener('mouseup', endInteractions); // ensures release anywhere ends actions
+  /* ===== Canvas interactions ===== */
+  function endInteractions(){ state.mouse.down=false; state.draggingSel=false; state.resizing=null; state.marquee=null; state.panning=false; pushHistory(); }
+  window.addEventListener('mouseup', endInteractions);
   canvas.addEventListener('mousedown', e=>{
     if(!state.project) return;
     const rect=canvas.getBoundingClientRect();
@@ -1000,7 +1002,7 @@
     state.mouse.x=e.clientX-rect.left; state.mouse.y=e.clientY-rect.top; state.mouse.ox=state.mouse.x; state.mouse.oy=state.mouse.y; state.mouse.down=true;
     const world=screenToWorld(state.mouse.x,state.mouse.y);
 
-    // middle button: pan (except hatch tool, where middle sets angle)
+    // middle: pan (stop autoscroll already prevented)
     if(e.button===1){
       if(!(state.tool==='draw-hatch')){
         state.panning=true; state.panStart={x:e.clientX,y:e.clientY,cx:state.camera.x,cy:state.camera.y}; return;
@@ -1009,21 +1011,23 @@
       }
     }
 
-    // inline text editor commit if open
     if(state.editingText){ commitTextEdit(); }
 
-    // handle resize grips
+    // handles
     if(state.tool.endsWith('select') && state.selection.size){
       const bb=selectionBBox();
       if(bb){
         const grips=[
-          {dir:'nw',x:bb.x,y:bb.y},{dir:'n',x:bb.x+bb.w/2,y:bb.y},{dir:'ne',x:bb.x+bb.w,y:bb.y},
-          {dir:'w',x:bb.x,y:bb.y+bb.h/2},{dir:'e',x:bb.x+bb.w,y:bb.y+bb.h/2},
-          {dir:'sw',x:bb.x,y:bb.y+bb.h},{dir:'s',x:bb.x+bb.w/2,y:bb.y+bb.h},{dir:'se',x:bb.x+bb.w,y:bb.y+bb.h},
+          {dir:'nw',x:bb.x,y:bb.y},{dir:'ne',x:bb.x+bb.w,y:bb.y},{dir:'sw',x:bb.x,y:bb.y+bb.h},{dir:'se',x:bb.x+bb.w,y:bb.y+bb.h},
+          {dir:'move',x:bb.x+bb.w/2,y:bb.y+bb.h/2}
         ];
         for(const g of grips){
           const sp=worldToScreen(g.x,g.y);
-          if(Math.abs(sp.x-state.mouse.x)<=8 && Math.abs(sp.y-state.mouse.y)<=8){ startResize(g.dir); return; }
+          if(Math.abs(sp.x-state.mouse.x)<=8 && Math.abs(sp.y-state.mouse.y)<=8){
+            if(g.dir==='move'){ state.draggingSel=true; state.dragStartPositions.clear(); for(const id of state.selection){ const o=getById(id); if(o) state.dragStartPositions.set(id,{x:o.x,y:o.y}); } }
+            else { startResize(g.dir); }
+            return;
+          }
         }
       }
     }
@@ -1031,48 +1035,32 @@
     if(state.mode==='panel'){
       if(state.tool==='panel-select'){
         const hit=hitTest(world,'panel');
-        if(hit){
-          // toggle selection (no Shift needed)
-          if(state.selection.has(hit.id)) state.selection.delete(hit.id); else state.selection.add(hit.id);
-          // start dragging if clicked inside selection but not handle
-          state.draggingSel=true; state.dragStartPositions.clear();
-          for(const id of state.selection){ const o=getById(id); if(o) state.dragStartPositions.set(id,{x:o.x,y:o.y}); }
-          // inline text?
-          maybeBeginTextEdit(hit, world);
-        } else {
-          // start marquee
-          state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0};
-          state.selection.clear();
-        }
+        if(hit){ if(state.selection.has(hit.id)) state.selection.delete(hit.id); else state.selection.add(hit.id);
+          state.draggingSel=true; state.dragStartPositions.clear(); for(const id of state.selection){ const o=getById(id); if(o) state.dragStartPositions.set(id,{x:o.x,y:o.y}); }
+          if(hit.type==='text'){ beginTextEdit(hit); }
+        } else { state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0}; state.selection.clear(); }
       }
       if(state.tool==='panel-rect'){
         const o=newObj('panel-rect',{x:world.x,y:world.y,w:1,h:1}); currPage().objects.push(o); state.selection=new Set([o.id]); state.drawing={id:o.id,start:world};
       }
-      if(state.tool==='panel-line'){ state.tmpPath=[world]; }
+      if(state.tool==='panel-line'){
+        const o=newObj('line',{x:world.x,y:world.y, points:[world,world], stroke:state.currentColor, kind:'panel'}); o.kind='panel'; currPage().objects.push(o); state.drawing={id:o.id,start:world};
+      }
       if(state.tool==='panel-star'){
         const hit=hitTest(world,'panel');
-        if(hit?.type==='star'){ // edit existing
-          state.selection=new Set([hit.id]);
-          showStarControls(hit);
-          // no drawing
-        } else {
-          // new star starts at click, scale while dragging
+        if(hit?.type==='star'){ state.selection=new Set([hit.id]); showStarControls(hit); }
+        else{
           const pts=+($('#starPoints')?.value||5), rin=+($('#starInner')?.value||10), rout=+($('#starOuter')?.value||10);
-          const star=buildStar(world.x,world.y,pts,rin,rout);
-          star.kind='panel'; star.meta={cx:world.x,cy:world.y,points:pts,inner:rin,outer:rout};
-          currPage().objects.push(star);
-          state.selection=new Set([star.id]);
-          state.drawing={starId:star.id, center:{x:world.x,y:world.y}};
-          showStarControls(star);
+          const star=buildStar(world.x,world.y,pts,rin,rout); star.kind='panel'; currPage().objects.push(star);
+          state.selection=new Set([star.id]); state.drawing={starId:star.id, center:{x:world.x,y:world.y}}; showStarControls(star);
         }
       }
     } else {
       if(state.tool==='draw-select'){
         const hit=hitTest(world,'draw');
-        if(hit){
-          if(state.selection.has(hit.id)) state.selection.delete(hit.id); else state.selection.add(hit.id);
+        if(hit){ if(state.selection.has(hit.id)) state.selection.delete(hit.id); else state.selection.add(hit.id);
           state.draggingSel=true; state.dragStartPositions.clear(); for(const id of state.selection){ const o=getById(id); if(o) state.dragStartPositions.set(id,{x:o.x,y:o.y}); }
-          maybeBeginTextEdit(hit, world);
+          if(hit.type==='text'){ beginTextEdit(hit); }
         } else { state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0}; state.selection.clear(); }
       }
       if(state.tool==='draw-brush' || state.tool==='draw-erase'){
@@ -1087,17 +1075,20 @@
         const o=newObj('rect',{x:world.x,y:world.y,w:1,h:1, stroke:state.currentColor, fill:state.fill}); currPage().objects.push(o); state.drawing={id:o.id,start:world};
       }
       if(state.tool==='draw-circle'){
-        const o=newObj('circle',{x:world.x,y:world.y,w:1,h:1, stroke:state.currentColor, fill:state.fill}); currPage().objects.push(o); state.drawing={id:o.id,start:world};
+        const o=newObj('circle',{x:world.x,y:world.y,w:2,h:2, stroke:state.currentColor, fill:state.fill, meta:{center:{x:world.x,y:world.y}}}); currPage().objects.push(o); state.drawing={id:o.id,center:world};
       }
+      if(state.tool==='draw-bucket'){
+        const hit=hitTest(world,'draw');
+        if(hit && ['rect','circle','star','path','panel-rect'].includes(hit.type)){
+          hit.fill = state.currentColor; pushHistory();
+        }
+      }
+      if(state.tool==='draw-crop'){ state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0, crop:true}; }
       if(state.tool==='draw-text'){
         const txt=($('#toolTextContent')?.value||'Text'); const size=+($('#toolTextSize')?.value||24);
-        const o=newObj('text',{x:world.x,y:world.y,w:1,h:size, stroke:state.currentColor, meta:{text:txt,size:size,family:'sans-serif'}}); currPage().objects.push(o); state.selection=new Set([o.id]);
-        // open inline editor right away
-        beginTextEdit(o);
+        const o=newObj('text',{x:world.x,y:world.y,w:1,h:size, stroke:state.currentColor, meta:{text:txt,size:size,family:'sans-serif'}}); currPage().objects.push(o); state.selection=new Set([o.id]); beginTextEdit(o);
       }
-      if(state.tool==='draw-hatch'){
-        state.drawing={hatchStart:world};
-      }
+      if(state.tool==='draw-hatch'){ state.drawing={hatchStart:world}; }
     }
   });
 
@@ -1108,7 +1099,6 @@
     const world=screenToWorld(state.mouse.x,state.mouse.y);
     if(!state.mouse.down) return;
 
-    // panning
     if(state.panning){
       const dx=(e.clientX-state.panStart.x)/state.camera.scale;
       const dy=(e.clientY-state.panStart.y)/state.camera.scale;
@@ -1116,13 +1106,7 @@
       state.camera.y = state.panStart.cy - dy;
       return;
     }
-    // hatch angle middle guide
-    if(state.draw.hatchGuide){
-      state.draw.hatchGuide.b=world;
-      return;
-    }
-
-    // resizing
+    if(state.draw.hatchGuide){ state.draw.hatchGuide.b=world; return; }
     if(state.resizing){ applyResize(world); return; }
 
     if(state.mode==='panel'){
@@ -1137,19 +1121,22 @@
       if(state.tool==='panel-rect' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
         o.w = (world.x - state.drawing.start.x); o.h=(world.y - state.drawing.start.y);
-        if(e.shiftKey){ const s=Math.max(Math.abs(o.w),Math.abs(o.h)); o.w=Math.sign(o.w)*s; o.h=Math.sign(o.h)*s; }
       }
-      if(state.tool==='panel-line' && state.tmpPath.length){
-        const last=state.tmpPath[state.tmpPath.length-1]; if(dist(last,world)>0.5) state.tmpPath.push(world);
+      if(state.tool==='panel-line' && state.drawing){
+        const o=getById(state.drawing.id); if(!o) return;
+        let dx=world.x - state.drawing.start.x, dy=world.y - state.drawing.start.y;
+        if(Math.abs(dx)>=Math.abs(dy)){ dy=0; } else { dx=0; }
+        o.points[1]={x: state.drawing.start.x + dx, y: state.drawing.start.y + dy};
+        o.x=Math.min(o.points[0].x,o.points[1].x);
+        o.y=Math.min(o.points[0].y,o.points[1].y);
+        o.w=Math.abs(o.points[1].x-o.points[0].x);
+        o.h=Math.abs(o.points[1].y-o.points[0].y);
       }
       if(state.tool==='panel-star' && state.drawing?.starId){
         const st=getById(state.drawing.starId); if(!st) return;
         const c=state.drawing.center;
-        const rout=Math.hypot(world.x-c.x, world.y-c.y);
-        const rin=rout*0.5;
-        st.meta.outer=rout; st.meta.inner=rin;
-        st.points = starPointsFromMeta(st.meta);
-        // update bounding box
+        const rout=Math.hypot(world.x-c.x, world.y-c.y); const rin=rout*0.5;
+        st.meta.outer=rout; st.meta.inner=rin; st.points = starPointsFromMeta(st.meta);
         const minx=Math.min(...st.points.map(p=>p.x)), miny=Math.min(...st.points.map(p=>p.y));
         const maxx=Math.max(...st.points.map(p=>p.x)), maxy=Math.max(...st.points.map(p=>p.y));
         st.x=minx; st.y=miny; st.w=maxx-minx; st.h=maxy-miny;
@@ -1169,23 +1156,24 @@
       }
       if(state.tool==='draw-line' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
-        o.points[1]=world;
-        if(e.shiftKey){
-          const dx=world.x - state.drawing.start.x, dy=world.y - state.drawing.start.y;
-          const ang=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*(Math.PI/4);
-          const len=Math.hypot(dx,dy);
-          o.points[1]={x: state.drawing.start.x + Math.cos(ang)*len, y: state.drawing.start.y + Math.sin(ang)*len};
-        }
+        let dx=world.x - state.drawing.start.x, dy=world.y - state.drawing.start.y;
+        if(Math.abs(dx)>=Math.abs(dy)){ dy=0; } else { dx=0; }
+        o.points[1]={x: state.drawing.start.x + dx, y: state.drawing.start.y + dy};
         o.x=Math.min(o.points[0].x,o.points[1].x);
         o.y=Math.min(o.points[0].y,o.points[1].y);
         o.w=Math.abs(o.points[1].x-o.points[0].x);
         o.h=Math.abs(o.points[1].y-o.points[0].y);
       }
-      if((state.tool==='draw-rect' || state.tool==='draw-circle') && state.drawing){
+      if(state.tool==='draw-rect' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
         o.w=(world.x - state.drawing.start.x); o.h=(world.y - state.drawing.start.y);
-        if(e.shiftKey){ const s=Math.max(Math.abs(o.w),Math.abs(o.h)); o.w=Math.sign(o.w)*s; o.h=Math.sign(o.h)*s; }
       }
+      if(state.tool==='draw-circle' && state.drawing){
+        const o=getById(state.drawing.id); if(!o) return;
+        const c=o.meta.center; const r=Math.hypot(world.x-c.x, world.y-c.y);
+        o.x=c.x-r; o.y=c.y-r; o.w=r*2; o.h=r*2;
+      }
+      if(state.tool==='draw-crop' && state.marquee){ state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; }
     }
   });
 
@@ -1195,23 +1183,19 @@
     if(state.draw.hatchGuide){
       const a=state.draw.hatchGuide.a, b=state.draw.hatchGuide.b;
       const angRad=Math.atan2(b.y-a.y, b.x-a.x);
-      state.draw.hatchAngle = Math.round(angRad*180/Math.PI);
+      state.draw.hatchAngle = Math.round((angRad*180/Math.PI)*100)/100; // exact angle
       const inp=$('#hatchAngle'); if(inp) inp.value=state.draw.hatchAngle;
       state.draw.hatchGuide=null;
     }
 
     if(state.mode==='panel'){
-      if(state.tool==='panel-line' && state.tmpPath.length>=2){
-        const a=state.tmpPath[0], b=state.tmpPath[state.tmpPath.length-1];
-        const o=newObj('path',{x:Math.min(a.x,b.x), y:Math.min(a.y,b.y), stroke:state.stroke, fill:'#00000000', points: state.tmpPath.slice(), meta:{closed:false}, kind:'panel'});
-        o.kind='panel'; currPage().objects.push(o); state.tmpPath=[];
-      }
       if(state.tool==='panel-rect' && state.drawing){
         const o=getById(state.drawing.id); if(o){ if(o.w<0){o.x+=o.w;o.w*=-1;} if(o.h<0){o.y+=o.h;o.h*=-1;} } state.drawing=null;
       }
-      if(state.tool==='panel-star' && state.drawing?.starId){
+      if(state.tool==='panel-line' && state.drawing){
         state.drawing=null;
       }
+      if(state.tool==='panel-star' && state.drawing?.starId){ state.drawing=null; }
     } else {
       if(state.tool==='draw-hatch' && state.drawing?.hatchStart){
         const s=state.drawing.hatchStart, e2=screenToWorld(state.mouse.x,state.mouse.y);
@@ -1227,12 +1211,38 @@
         }
         state.drawing=null;
       }
+      if(state.tool==='draw-crop' && state.marquee){
+        // crop draw objects
+        const xm=Math.min(state.marquee.x,state.marquee.x+state.marquee.w);
+        const ym=Math.min(state.marquee.y,state.marquee.y+state.marquee.h);
+        const wm=Math.abs(state.marquee.w), hm=Math.abs(state.marquee.h);
+        const tl=screenToWorld(xm,ym), br=screenToWorld(xm+wm,ym+hm);
+        const box={x:tl.x,y:tl.y,w:br.x-tl.x,h:br.y-tl.y};
+        const inside=(o)=> rectsIntersect(aabb(o), box);
+        // remove objects totally outside; trim lines/paths to box
+        currPage().objects = currPage().objects.filter(o=>{
+          if(o.kind!=='draw') return true;
+          const inter=inside(o);
+          if(!inter) return false;
+          if((o.type==='line' || o.type==='path') && o.points?.length){
+            o.points = o.points.map(p=>({
+              x: clamp(p.x, box.x, box.x+box.w),
+              y: clamp(p.y, box.y, box.y+box.h)
+            }));
+            // recompute bbox
+            const minx=Math.min(...o.points.map(p=>p.x)), miny=Math.min(...o.points.map(p=>p.y));
+            const maxx=Math.max(...o.points.map(p=>p.x)), maxy=Math.max(...o.points.map(p=>p.y));
+            o.x=minx; o.y=miny; o.w=maxx-minx; o.h=maxy-miny;
+          }
+          return true;
+        });
+        state.marquee=null;
+      }
       if(state.drawing && state.tool.startsWith('draw-')){
         const o=getById(state.drawing.id); if(o){ if(o.w<0){o.x+=o.w;o.w*=-1;} if(o.h<0){o.y+=o.h;o.h*=-1;} }
         state.drawing=null;
       }
     }
-    // text controls toggle
     const onlyText = state.selection.size===1 && getById([...state.selection][0])?.type==='text';
     $('#textControls').style.display = onlyText ? 'flex':'none';
     if(onlyText){
@@ -1254,30 +1264,6 @@
     }
   });
 
-  // text edit via sidebar
-  bind('#textContent','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.text=e.target.value; });
-  bind('#textSize','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.size=+e.target.value; o.h=o.meta.size; });
-
-  // hotkeys
-  const keyString = e => { const parts=[]; if(e.ctrlKey) parts.push('Ctrl'); if(e.altKey) parts.push('Alt'); if(e.shiftKey) parts.push('Shift'); const key=e.key.length===1?e.key.toUpperCase():e.key; if(!['Control','Alt','Shift'].includes(key)) parts.push(key); return parts.join('+'); };
-  addEventListener('keydown', e=>{
-    if(document.querySelector('dialog[open]')) return;
-    const K=keyString(e), HK=state.settings.hotkeys;
-    if(K===HK.mode){ e.preventDefault(); setMode(state.mode==='panel'?'draw':'panel'); return; }
-    if(K===HK.save){ e.preventDefault(); $('#btnSave').click(); return; }
-    if(K===HK.undo){ e.preventDefault(); undo(); return; }
-    if(K===HK.redo || (K==='Ctrl+Shift+Z')){ e.preventDefault(); redo(); return; }
-    if(K===HK.brush){ setMode('draw'); state.tool='draw-brush'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.erase){ setMode('draw'); state.tool='draw-erase'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.line){ state.tool= state.mode==='panel'?'panel-line':'draw-line'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.rect){ state.tool= state.mode==='panel'?'panel-rect':'draw-rect'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.circle){ setMode('draw'); state.tool='draw-circle'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.star){ setMode('panel'); state.tool='panel-star'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.select){ state.tool= state.mode==='panel'?'panel-select':'draw-select'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.hatch){ setMode('draw'); state.tool='draw-hatch'; buildDynamicControls(); updateToolButtons(); }
-    if(K===HK.text){ setMode('draw'); state.tool='draw-text'; buildDynamicControls(); updateToolButtons(); }
-  });
-
   /* ===== Text inline editing ===== */
   function beginTextEdit(o){
     const s=worldToScreen(o.x,o.y);
@@ -1294,15 +1280,13 @@
     const o=getById(state.editingText.id); if(o){ o.meta.text=textEditor.textContent; o.h=o.meta.size||24; }
     textEditor.style.display='none'; textEditor.textContent='';
     state.editingText=null;
-    pushHistory('text edit');
+    pushHistory();
   }
   textEditor.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); commitTextEdit(); }
+    if(e.key==='Enter' && e.ctrlKey){ e.preventDefault(); commitTextEdit(); }
   });
   textEditor.addEventListener('blur', commitTextEdit);
-  function maybeBeginTextEdit(hit, world){
-    if(hit?.type==='text'){ beginTextEdit(hit); }
-  }
+  function maybeBeginTextEdit(hit){ if(hit?.type==='text'){ beginTextEdit(hit); } }
 
   /* ===== Stars ===== */
   function buildStar(cx,cy, points, innerR, outerR){
@@ -1335,7 +1319,7 @@
     });
   });
 
-  /* ===== Export Viewer ===== */
+  /* ===== Export ===== */
   function makeExportHTML(project){
     const JSON_DATA=JSON.stringify(project);
     return `<!doctype html>
@@ -1350,13 +1334,12 @@
   .badge{background:#0b0f1a;border:1px solid #1a2235;border-radius:.35rem;padding:.2rem .5rem}
 </style></head><body>
 <div id="wrap"><canvas id="c"></canvas></div>
-<div class="bar"><button class="btn" id="prev">? Prev</button><span class="badge" id="info"></span><button class="btn" id="next">Next ?</button></div>
+<div class="bar"><button class="btn" id="prev">Prev</button><span class="badge" id="info"></span><button class="btn" id="next">Next</button></div>
 <script>
   const project=${JSON_DATA}; let i=0;
   const c=document.getElementById('c'), ctx=c.getContext('2d'), info=document.getElementById('info');
   function drawObj(o,s){
     ctx.save(); ctx.globalAlpha=o.opacity??1;
-    // rotate about center
     ctx.translate((o.x+o.w/2)*s,(o.y+o.h/2)*s); ctx.rotate((o.r||0)*Math.PI/180); ctx.translate(-(o.w/2)*s, -(o.h/2)*s);
     if(o.type==='erase'){ ctx.globalCompositeOperation='destination-out'; ctx.lineWidth=Math.max(1,(o.strokeWidth||10)*s);
       if(o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){const p=o.points[k]; ctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} ctx.stroke(); }
@@ -1388,7 +1371,7 @@
 
   /* ===== Helpers after project change ===== */
   function refreshUIAfterProjectChange(){
-    refreshTopMeta(); resizeCanvas(); $('#btnZoomFit').click(); // fit on page change
+    refreshTopMeta(); resizeCanvas(); fitPage(true);
   }
 
   /* ===== Init ===== */
@@ -1397,9 +1380,9 @@
     state.project=newProject('phik',1024,576);
     setMode('panel'); buildToolButtons(); buildDynamicControls();
     refreshUIAfterProjectChange(); render();
-    buildPaletteBar();
+    updateMiniSwatches();
     $('#saveKbd').textContent=state.settings.hotkeys.save;
-    pushHistory('init');
+    pushHistory();
   }
   addEventListener('resize', resizeCanvas);
   init();
