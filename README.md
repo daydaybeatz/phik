@@ -2,7 +2,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>phik v0.8 — Comic & Storyboard Builder</title>
+<title>phik v0.81 — Comic & Storyboard Builder</title>
 <style>
   :root{
     --bg:#0f1116; --fg:#e8eaf0; --muted:#9aa3b2;
@@ -68,7 +68,7 @@
     width:100%; background:#0006;color:var(--fg);border:1px solid var(--line);
     border-radius:.35rem;padding:.4rem .5rem;
   }
-  textarea{min-height:140px;resize:vertical} /* taller notes */
+  textarea{min-height:140px;resize:vertical}
   input[type="range"]{width:100%}
   input[type="color"]{width:100%; height:2rem; padding:0; border:1px solid var(--line); background:#0000}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
@@ -82,13 +82,11 @@
   .thumb{width:48px;height:34px;border:1px solid var(--line);border-radius:.25rem;background:#000;flex:0 0 auto}
   .layerItem input[type="text"]{flex:1;min-width:0;background:#0006;border:1px solid #0000}
 
-  /* bottom bar */
   .bottombar{display:flex;gap:.5rem;align-items:center;padding:.5rem;background:linear-gradient(0deg,var(--panel),var(--panel-2)); border-top:1px solid var(--line)}
-  /* floating UI toggle */
   #uiToggle{position:fixed;top:.5rem;left:.5rem;z-index:9999;background:var(--accent3);color:#0b1020;border:none;border-radius:999px; width:34px;height:34px;cursor:pointer;font-weight:900}
   .ui-hidden .topbar,.ui-hidden .main,.ui-hidden .bottombar{display:none!important}
 
-  /* marquee + handles + page frame */
+  /* marquee + handles + page frame + crop mask */
   .marquee{position:absolute;border:1px dashed var(--accent);background:rgba(122,162,247,.08);pointer-events:none}
   .handle{position:absolute;width:10px;height:10px;border:2px solid #000a;background:#fff;box-shadow:0 0 0 1px #0003;pointer-events:auto}
   .handle[data-dir="move"]{width:12px;height:12px;border-radius:50%; cursor:move}
@@ -97,6 +95,7 @@
   .handle[data-dir="nw"], .handle[data-dir="se"]{cursor:nwse-resize}
   .handle[data-dir="ne"], .handle[data-dir="sw"]{cursor:nesw-resize}
   .pageFrame{position:absolute;border:2px dashed var(--accent5);pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.25) inset}
+  .cropMask{position:absolute;border:2px dashed var(--accent2);pointer-events:none;background:rgba(247,118,142,.08)}
 
   /* inline text editor */
   #textEditor{position:absolute;min-width:40px;min-height:20px;background:#000a;border:1px dashed var(--accent);color:var(--fg);padding:.2rem .3rem;outline:none;white-space:pre-wrap;pointer-events:auto;display:none}
@@ -104,7 +103,6 @@
   .badge{font-size:.8rem;background:#0005;border:1px solid var(--line);border-radius:.35rem;padding:.1rem .4rem}
   .note{font-size:.86rem;color:var(--muted)}
   .hr{height:1px;background:var(--line);margin:.25rem 0 .45rem}
-
   dialog{border:1px solid var(--line);background:#111827;color:var(--fg);border-radius:.6rem;max-width:min(680px,90vw);padding:1rem}
   #err{position:fixed;right:.75rem;bottom:.75rem;max-width:60ch;padding:.6rem .8rem;background:#2b1a1a;color:#ffd2d2;border:1px solid #5c2b2b;border-radius:.5rem;font-size:.9rem;display:none;z-index:99999;box-shadow:0 8px 24px #0005}
 </style>
@@ -116,7 +114,7 @@
 <div id="app">
   <!-- ===== TOPBAR ===== -->
   <div class="topbar">
-    <div class="brand"><span id="appName">phik</span> <span class="pill" id="versionPill">v0.8</span> <span class="pill" id="modePill">PANEL MODE</span></div>
+    <div class="brand"><span id="appName">phik</span> <span class="pill" id="versionPill">v0.81</span> <span class="pill" id="modePill">PANEL MODE</span></div>
 
     <div class="seg" id="modeSeg">
       <button class="btn" data-mode="panel" type="button" title="Panel Mode">Panels</button>
@@ -168,6 +166,7 @@
       <div class="overlay" id="overlay"></div>
       <div class="marquee hide" id="marquee"></div>
       <div class="pageFrame" id="pageFrame"></div>
+      <div class="cropMask hide" id="cropMask"></div>
       <div id="textEditor" contenteditable="true"></div>
     </div>
 
@@ -234,13 +233,25 @@
           <label>Rotation</label>
           <input type="range" id="rotRange" min="-180" max="180" value="0"/>
         </div>
+
+        <!-- text controls -->
         <div id="textControls" class="stack" style="margin-top:.5rem; display:none">
           <div class="grid">
             <div class="stack"><label>Text</label><input type="text" id="textContent" placeholder="Edit text"></div>
             <div class="stack"><label>Size</label><input type="number" id="textSize" min="6" max="256" value="24"></div>
           </div>
-          <span class="note">Click a text object to edit inline. <b>Enter</b> makes a newline. <b>Ctrl+Enter</b> finishes.</span>
+          <div class="grid">
+            <div class="stack"><label>Text Color</label><input type="color" id="textFill" value="#e8eaf0"></div>
+            <div class="stack"><label>Outline Color</label><input type="color" id="textOutlineColor" value="#000000"></div>
+          </div>
+          <div class="grid">
+            <div class="stack"><label>Outline?</label><select id="textOutline"><option value="off">Off</option><option value="on">On</option></select></div>
+            <div class="stack"><label>Outline Width</label><input type="number" id="textOutlineWidth" value="2" min="1" max="16"></div>
+          </div>
+          <span class="note">Click a text object to edit inline. <b>Enter</b> inserts a newline. <b>Ctrl+Enter</b> finishes.</span>
         </div>
+
+        <!-- star controls -->
         <div id="starControls" class="grid" style="margin-top:.5rem; display:none">
           <div class="stack"><label>Points</label><input id="uiStarPoints" type="number" min="3" max="24" value="5"/></div>
           <div class="stack"><label>Inner R</label><input id="uiStarInner" type="number" min="5" value="40"/></div>
@@ -388,6 +399,7 @@
   const TEMPLATES_KEY='PHIK_PANEL_TEMPLATES', STAMPS_KEY='PHIK_STAMPS', SETTINGS_KEY='PHIK_SETTINGS', THEME_KEY='PHIK_THEME', PALETTE_KEY='PHIK_PALETTE';
 
   /* ===== State ===== */
+  const defaultsHK = { mode:'Tab', save:'Ctrl+S', undo:'Ctrl+Z', redo:'Ctrl+Y', brush:'B', erase:'E', line:'L', rect:'R', circle:'C', star:'S', select:'V', hatch:'H', bucket:'K', crop:'X', text:'T' };
   const state = {
     mode:'panel',
     project:null,
@@ -395,11 +407,12 @@
     layer:0,
     tool:'panel-select',
     mouse:{x:0,y:0,down:false,ox:0,oy:0,button:0},
-    camera:{x:0,y:0,scale:1,fit:true}, // fit flag -> auto-fit on resize/zoom
+    camera:{x:0,y:0,scale:1,fit:true},
     selection:new Set(),
     marquee:null,
     tmpPath:[],
-    draw:{hatchAngle:45,hatchGap:8, hatchGuide:null},
+    draw:{hatchAngle:45,hatchGap:8, hatchGuide:null, hatchPreview:null},
+    bucketBox:null,
     draggingSel:false, dragStartPositions:new Map(),
     panning:false, panStart:{x:0,y:0,cx:0,cy:0},
     resizing:null,
@@ -408,12 +421,11 @@
     templates: LS.get(TEMPLATES_KEY, []),
     stamps: LS.get(STAMPS_KEY, []),
     palette: LS.get(PALETTE_KEY, ['#e8eaf0','#f7768e','#9ece6a','#e0af68','#7aa2f7','#7dcfff']),
-    settings: Object.assign({
-      hotkeys:{ mode:'Tab', save:'Ctrl+S', undo:'Ctrl+Z', redo:'Ctrl+Y', brush:'B', erase:'E', line:'L', rect:'R', circle:'C', star:'S', select:'V', hatch:'H', bucket:'K', crop:'X', text:'T' }
-    }, LS.get(SETTINGS_KEY, {})),
+    settings: (()=>{ const s=LS.get(SETTINGS_KEY, {}); if(!s.hotkeys) s.hotkeys=deepClone(defaultsHK); return s; })(),
     theme: Object.assign({ accent1:'#7aa2f7', accent2:'#f7768e', accent3:'#9ece6a', accent4:'#e0af68', accent5:'#7dcfff' }, LS.get(THEME_KEY, {})),
     history:{stack:[], idx:-1, lock:false},
-    editingText:null
+    editingText:null,
+    cropMask:null // first step rectangle in world space
   };
 
   /* ===== Project ===== */
@@ -443,33 +455,12 @@
 
   /* ===== History ===== */
   function snapshot(){ return JSON.stringify(state.project); }
-  function pushHistory(){
-    if(state.history.lock) return;
-    const s=snapshot();
-    if(state.history.stack[state.history.idx]===s) return;
-    state.history.stack = state.history.stack.slice(0,state.history.idx+1);
-    state.history.stack.push(s);
-    state.history.idx++;
-  }
-  function undo(){
-    if(state.history.idx<=0) return;
-    state.history.lock=true; state.history.idx--;
-    state.project = JSON.parse(state.history.stack[state.history.idx]);
-    state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null;
-    refreshUIAfterProjectChange();
-    state.history.lock=false;
-  }
-  function redo(){
-    if(state.history.idx>=state.history.stack.length-1) return;
-    state.history.lock=true; state.history.idx++;
-    state.project = JSON.parse(state.history.stack[state.history.idx]);
-    state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null;
-    refreshUIAfterProjectChange();
-    state.history.lock=false;
-  }
+  function pushHistory(){ if(state.history.lock) return; const s=snapshot(); if(state.history.stack[state.history.idx]===s) return; state.history.stack = state.history.stack.slice(0,state.history.idx+1); state.history.stack.push(s); state.history.idx++; }
+  function undo(){ if(state.history.idx<=0) return; state.history.lock=true; state.history.idx--; state.project = JSON.parse(state.history.stack[state.history.idx]); state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null; refreshUIAfterProjectChange(); state.history.lock=false; }
+  function redo(){ if(state.history.idx>=state.history.stack.length-1) return; state.history.lock=true; state.history.idx++; state.project = JSON.parse(state.history.stack[state.history.idx]); state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null; refreshUIAfterProjectChange(); state.history.lock=false; }
 
   /* ===== Canvas ===== */
-  const canvas=$('#canvas'), ctx=canvas.getContext('2d'), overlay=$('#overlay'), marqueeEl=$('#marquee'), canvasPanel=$('#canvasPanel'), pageFrame=$('#pageFrame'), textEditor=$('#textEditor');
+  const canvas=$('#canvas'), ctx=canvas.getContext('2d'), overlay=$('#overlay'), marqueeEl=$('#marquee'), canvasPanel=$('#canvasPanel'), pageFrame=$('#pageFrame'), textEditor=$('#textEditor'), cropMaskEl=$('#cropMask');
 
   function resizeCanvas(){
     const rect=canvasPanel.getBoundingClientRect();
@@ -477,12 +468,21 @@
     canvas.height= Math.max(200, Math.floor(rect.height));
     overlay.style.width=canvas.width+'px'; overlay.style.height=canvas.height+'px';
     if(state.camera.fit) fitPage(false);
-    drawPageFrame();
+    drawPageFrame(); drawCropMask();
   }
   function drawPageFrame(){
     const p=currPage(); const tl=worldToScreen(0,0), br=worldToScreen(p.w,p.h);
     const x=Math.round(tl.x), y=Math.round(tl.y), w=Math.round(br.x-tl.x), h=Math.round(br.y-tl.y);
     pageFrame.style.left=x+'px'; pageFrame.style.top=y+'px'; pageFrame.style.width=w+'px'; pageFrame.style.height=h+'px';
+  }
+  function drawCropMask(){
+    const m=state.cropMask; if(!m){ cropMaskEl.classList.add('hide'); return; }
+    const a=worldToScreen(m.x,m.y), b=worldToScreen(m.x+m.w, m.y+m.h);
+    cropMaskEl.style.left=Math.min(a.x,b.x)+'px';
+    cropMaskEl.style.top=Math.min(a.y,b.y)+'px';
+    cropMaskEl.style.width=Math.abs(b.x-a.x)+'px';
+    cropMaskEl.style.height=Math.abs(b.y-a.y)+'px';
+    cropMaskEl.classList.remove('hide');
   }
   const screenToWorld=(x,y)=>({x:x/state.camera.scale+state.camera.x, y:y/state.camera.scale+state.camera.y});
   const worldToScreen=(x,y)=>({x:(x-state.camera.x)*state.camera.scale, y:(y-state.camera.y)*state.camera.scale});
@@ -510,21 +510,7 @@
 
     // rotate about center
     const px = sc.x + (o.w*s)/2, py = sc.y + (o.h*s)/2;
-    ctx.translate(px, py);
-    ctx.rotate((o.r||0)*Math.PI/180);
-    ctx.translate(-(o.w*s)/2, -(o.h*s)/2);
-
-    if(o.type==='erase'){
-      ctx.globalCompositeOperation='destination-out';
-      ctx.lineWidth = Math.max(1, (o.strokeWidth||10)*s);
-      if(o.points.length>=2){
-        ctx.beginPath();
-        ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s);
-        for(let i=1;i<o.points.length;i++){ const p=o.points[i]; ctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s); }
-        ctx.stroke();
-      }
-      ctx.restore(); return;
-    }
+    ctx.translate(px, py); ctx.rotate((o.r||0)*Math.PI/180); ctx.translate(-(o.w*s)/2, -(o.h*s)/2);
 
     ctx.lineWidth = Math.max(1, (o.strokeWidth||1)*s);
     ctx.strokeStyle = rgba(o.stroke||'#e8eaf0', 1);
@@ -548,10 +534,18 @@
       case 'group':
         ctx.setLineDash([6,6]); ctx.strokeRect(0,0,o.w*s,o.h*s); ctx.setLineDash([]); break;
       case 'text':
-        ctx.fillStyle = o.stroke || state.currentColor;
+        const fillCol = o.meta.fill || o.stroke || '#e8eaf0';
+        const outlineOn = !!o.meta.outline;
+        const outlineCol = o.meta.outlineColor || '#000';
+        const outlineW = o.meta.outlineWidth || 2;
         ctx.font = `${o.meta.size||24}px ${o.meta.family||'sans-serif'}`;
         ctx.textBaseline='top';
-        (o.meta.text||'Text').split('\n').forEach((line,i)=> ctx.fillText(line, 0, i*(o.meta.size||24)));
+        ctx.fillStyle = fillCol;
+        const lines=(o.meta.text||'Text').split('\n');
+        lines.forEach((line,i)=>{
+          if(outlineOn){ ctx.lineWidth = Math.max(1, outlineW*s); ctx.strokeStyle=outlineCol; ctx.strokeText(line, 0, i*(o.meta.size||24)); }
+          ctx.fillText(line, 0, i*(o.meta.size||24));
+        });
         break;
     }
     ctx.restore();
@@ -607,6 +601,23 @@
     const objs = allObjects().slice().sort((a,b)=> a.layer-b.layer);
     for(const o of objs) drawObject(o);
 
+    // hatch preview (during paint drag)
+    if(state.draw.hatchPreview){
+      const {minx,miny,maxx,maxy}=state.draw.hatchPreview;
+      const gap=+($('#hatchGap')?.value||state.draw.hatchGap);
+      const ang=(+($('#hatchAngle')?.value||state.draw.hatchAngle))*Math.PI/180;
+      const diag=Math.hypot(maxx-minx,maxy-miny);
+      ctx.save(); ctx.strokeStyle=rgba(state.currentColor,.7); ctx.lineWidth=1; ctx.setLineDash([6,6]);
+      for(let d=-diag; d<diag; d+=gap){
+        const x1=minx + d*Math.cos(ang), y1=miny + d*Math.sin(ang);
+        const x2=x1 + (maxx-minx)*Math.sin(ang+Math.PI/2), y2=y1 - (maxx-minx)*Math.cos(ang+Math.PI/2);
+        const s1=worldToScreen(x1,y1), s2=worldToScreen(x2,y2);
+        ctx.beginPath(); ctx.moveTo(s1.x,s1.y); ctx.lineTo(s2.x,s2.y); ctx.stroke();
+      }
+      ctx.setLineDash([]); ctx.restore();
+    }
+
+    // hatch angle guide
     if(state.draw.hatchGuide){
       const s=worldToScreen(state.draw.hatchGuide.a.x, state.draw.hatchGuide.a.y);
       const e=worldToScreen(state.draw.hatchGuide.b.x, state.draw.hatchGuide.b.y);
@@ -614,6 +625,7 @@
       ctx.beginPath(); ctx.moveTo(s.x,s.y); ctx.lineTo(e.x,e.y); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
     }
 
+    // marquee
     if(state.marquee){
       const m=state.marquee;
       marqueeEl.style.left = Math.min(m.x,m.x+m.w)+'px';
@@ -626,7 +638,7 @@
     if(state.tool.endsWith('select') && state.selection.size) drawHandles();
     else $$('#canvasPanel .handle').forEach(h=>h.remove());
 
-    drawPageFrame();
+    drawPageFrame(); drawCropMask();
     requestAnimationFrame(render);
   }
 
@@ -635,14 +647,11 @@
   const pointInAABB=(px,py,bb)=> px>=bb.x && py>=bb.y && px<=bb.x+bb.w && py<=bb.y+bb.h;
   const rectsIntersect = (A,B)=> !(B.x>A.x+A.w || B.x+B.w<A.x || B.y>A.y+A.h || B.y+B.h<A.y);
 
-  function hitTest(world, preferKind=state.mode){
+  // Strict-by-mode hit test
+  function hitTest(world, kind=state.mode){
     const objects = allObjects().slice().reverse();
     for(const o of objects){
-      if(o.kind!==preferKind) continue;
-      if(!layerVisible(o.layer)) continue;
-      if(pointInAABB(world.x,world.y,aabb(o))) return o;
-    }
-    for(const o of objects){
+      if(o.kind!==kind) continue;
       if(!layerVisible(o.layer)) continue;
       if(pointInAABB(world.x,world.y,aabb(o))) return o;
     }
@@ -708,34 +717,33 @@
         <div class="stack"><label>Inner Radius</label><input id="starInner" type="number" value="40" min="5" /></div>
         <div class="stack"><label>Outer Radius</label><input id="starOuter" type="number" value="100" min="5" /></div>
       </div><p class="note">Click an existing star to edit; click-drag to place a new star (scales while dragging).</p>`); }
-      if(state.tool==='panel-line'){ add(`<p class="note">Click-drag to place an axis-locked line (horizontal/vertical).</p>`); }
+      if(state.tool==='panel-line'){ add(`<p class="note">Click-drag to place a line. Hold Shift to lock to 0°/90°.</p>`); }
       if(state.tool==='panel-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (selects anything it touches). Drag inside to move; handles to scale.</p>`); }
     } else {
-      if(state.tool==='draw-brush' || state.tool==='draw-erase'){
-        add(`<div class="grid">
+      if(state.tool==='draw-brush'){ add(`<div class="grid">
           <div class="stack"><label>Size</label><input id="sizeBrush" type="range" min="1" max="64" value="${state.strokeWidth}"/></div>
           <div class="stack"><label>Round/Rect</label><select id="brushShape"><option>round</option><option>square</option></select></div>
-        </div><p class="note">${state.tool==='draw-erase'?'Punches holes to transparency/BG.':'Freehand pen.'}</p>`);
-      }
+        </div><p class="note">Freehand pen.</p>`); }
       if(state.tool==='draw-text'){
         add(`<div class="grid">
           <div class="stack"><label>Text</label><input id="toolTextContent" type="text" value="Text"></div>
           <div class="stack"><label>Size</label><input id="toolTextSize" type="number" min="6" max="256" value="24"></div>
-        </div><p class="note">Click canvas to place text, then click it to edit inline.</p>`);
+        </div><p class="note">Click canvas to place text; click a text while in Text tool to select/edit it.</p>`);
       }
       if(state.tool==='draw-hatch'){
         add(`<div class="grid">
           <div class="stack"><label>Angle</label><input id="hatchAngle" type="range" min="-180" max="180" value="${state.draw.hatchAngle}"/></div>
           <div class="stack"><label>Gap</label><input id="hatchGap" type="range" min="4" max="32" value="${state.draw.hatchGap}"/></div>
-        </div><p class="note">Click-drag to shade. <b>Middle-drag</b> shows a guide and sets the hatch angle (exact to your stroke).</p>`);
+        </div><p class="note">Drag to preview hatch. <b>Middle-drag</b> shows a guide and sets the angle.</p>`);
       }
-      if(['draw-line','draw-rect','draw-circle','draw-bucket','draw-crop'].includes(state.tool)){
+      if(['draw-line','draw-rect','draw-circle','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
         const tips={
-          'draw-line':'Click-drag; line is previewed and axis-locked.',
+          'draw-line':'Click-drag; free angle. Hold Shift to lock to 0°/90°.',
           'draw-rect':'Drag from corner.',
           'draw-circle':'Drag from center.',
-          'draw-bucket':'Click a fill-capable shape to set its fill color.',
-          'draw-crop':'Drag a rectangle; drawings outside are removed, paths/lines get trimmed.'
+          'draw-bucket':'Click one; or drag a box to recolor everything it touches.',
+          'draw-crop':'First mark region of interest. Crop again to trim to second box and delete the outer ring.',
+          'draw-erase':'Click deletes one; or drag a box to delete all it touches.'
         };
         add(`<p class="note">${tips[state.tool]}</p>`);
       }
@@ -743,7 +751,7 @@
     }
   }
 
-  /* ===== Theme & Palette on left ===== */
+  /* ===== Theme & Palette ===== */
   function applyTheme(){
     const r=document.documentElement, t=state.theme;
     r.style.setProperty('--accent',t.accent1); r.style.setProperty('--accent2',t.accent2);
@@ -778,7 +786,7 @@
     };
   }
 
-  /* ===== Layers UI (+ thumbnails) ===== */
+  /* ===== Layers UI ===== */
   function buildLayerList(){
     const list=$('#layerList'); list.innerHTML='';
     for(const L of state.project.layers){
@@ -792,7 +800,6 @@
       eye.addEventListener('click', e=>{ e.stopPropagation(); L.visible = !(L.visible!==false); buildLayerList(); });
       name.addEventListener('input', ()=>{ L.name=name.value; });
       row.addEventListener('click', ()=>{ state.layer=L.id; buildLayerList(); });
-      // prevent middle-click autoscroll here too
       row.addEventListener('mousedown', e=>{ if(e.button===1){ e.preventDefault(); }});
       row.addEventListener('auxclick', e=>{ if(e.button===1){ e.preventDefault(); }});
     }
@@ -815,6 +822,7 @@
       else if(o.type==='circle'){ tctx.beginPath(); tctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') tctx.fill(); tctx.stroke(); }
       else if(o.type==='line' && o.points?.length>=2){ tctx.beginPath(); tctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); tctx.lineTo((o.points[1].x-o.x)*s,(o.points[1].y-o.y)*s); tctx.stroke(); }
       else if((o.type==='path'||o.type==='star') && o.points?.length>=2){ tctx.beginPath(); tctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){ const p=o.points[k]; tctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} if(o.type==='star'||o.meta?.closed){ tctx.closePath(); if((o.fill??'')!=='#00000000') tctx.fill(); } tctx.stroke(); }
+      else if(o.type==='text'){ tctx.font=`${o.meta?.size||24}px ${o.meta?.family||'sans-serif'}`; tctx.textBaseline='top'; tctx.fillStyle=o.meta?.fill||o.stroke||'#eaeaf2'; tctx.fillText((o.meta?.text||'T').slice(0,1),0,0); }
       tctx.restore();
     };
     objs.forEach(drawObj);
@@ -827,12 +835,9 @@
     const mk=(arr,wrap)=> arr.length? arr.map((t)=>{ const r=document.createElement('div'); r.className='row'; const b=document.createElement('button'); b.className='btn small'; b.textContent='Place'; const lbl=document.createElement('span'); lbl.className='note'; lbl.textContent=t.name; r.appendChild(b); r.appendChild(lbl); wrap.appendChild(r); b.addEventListener('click', ()=> placeTemplate(t.items)); }): (wrap.innerHTML='<span class="note">Empty — save some!</span>');
     mk(state.templates, P); mk(state.stamps, S);
   }
-  function placeTemplate(items){
-    const placed = items.map(o=>{ const n=deepClone(o); n.id=uid(); currPage().objects.push(n); return n.id; });
-    state.selection=new Set(placed); pushHistory();
-  }
+  function placeTemplate(items){ const placed = items.map(o=>{ const n=deepClone(o); n.id=uid(); currPage().objects.push(n); return n.id; }); state.selection=new Set(placed); pushHistory(); }
 
-  /* ===== Dynamic bits ===== */
+  /* ===== Meta/UI ===== */
   function refreshTopMeta(){
     set('#projName','textContent', state.project?.title || '—');
     set('#pageInfo','textContent', (state.pageIndex+1)+' / '+(state.project?.pages.length||0));
@@ -843,24 +848,16 @@
     buildLayerList(); buildLibrary();
   }
 
-  /* ===== Resizing / scaling selection ===== */
+  /* ===== Resizing ===== */
   function startResize(dir){
     const bb=selectionBBox(); if(!bb) return;
     const items=new Map();
-    for(const id of state.selection){
-      const o=getById(id); if(!o) continue;
-      items.set(id, deepClone(o));
-    }
+    for(const id of state.selection){ const o=getById(id); if(!o) continue; items.set(id, deepClone(o)); }
     state.resizing={dir, bbox0:bb, items};
   }
   function applyResize(world){
     const R=state.resizing; if(!R) return; const bb0=R.bbox0;
-    const anchors={
-      'nw':{ax:bb0.x+bb0.w, ay:bb0.y+bb0.h},
-      'ne':{ax:bb0.x, ay:bb0.y+bb0.h},
-      'sw':{ax:bb0.x+bb0.w, ay:bb0.y},
-      'se':{ax:bb0.x, ay:bb0.y}
-    };
+    const anchors={ 'nw':{ax:bb0.x+bb0.w, ay:bb0.y+bb0.h}, 'ne':{ax:bb0.x, ay:bb0.y+bb0.h}, 'sw':{ax:bb0.x+bb0.w, ay:bb0.y}, 'se':{ax:bb0.x, ay:bb0.y} };
     const {ax,ay}=anchors[R.dir]||anchors.se;
     const nx=Math.min(ax,world.x), ny=Math.min(ay,world.y);
     const nw=Math.abs(world.x-ax), nh=Math.abs(world.y-ay);
@@ -871,9 +868,7 @@
       const relx = (base.x - bb0.x); const rely = (base.y - bb0.y);
       o.x = nx + relx*sx; o.y = ny + rely*sy;
       o.w = base.w * sx; o.h = base.h * sy;
-      if(base.points?.length){
-        o.points = base.points.map(p=>({ x: nx + (p.x - bb0.x)*sx, y: ny + (p.y - bb0.y)*sy }));
-      }
+      if(base.points?.length){ o.points = base.points.map(p=>({ x: nx + (p.x - bb0.x)*sx, y: ny + (p.y - bb0.y)*sy })); }
     }
   }
 
@@ -890,7 +885,6 @@
     const p=currPage(), pad=40;
     const sx=(canvas.width-pad)/p.w, sy=(canvas.height-pad)/p.h;
     const s=clamp(Math.min(sx,sy),0.1,6);
-    const prev=state.camera.scale;
     state.camera.scale=s;
     const tl=worldToScreen(0,0), br=worldToScreen(p.w,p.h);
     const dx=((canvas.width - (br.x - tl.x))/2) - tl.x;
@@ -898,25 +892,21 @@
     state.camera.x -= dx/state.camera.scale;
     state.camera.y -= dy/state.camera.scale;
     if(setFlag) state.camera.fit=true;
-    if(prev!==s) drawPageFrame();
+    drawPageFrame();
   }
 
   /* ===== Events ===== */
-  // prevent OS auto-scroll on middle button
-  const preventMMB = el => {
-    el.addEventListener('mousedown', e=>{ if(e.button===1){ e.preventDefault(); }});
-    el.addEventListener('auxclick', e=>{ if(e.button===1){ e.preventDefault(); }});
-  };
-  preventMMB(canvasPanel);
-  preventMMB($('#layerList'));
+  const preventMMB = el => { el.addEventListener('mousedown', e=>{ if(e.button===1){ e.preventDefault(); }}); el.addEventListener('auxclick', e=>{ if(e.button===1){ e.preventDefault(); }}); };
+  preventMMB(canvasPanel); preventMMB($('#layerList'));
 
   // Settings dialog
   bind('#btnSettings','click', ()=>{
-    const HK=state.settings.hotkeys, t=state.theme;
-    $('#hkMode').value=HK.mode; $('#hkSave').value=HK.save; $('#hkUndo').value=HK.undo; $('#hkRedo').value=HK.redo;
-    $('#hkBrush').value=HK.brush; $('#hkErase').value=HK.erase; $('#hkLine').value=HK.line; $('#hkRect').value=HK.rect; $('#hkCircle').value=HK.circle; $('#hkStar').value=HK.star; $('#hkSelect').value=HK.select; $('#hkHatch').value=HK.hatch; $('#hkBucket').value=HK.bucket; $('#hkCrop').value=HK.crop; $('#hkText').value=HK.text;
+    const HK={...defaultsHK, ...(state.settings?.hotkeys||{})}, t=state.theme;
+    const ids=['hkMode','hkSave','hkUndo','hkRedo','hkBrush','hkErase','hkLine','hkRect','hkCircle','hkStar','hkSelect','hkHatch','hkBucket','hkCrop','hkText'];
+    const vals=[HK.mode,HK.save,HK.undo,HK.redo,HK.brush,HK.erase,HK.line,HK.rect,HK.circle,HK.star,HK.select,HK.hatch,HK.bucket,HK.crop,HK.text];
+    ids.forEach((id,i)=>{ const el=$('#'+id); if(el) el.value=vals[i]; });
     $('#th1').value=t.accent1; $('#th2').value=t.accent2; $('#th3').value=t.accent3; $('#th4').value=t.accent4; $('#th5').value=t.accent5;
-    updateHotkeySummary(); $('#dlgSettings').showModal();
+    updateHotkeySummary(HK); $('#dlgSettings').showModal();
   });
   bind('#btnSettingsClose','click', ()=> $('#dlgSettings').close());
   const captureKeyIn = el => el.addEventListener('keydown', e=>{
@@ -924,13 +914,12 @@
     const key = e.key.length===1 ? e.key.toUpperCase() : e.key; if(!['Control','Alt','Shift'].includes(key)) parts.push(key); el.value=parts.join('+');
   });
   ['#hkMode','#hkSave','#hkUndo','#hkRedo','#hkBrush','#hkErase','#hkLine','#hkRect','#hkCircle','#hkStar','#hkSelect','#hkHatch','#hkBucket','#hkCrop','#hkText'].forEach(sel=>{ const el=$(sel); el && captureKeyIn(el); });
-  function updateHotkeySummary(){
-    const HK=state.settings.hotkeys;
+  function updateHotkeySummary(HK=state.settings.hotkeys){
     $('#hkSummary').innerHTML = `Mode: <b>${HK.mode}</b> • Save: <b>${HK.save}</b> • Undo: <b>${HK.undo}</b> • Redo: <b>${HK.redo}</b><br>
       Brush: <b>${HK.brush}</b> • Erase: <b>${HK.erase}</b> • Line: <b>${HK.line}</b> • Rect: <b>${HK.rect}</b> • Circle: <b>${HK.circle}</b> • Star: <b>${HK.star}</b> • Select: <b>${HK.select}</b> • Hatch: <b>${HK.hatch}</b> • Bucket: <b>${HK.bucket}</b> • Crop: <b>${HK.crop}</b> • Text: <b>${HK.text}</b>`;
   }
   bind('#btnSaveSettings','click', ()=>{
-    const HK=state.settings.hotkeys, t=state.theme;
+    const HK=state.settings.hotkeys || (state.settings.hotkeys={...defaultsHK}), t=state.theme;
     Object.assign(HK, {
       mode:$('#hkMode').value||HK.mode, save:$('#hkSave').value||HK.save, undo:$('#hkUndo').value||HK.undo, redo:$('#hkRedo').value||HK.redo,
       brush:$('#hkBrush').value||HK.brush, erase:$('#hkErase').value||HK.erase, line:$('#hkLine').value||HK.line, rect:$('#hkRect').value||HK.rect, circle:$('#hkCircle').value||HK.circle, star:$('#hkStar').value||HK.star, select:$('#hkSelect').value||HK.select, hatch:$('#hkHatch').value||HK.hatch, bucket:$('#hkBucket').value||HK.bucket, crop:$('#hkCrop').value||HK.crop, text:$('#hkText').value||HK.text
@@ -957,8 +946,7 @@
   bind('#btnExport','click', ()=>{ if(!state.project) return alert('No project'); const html=makeExportHTML(state.project); downloadFile((state.project.title||'comic')+'.html', html); });
 
   // undo/redo buttons
-  bind('#btnUndo','click', undo);
-  bind('#btnRedo','click', redo);
+  bind('#btnUndo','click', undo); bind('#btnRedo','click', redo);
 
   // mode & tools
   bind('#uiToggle','click', ()=> document.body.classList.toggle('ui-hidden'));
@@ -986,15 +974,20 @@
   bind('#btnDeselect','click', ()=> state.selection.clear());
   bind('#rotRange','input', e=>{ for(const id of state.selection){ const o=getById(id); if(o) o.r=+e.target.value; } });
 
-  // zoom buttons
+  // zoom
   bind('#btnZoomIn','click', ()=> setZoom(state.camera.scale*1.2));
   bind('#btnZoomOut','click', ()=> setZoom(state.camera.scale/1.2));
   bind('#btnZoom100','click', ()=> { setZoom(1); });
   bind('#btnZoomFit','click', ()=> fitPage(true));
 
   /* ===== Canvas interactions ===== */
-  function endInteractions(){ state.mouse.down=false; state.draggingSel=false; state.resizing=null; state.marquee=null; state.panning=false; pushHistory(); }
-  window.addEventListener('mouseup', endInteractions);
+  function endInteractions(commitHist=true){
+    state.mouse.down=false; state.draggingSel=false; state.resizing=null; state.marquee=null; state.panning=false;
+    state.draw.hatchPreview=null;
+    if(commitHist) pushHistory();
+  }
+  window.addEventListener('mouseup', ()=> endInteractions(true));
+
   canvas.addEventListener('mousedown', e=>{
     if(!state.project) return;
     const rect=canvas.getBoundingClientRect();
@@ -1002,7 +995,6 @@
     state.mouse.x=e.clientX-rect.left; state.mouse.y=e.clientY-rect.top; state.mouse.ox=state.mouse.x; state.mouse.oy=state.mouse.y; state.mouse.down=true;
     const world=screenToWorld(state.mouse.x,state.mouse.y);
 
-    // middle: pan (stop autoscroll already prevented)
     if(e.button===1){
       if(!(state.tool==='draw-hatch')){
         state.panning=true; state.panStart={x:e.clientX,y:e.clientY,cx:state.camera.x,cy:state.camera.y}; return;
@@ -1063,9 +1055,14 @@
           if(hit.type==='text'){ beginTextEdit(hit); }
         } else { state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0}; state.selection.clear(); }
       }
-      if(state.tool==='draw-brush' || state.tool==='draw-erase'){
-        const type = state.tool==='draw-erase' ? 'erase':'path';
-        const p=newObj(type,{x:world.x,y:world.y, points:[world], stroke: state.tool==='draw-erase' ? '#000000' : state.currentColor, strokeWidth: +($('#sizeBrush')?.value || state.strokeWidth), meta:{closed:false}});
+      if(state.tool==='draw-erase'){
+        const hit=hitTest(world,'draw');
+        if(hit){ currPage().objects = currPage().objects.filter(o=>o.id!==hit.id); pushHistory(); endInteractions(false); }
+        else { state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0, erase:true}; }
+        return;
+      }
+      if(state.tool==='draw-brush'){
+        const p=newObj('path',{x:world.x,y:world.y, points:[world], stroke: state.currentColor, strokeWidth: +($('#sizeBrush')?.value || state.strokeWidth), meta:{closed:false}});
         p.fill='#00000000'; currPage().objects.push(p); state.drawing={id:p.id};
       }
       if(state.tool==='draw-line'){
@@ -1079,16 +1076,17 @@
       }
       if(state.tool==='draw-bucket'){
         const hit=hitTest(world,'draw');
-        if(hit && ['rect','circle','star','path','panel-rect'].includes(hit.type)){
-          hit.fill = state.currentColor; pushHistory();
-        }
+        if(hit){ recolorObject(hit, state.currentColor); pushHistory(); }
+        else { state.bucketBox={x:state.mouse.x,y:state.mouse.y,w:0,h:0}; }
       }
       if(state.tool==='draw-crop'){ state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0, crop:true}; }
       if(state.tool==='draw-text'){
+        const hit=hitTest(world,'draw');
+        if(hit?.type==='text'){ state.selection=new Set([hit.id]); beginTextEdit(hit); return; }
         const txt=($('#toolTextContent')?.value||'Text'); const size=+($('#toolTextSize')?.value||24);
-        const o=newObj('text',{x:world.x,y:world.y,w:1,h:size, stroke:state.currentColor, meta:{text:txt,size:size,family:'sans-serif'}}); currPage().objects.push(o); state.selection=new Set([o.id]); beginTextEdit(o);
+        const o=newObj('text',{x:world.x,y:world.y,w:1,h:size, stroke:state.currentColor, meta:{text:txt,size:size,family:'sans-serif', fill:state.currentColor, outline:false, outlineColor:'#000', outlineWidth:2}}); currPage().objects.push(o); state.selection=new Set([o.id]); beginTextEdit(o);
       }
-      if(state.tool==='draw-hatch'){ state.drawing={hatchStart:world}; }
+      if(state.tool==='draw-hatch'){ state.drawing={hatchStart:world}; state.draw.hatchPreview={minx:world.x,miny:world.y,maxx:world.x,maxy:world.y}; }
     }
   });
 
@@ -1125,7 +1123,7 @@
       if(state.tool==='panel-line' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
         let dx=world.x - state.drawing.start.x, dy=world.y - state.drawing.start.y;
-        if(Math.abs(dx)>=Math.abs(dy)){ dy=0; } else { dx=0; }
+        if(e.shiftKey){ if(Math.abs(dx)>=Math.abs(dy)){ dy=0; } else { dx=0; } }
         o.points[1]={x: state.drawing.start.x + dx, y: state.drawing.start.y + dy};
         o.x=Math.min(o.points[0].x,o.points[1].x);
         o.y=Math.min(o.points[0].y,o.points[1].y);
@@ -1150,14 +1148,15 @@
         const dy=(state.mouse.y - state.mouse.oy)/state.camera.scale;
         for(const id of state.selection){ const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id); o.x=start.x+dx; o.y=start.y+dy; }
       }
-      if((state.tool==='draw-brush' || state.tool==='draw-erase') && state.drawing){
+      if(state.tool==='draw-erase' && state.marquee && state.marquee.erase){ state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; return; }
+      if(state.tool==='draw-brush' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
         const last=o.points[o.points.length-1]; if(dist(last,world)>0.25){ o.points.push(world); }
       }
       if(state.tool==='draw-line' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
         let dx=world.x - state.drawing.start.x, dy=world.y - state.drawing.start.y;
-        if(Math.abs(dx)>=Math.abs(dy)){ dy=0; } else { dx=0; }
+        if(e.shiftKey){ if(Math.abs(dx)>=Math.abs(dy)){ dy=0; } else { dx=0; } }
         o.points[1]={x: state.drawing.start.x + dx, y: state.drawing.start.y + dy};
         o.x=Math.min(o.points[0].x,o.points[1].x);
         o.y=Math.min(o.points[0].y,o.points[1].y);
@@ -1173,7 +1172,13 @@
         const c=o.meta.center; const r=Math.hypot(world.x-c.x, world.y-c.y);
         o.x=c.x-r; o.y=c.y-r; o.w=r*2; o.h=r*2;
       }
+      if(state.tool==='draw-bucket' && state.bucketBox){
+        state.bucketBox.w=state.mouse.x-state.mouse.ox; state.bucketBox.h=state.mouse.y-state.mouse.oy;
+      }
       if(state.tool==='draw-crop' && state.marquee){ state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; }
+      if(state.tool==='draw-hatch' && state.draw.hatchPreview){
+        const p=state.draw.hatchPreview; p.maxx=Math.max(p.maxx,world.x); p.maxy=Math.max(p.maxy,world.y); p.minx=Math.min(p.minx,world.x); p.miny=Math.min(p.miny,world.y);
+      }
     }
   });
 
@@ -1183,7 +1188,7 @@
     if(state.draw.hatchGuide){
       const a=state.draw.hatchGuide.a, b=state.draw.hatchGuide.b;
       const angRad=Math.atan2(b.y-a.y, b.x-a.x);
-      state.draw.hatchAngle = Math.round((angRad*180/Math.PI)*100)/100; // exact angle
+      state.draw.hatchAngle = Math.round((angRad*180/Math.PI)*100)/100;
       const inp=$('#hatchAngle'); if(inp) inp.value=state.draw.hatchAngle;
       state.draw.hatchGuide=null;
     }
@@ -1192,69 +1197,97 @@
       if(state.tool==='panel-rect' && state.drawing){
         const o=getById(state.drawing.id); if(o){ if(o.w<0){o.x+=o.w;o.w*=-1;} if(o.h<0){o.y+=o.h;o.h*=-1;} } state.drawing=null;
       }
-      if(state.tool==='panel-line' && state.drawing){
-        state.drawing=null;
-      }
+      if(state.tool==='panel-line' && state.drawing){ state.drawing=null; }
       if(state.tool==='panel-star' && state.drawing?.starId){ state.drawing=null; }
     } else {
-      if(state.tool==='draw-hatch' && state.drawing?.hatchStart){
-        const s=state.drawing.hatchStart, e2=screenToWorld(state.mouse.x,state.mouse.y);
-        const ang=(+($('#hatchAngle')?.value||state.draw.hatchAngle))*Math.PI/180;
-        const gap=+($('#hatchGap')?.value||state.draw.hatchGap);
-        const minx=Math.min(s.x,e2.x), maxx=Math.max(s.x,e2.x), miny=Math.min(s.y,e2.y), maxy=Math.max(s.y,e2.y);
-        const diag=Math.hypot(maxx-minx,maxy-miny);
-        for(let d=-diag; d<diag; d+=gap){
-          const x1=minx + d*Math.cos(ang), y1=miny + d*Math.sin(ang);
-          const x2=x1 + (maxx-minx)*Math.sin(ang+Math.PI/2), y2=y1 - (maxx-minx)*Math.cos(ang+Math.PI/2);
-          const line=newObj('line',{x:Math.min(x1,x2), y:Math.min(y1,y2), points:[{x:x1,y:y1},{x:x2,y:y2}], stroke: state.currentColor, fill:'#00000000', strokeWidth:1});
-          currPage().objects.push(line);
-        }
-        state.drawing=null;
-      }
-      if(state.tool==='draw-crop' && state.marquee){
-        // crop draw objects
+      if(state.tool==='draw-erase' && state.marquee?.erase){
         const xm=Math.min(state.marquee.x,state.marquee.x+state.marquee.w);
         const ym=Math.min(state.marquee.y,state.marquee.y+state.marquee.h);
         const wm=Math.abs(state.marquee.w), hm=Math.abs(state.marquee.h);
         const tl=screenToWorld(xm,ym), br=screenToWorld(xm+wm,ym+hm);
         const box={x:tl.x,y:tl.y,w:br.x-tl.x,h:br.y-tl.y};
-        const inside=(o)=> rectsIntersect(aabb(o), box);
-        // remove objects totally outside; trim lines/paths to box
-        currPage().objects = currPage().objects.filter(o=>{
-          if(o.kind!=='draw') return true;
-          const inter=inside(o);
-          if(!inter) return false;
-          if((o.type==='line' || o.type==='path') && o.points?.length){
-            o.points = o.points.map(p=>({
-              x: clamp(p.x, box.x, box.x+box.w),
-              y: clamp(p.y, box.y, box.y+box.h)
-            }));
-            // recompute bbox
-            const minx=Math.min(...o.points.map(p=>p.x)), miny=Math.min(...o.points.map(p=>p.y));
-            const maxx=Math.max(...o.points.map(p=>p.x)), maxy=Math.max(...o.points.map(p=>p.y));
-            o.x=minx; o.y=miny; o.w=maxx-minx; o.h=maxy-miny;
-          }
-          return true;
-        });
+        currPage().objects = currPage().objects.filter(o=> !(o.kind==='draw' && rectsIntersect(aabb(o), box)) );
         state.marquee=null;
+      }
+      if(state.tool==='draw-bucket' && state.bucketBox){
+        const xm=Math.min(state.bucketBox.x,state.bucketBox.x+state.bucketBox.w);
+        const ym=Math.min(state.bucketBox.y,state.bucketBox.y+state.bucketBox.h);
+        const wm=Math.abs(state.bucketBox.w), hm=Math.abs(state.bucketBox.h);
+        const tl=screenToWorld(xm,ym), br=screenToWorld(xm+wm,ym+hm);
+        const box={x:tl.x,y:tl.y,w:br.x-tl.x,h:br.y-tl.y};
+        for(const o of allObjects()){
+          if(o.kind!=='draw') continue;
+          if(rectsIntersect(aabb(o), box)) recolorObject(o, state.currentColor);
+        }
+        state.bucketBox=null; pushHistory();
+      }
+      if(state.tool==='draw-hatch' && state.drawing?.hatchStart){
+        const p=state.draw.hatchPreview;
+        if(p){
+          const ang=(+($('#hatchAngle')?.value||state.draw.hatchAngle))*Math.PI/180;
+          const gap=+($('#hatchGap')?.value||state.draw.hatchGap);
+          const minx=p.minx, maxx=p.maxx, miny=p.miny, maxy=p.maxy;
+          const diag=Math.hypot(maxx-minx,maxy-miny);
+          for(let d=-diag; d<diag; d+=gap){
+            const x1=minx + d*Math.cos(ang), y1=miny + d*Math.sin(ang);
+            const x2=x1 + (maxx-minx)*Math.sin(ang+Math.PI/2), y2=y1 - (maxx-minx)*Math.cos(ang+Math.PI/2);
+            const line=newObj('line',{x:Math.min(x1,x2), y:Math.min(y1,y2), points:[{x:x1,y:y1},{x:x2,y:y2}], stroke: state.currentColor, fill:'#00000000', strokeWidth:1});
+            currPage().objects.push(line);
+          }
+        }
+        state.drawing=null; state.draw.hatchPreview=null; pushHistory();
+      }
+      if(state.tool==='draw-crop' && state.marquee){
+        const xm=Math.min(state.marquee.x,state.marquee.x+state.marquee.w);
+        const ym=Math.min(state.marquee.y,state.marquee.y+state.marquee.h);
+        const wm=Math.abs(state.marquee.w), hm=Math.abs(state.marquee.h);
+        const tl=screenToWorld(xm,ym), br=screenToWorld(xm+wm,ym+hm);
+        const box={x:tl.x,y:tl.y,w:br.x-tl.x,h:br.y-tl.y};
+
+        if(!state.cropMask){ // first step
+          state.cropMask=box; drawCropMask();
+        } else { // second step: keep inside "box", delete (mask - box)
+          const mask=state.cropMask;
+          currPage().objects = currPage().objects.filter(o=>{
+            if(o.kind!=='draw') return true;
+            const inMask = rectsIntersect(aabb(o), mask);
+            const inBox  = rectsIntersect(aabb(o), box);
+            if(inMask && !inBox) return false; // delete the ring
+            if(inBox && (o.type==='line' || o.type==='path') && o.points?.length){
+              o.points = o.points.map(p=>({ x: clamp(p.x, box.x, box.x+box.w), y: clamp(p.y, box.y, box.y+box.h) }));
+              const minx=Math.min(...o.points.map(p=>p.x)), miny=Math.min(...o.points.map(p=>p.y));
+              const maxx=Math.max(...o.points.map(p=>p.x)), maxy=Math.max(...o.points.map(p=>p.y));
+              o.x=minx; o.y=miny; o.w=maxx-minx; o.h=maxy-miny;
+            }
+            return true;
+          });
+          state.cropMask=null; drawCropMask();
+        }
+        state.marquee=null; pushHistory();
       }
       if(state.drawing && state.tool.startsWith('draw-')){
         const o=getById(state.drawing.id); if(o){ if(o.w<0){o.x+=o.w;o.w*=-1;} if(o.h<0){o.y+=o.h;o.h*=-1;} }
         state.drawing=null;
       }
     }
-    const onlyText = state.selection.size===1 && getById([...state.selection][0])?.type==='text';
-    $('#textControls').style.display = onlyText ? 'flex':'none';
-    if(onlyText){
+
+    const only = (type)=> state.selection.size===1 && getById([...state.selection][0])?.type===type;
+    $('#textControls').style.display = (only('text')) ? 'flex':'none';
+    if(only('text')){
       const t=getById([...state.selection][0]);
       $('#textContent').value=t.meta.text||'Text';
       $('#textSize').value=t.meta.size||24;
+      $('#textFill').value=t.meta.fill||t.stroke||'#e8eaf0';
+      $('#textOutline').value=t.meta.outline?'on':'off';
+      $('#textOutlineColor').value=t.meta.outlineColor||'#000000';
+      $('#textOutlineWidth').value=t.meta.outlineWidth||2;
     }
+    $('#starControls').style.display = (only('star')) ? 'grid':'none';
 
-    endInteractions();
+    endInteractions(true);
   });
 
-  // click empty space clears selection (when not dragging)
+  // click empty clears selection (when not dragging)
   canvas.addEventListener('click', e=>{
     if(state.mouse.button!==0) return;
     if(Math.hypot(state.mouse.x-state.mouse.ox, state.mouse.y-state.mouse.oy) < 2 && !state.resizing && !state.draggingSel){
@@ -1264,7 +1297,7 @@
     }
   });
 
-  /* ===== Text inline editing ===== */
+  /* ===== Text inline editing & controls ===== */
   function beginTextEdit(o){
     const s=worldToScreen(o.x,o.y);
     textEditor.style.left=s.x+'px'; textEditor.style.top=s.y+'px';
@@ -1283,10 +1316,17 @@
     pushHistory();
   }
   textEditor.addEventListener('keydown', e=>{
-    if(e.key==='Enter' && e.ctrlKey){ e.preventDefault(); commitTextEdit(); }
+    if(e.key==='Enter' && e.ctrlKey){ e.preventDefault(); commitTextEdit(); } // Enter alone inserts newline
   });
   textEditor.addEventListener('blur', commitTextEdit);
-  function maybeBeginTextEdit(hit){ if(hit?.type==='text'){ beginTextEdit(hit); } }
+
+  // sidebar text controls bindings
+  bind('#textContent','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.text=e.target.value; });
+  bind('#textSize','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.size=+e.target.value; o.h=o.meta.size; });
+  bind('#textFill','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.fill=e.target.value; });
+  bind('#textOutline','change', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outline=(e.target.value==='on'); });
+  bind('#textOutlineColor','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outlineColor=e.target.value; });
+  bind('#textOutlineWidth','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outlineWidth=+e.target.value; });
 
   /* ===== Stars ===== */
   function buildStar(cx,cy, points, innerR, outerR){
@@ -1319,6 +1359,14 @@
     });
   });
 
+  /* ===== Bucket recolor ===== */
+  function recolorObject(o, color){
+    if(['rect','circle','star','panel-rect','path'].includes(o.type) && o.meta?.closed){ o.fill=color; }
+    else if(['rect','circle','star','panel-rect'].includes(o.type)){ o.fill=color; }
+    else if(['line','path'].includes(o.type)){ o.stroke=color; }
+    else if(o.type==='text'){ o.meta.fill=color; }
+  }
+
   /* ===== Export ===== */
   function makeExportHTML(project){
     const JSON_DATA=JSON.stringify(project);
@@ -1341,15 +1389,12 @@
   function drawObj(o,s){
     ctx.save(); ctx.globalAlpha=o.opacity??1;
     ctx.translate((o.x+o.w/2)*s,(o.y+o.h/2)*s); ctx.rotate((o.r||0)*Math.PI/180); ctx.translate(-(o.w/2)*s, -(o.h/2)*s);
-    if(o.type==='erase'){ ctx.globalCompositeOperation='destination-out'; ctx.lineWidth=Math.max(1,(o.strokeWidth||10)*s);
-      if(o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){const p=o.points[k]; ctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} ctx.stroke(); }
-      ctx.restore(); return; }
     ctx.lineWidth=Math.max(1,(o.strokeWidth||1)*s); ctx.strokeStyle=o.stroke||'#e8eaf0'; ctx.fillStyle=o.fill||'#00000000';
     if(o.type==='rect'||o.type==='panel-rect'){ ctx.beginPath(); ctx.rect(0,0,o.w*s,o.h*s); if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); }
     else if(o.type==='circle'){ ctx.beginPath(); ctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); }
     else if(o.type==='line' && o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); ctx.lineTo((o.points[1].x-o.x)*s,(o.points[1].y-o.y)*s); ctx.stroke(); }
     else if((o.type==='path'||o.type==='star') && o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){ const p=o.points[k]; ctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} if(o.type==='star'||o.meta?.closed){ ctx.closePath(); if((o.fill??'')!=='#00000000') ctx.fill(); } ctx.stroke(); }
-    else if(o.type==='text'){ ctx.fillStyle=o.stroke||'#eaeaf2'; ctx.font=\`\${o.meta?.size||24}px \${o.meta?.family||'sans-serif'}\`; ctx.textBaseline='top'; (o.meta?.text||'Text').split('\\n').forEach((line,i)=> ctx.fillText(line,0,i*(o.meta?.size||24))); }
+    else if(o.type==='text'){ const fill=o.meta?.fill||o.stroke||'#eaeaf2'; const outline=o.meta?.outline; const outlineColor=o.meta?.outlineColor||'#000'; const outlineWidth=o.meta?.outlineWidth||2; ctx.font=\`\${o.meta?.size||24}px \${o.meta?.family||'sans-serif'}\`; ctx.textBaseline='top'; const lines=(o.meta?.text||'Text').split('\\n'); lines.forEach((line,i)=>{ if(outline){ ctx.lineWidth=Math.max(1,outlineWidth*s); ctx.strokeStyle=outlineColor; ctx.strokeText(line,0,i*(o.meta?.size||24)); } ctx.fillStyle=fill; ctx.fillText(line,0,i*(o.meta?.size||24)); }); }
     ctx.restore();
   }
   function show(k){
@@ -1370,9 +1415,7 @@
   }
 
   /* ===== Helpers after project change ===== */
-  function refreshUIAfterProjectChange(){
-    refreshTopMeta(); resizeCanvas(); fitPage(true);
-  }
+  function refreshUIAfterProjectChange(){ refreshTopMeta(); resizeCanvas(); fitPage(true); }
 
   /* ===== Init ===== */
   function init(){
@@ -1381,7 +1424,7 @@
     setMode('panel'); buildToolButtons(); buildDynamicControls();
     refreshUIAfterProjectChange(); render();
     updateMiniSwatches();
-    $('#saveKbd').textContent=state.settings.hotkeys.save;
+    $('#saveKbd').textContent=(state.settings.hotkeys||defaultsHK).save;
     pushHistory();
   }
   addEventListener('resize', resizeCanvas);
