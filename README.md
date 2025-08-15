@@ -2,7 +2,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>phik v0.81 — Comic & Storyboard Builder</title>
+<title>phik v0.82 — Comic & Storyboard Builder</title>
 <style>
   :root{
     --bg:#0f1116; --fg:#e8eaf0; --muted:#9aa3b2;
@@ -35,11 +35,11 @@
   /* main area */
   .main{
     display:grid;
-    grid-template-columns: 90px minmax(480px, 1fr) 380px;
+    grid-template-columns: 100px minmax(480px, 1fr) 420px;
     gap:.5rem; padding:.5rem;
   }
   @media (min-width:1600px){
-    .main{ grid-template-columns: 100px minmax(800px, 1fr) 440px; }
+    .main{ grid-template-columns: 110px minmax(800px, 1fr) 480px; }
   }
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:.6rem;overflow:hidden}
   .tools{padding:.5rem;display:flex;flex-direction:column;gap:.4rem}
@@ -48,6 +48,9 @@
 
   /* small color cluster on the left */
   .colors{margin-top:.4rem; display:flex; flex-direction:column; gap:.35rem}
+  .palHeader{display:flex;align-items:center;justify-content:space-between;gap:.25rem}
+  .palHeader .bank{display:flex;gap:.25rem}
+  .palHeader .bank .btn{padding:.2rem .4rem}
   .bubbles{display:grid; grid-template-columns:repeat(3, 18px); gap:6px; justify-content:start}
   .bubble{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);cursor:pointer}
   .bubble.active{outline:2px solid var(--accent)}
@@ -57,8 +60,8 @@
   .canvasWrap{position:relative; overflow:hidden;
     background: conic-gradient(from 90deg at 1px 1px, #0000 90deg, #0002 0) 0 0/10px 10px;
   }
-  canvas{display:block;background:transparent;width:100%;height:100%}
-  .overlay{position:absolute;inset:0;pointer-events:none}
+  /* make canvas layer explicit so handles can sit above */
+  .canvasWrap canvas{display:block;background:transparent;width:100%;height:100%;position:relative;z-index:1}
 
   .right{display:flex;flex-direction:column}
   .section{padding:.5rem;border-bottom:1px solid var(--line)}
@@ -87,24 +90,30 @@
   .ui-hidden .topbar,.ui-hidden .main,.ui-hidden .bottombar{display:none!important}
 
   /* marquee + handles + page frame + crop mask */
-  .marquee{position:absolute;border:1px dashed var(--accent);background:rgba(122,162,247,.08);pointer-events:none}
-  .handle{position:absolute;width:10px;height:10px;border:2px solid #000a;background:#fff;box-shadow:0 0 0 1px #0003;pointer-events:auto}
+  .marquee{position:absolute;border:1px dashed var(--accent);background:rgba(122,162,247,.08);pointer-events:none;z-index:3}
+  .handle{position:absolute;width:10px;height:10px;border:2px solid #000a;background:#fff;box-shadow:0 0 0 1px #0003;pointer-events:auto;z-index:5}
   .handle[data-dir="move"]{width:12px;height:12px;border-radius:50%; cursor:move}
   .handle[data-dir="n"], .handle[data-dir="s"]{cursor:ns-resize}
   .handle[data-dir="e"], .handle[data-dir="w"]{cursor:ew-resize}
   .handle[data-dir="nw"], .handle[data-dir="se"]{cursor:nwse-resize}
   .handle[data-dir="ne"], .handle[data-dir="sw"]{cursor:nesw-resize}
-  .pageFrame{position:absolute;border:2px dashed var(--accent5);pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.25) inset}
-  .cropMask{position:absolute;border:2px dashed var(--accent2);pointer-events:none;background:rgba(247,118,142,.08)}
+  .pageFrame{position:absolute;border:2px dashed var(--accent5);pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.25) inset;z-index:2}
+  .cropMask{position:absolute;border:2px dashed var(--accent2);pointer-events:none;background:rgba(247,118,142,.08);z-index:2}
 
   /* inline text editor */
-  #textEditor{position:absolute;min-width:40px;min-height:20px;background:#000a;border:1px dashed var(--accent);color:var(--fg);padding:.2rem .3rem;outline:none;white-space:pre-wrap;pointer-events:auto;display:none}
+  #textEditor{position:absolute;min-width:40px;min-height:20px;background:#000a;border:1px dashed var(--accent);color:var(--fg);padding:.2rem .3rem;outline:none;white-space:pre-wrap;pointer-events:auto;display:none;z-index:4}
 
   .badge{font-size:.8rem;background:#0005;border:1px solid var(--line);border-radius:.35rem;padding:.1rem .4rem}
   .note{font-size:.86rem;color:var(--muted)}
   .hr{height:1px;background:var(--line);margin:.25rem 0 .45rem}
   dialog{border:1px solid var(--line);background:#111827;color:var(--fg);border-radius:.6rem;max-width:min(680px,90vw);padding:1rem}
   #err{position:fixed;right:.75rem;bottom:.75rem;max-width:60ch;padding:.6rem .8rem;background:#2b1a1a;color:#ffd2d2;border:1px solid #5c2b2b;border-radius:.5rem;font-size:.9rem;display:none;z-index:99999;box-shadow:0 8px 24px #0005}
+
+  /* Palettes manager (right sidebar) */
+  .palBank{border:1px solid var(--line);border-radius:.4rem;background:#0003;padding:.4rem;margin-bottom:.4rem}
+  .palRow{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap}
+  .miniCells{display:flex;gap:4px}
+  .miniCells div{width:14px;height:14px;border-radius:3px;border:1px solid #0006}
 </style>
 </head>
 <body>
@@ -114,7 +123,7 @@
 <div id="app">
   <!-- ===== TOPBAR ===== -->
   <div class="topbar">
-    <div class="brand"><span id="appName">phik</span> <span class="pill" id="versionPill">v0.81</span> <span class="pill" id="modePill">PANEL MODE</span></div>
+    <div class="brand"><span id="appName">phik</span> <span class="pill" id="versionPill">v0.82</span> <span class="pill" id="modePill">PANEL MODE</span></div>
 
     <div class="seg" id="modeSeg">
       <button class="btn" data-mode="panel" type="button" title="Panel Mode">Panels</button>
@@ -152,6 +161,18 @@
       <div id="toolPanel" class="stack"></div>
 
       <div class="colors">
+        <div class="palHeader">
+          <div class="bank">
+            <button class="btn small" id="bankA" title="Use Bank A">A</button>
+            <button class="btn small" id="bankB" title="Use Bank B">B</button>
+            <button class="btn small" id="bankC" title="Use Bank C">C</button>
+          </div>
+          <div class="bank">
+            <button class="btn small" id="palPrev" title="Prev page">&lt;</button>
+            <span class="pill" id="palPageLabel">1/10</span>
+            <button class="btn small" id="palNext" title="Next page">&gt;</button>
+          </div>
+        </div>
         <div class="bubbles" id="palBubbles"></div>
         <div class="sf-mini">
           <div id="swStroke" class="swatch" title="Stroke"></div>
@@ -163,7 +184,7 @@
     <!-- CANVAS -->
     <div class="panel canvasWrap" id="canvasPanel">
       <canvas id="canvas"></canvas>
-      <div class="overlay" id="overlay"></div>
+      <!-- overlay removed (caused ghost transparent rect) -->
       <div class="marquee hide" id="marquee"></div>
       <div class="pageFrame" id="pageFrame"></div>
       <div class="cropMask hide" id="cropMask"></div>
@@ -234,6 +255,16 @@
           <input type="range" id="rotRange" min="-180" max="180" value="0"/>
         </div>
 
+        <!-- universal style controls -->
+        <div class="grid" style="margin-top:.5rem">
+          <div class="stack"><label>Stroke</label><input type="color" id="selStroke" value="#e8eaf0"></div>
+          <div class="stack"><label>Fill</label><input type="color" id="selFill" value="#000000"></div>
+        </div>
+        <div class="grid" style="margin-top:.5rem">
+          <div class="stack"><label>Stroke Width</label><input type="number" id="selStrokeW" min="1" max="64" value="2"></div>
+          <div class="stack"><label>Opacity %</label><input type="number" id="selOpacity" min="1" max="100" value="100"></div>
+        </div>
+
         <!-- text controls -->
         <div id="textControls" class="stack" style="margin-top:.5rem; display:none">
           <div class="grid">
@@ -273,6 +304,11 @@
           <div class="row"><strong class="muted">Stamps</strong></div>
           <div id="libStamps" class="stack"></div>
         </div>
+      </div>
+
+      <div class="section">
+        <h3>Palettes (Banks A/B/C)</h3>
+        <div id="palBanksUI" class="stack"></div>
       </div>
 
       <div class="section">
@@ -396,7 +432,18 @@
   const downloadFile=(name,text)=>{const blob=new Blob([text],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); };
   const LS={set(k,v){localStorage.setItem(k,JSON.stringify(v));},get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{ return d; }}};
 
-  const TEMPLATES_KEY='PHIK_PANEL_TEMPLATES', STAMPS_KEY='PHIK_STAMPS', SETTINGS_KEY='PHIK_SETTINGS', THEME_KEY='PHIK_THEME', PALETTE_KEY='PHIK_PALETTE';
+  const TEMPLATES_KEY='PHIK_PANEL_TEMPLATES', STAMPS_KEY='PHIK_STAMPS', SETTINGS_KEY='PHIK_SETTINGS', THEME_KEY='PHIK_THEME';
+  const GLOBAL_PALS_KEY='PHIK_GLOBAL_PALETTES';
+  const PROJ_BANKS_KEY='palBanks'; // stored on project
+
+  /* ===== Default palettes ===== */
+  function placeholderPalette(){
+    return [
+      '#000000','#ffffff','#808080','#404040','#ffd1a4','#8b4513','#c0c0c0','#d4af37',
+      '#ff0000','#ff7f00','#ffff00','#00ff00','#00ffff','#0000ff','#8a2be2','#ff00ff',
+      '#ff6b6b','#f5a97f','#a6da95','#91d7e3','#8bd5ca','#7dc4e4','#c6a0f6','#ed8796'
+    ];
+  }
 
   /* ===== State ===== */
   const defaultsHK = { mode:'Tab', save:'Ctrl+S', undo:'Ctrl+Z', redo:'Ctrl+Y', brush:'B', erase:'E', line:'L', rect:'R', circle:'C', star:'S', select:'V', hatch:'H', bucket:'K', crop:'X', text:'T' };
@@ -411,7 +458,7 @@
     selection:new Set(),
     marquee:null,
     tmpPath:[],
-    draw:{hatchAngle:45,hatchGap:8, hatchGuide:null, hatchPreview:null},
+    draw:{hatchAngle:45,hatchGap:8, hatchGuide:null, hatchPreview:null, hatchOrigin:null},
     bucketBox:null,
     draggingSel:false, dragStartPositions:new Map(),
     panning:false, panStart:{x:0,y:0,cx:0,cy:0},
@@ -420,13 +467,52 @@
     currentColor:'#e8eaf0',
     templates: LS.get(TEMPLATES_KEY, []),
     stamps: LS.get(STAMPS_KEY, []),
-    palette: LS.get(PALETTE_KEY, ['#e8eaf0','#f7768e','#9ece6a','#e0af68','#7aa2f7','#7dcfff']),
+    // Palettes: 3 banks, each up to 10 pages, each page is array of colors
+    palBanks: null, activeBank:0, activePage:[0,0,0],
     settings: (()=>{ const s=LS.get(SETTINGS_KEY, {}); if(!s.hotkeys) s.hotkeys=deepClone(defaultsHK); return s; })(),
     theme: Object.assign({ accent1:'#7aa2f7', accent2:'#f7768e', accent3:'#9ece6a', accent4:'#e0af68', accent5:'#7dcfff' }, LS.get(THEME_KEY, {})),
     history:{stack:[], idx:-1, lock:false},
     editingText:null,
     cropMask:null // first step rectangle in world space
   };
+
+  /* ===== Palettes ===== */
+  function ensurePalBanks(banks){
+    if(banks && banks.length===3) return banks.map(b=>{
+      const pages = Array.isArray(b.pages)? b.pages.slice(0,10):[];
+      if(!pages.length) pages.push(placeholderPalette());
+      return { pages };
+    });
+    return [
+      {pages:[placeholderPalette()]},
+      {pages:[placeholderPalette()]},
+      {pages:[placeholderPalette()]}
+    ];
+  }
+  function activePalette(){
+    const b = state.palBanks[state.activeBank];
+    const p = state.activePage[state.activeBank] ?? 0;
+    if(!b.pages[p]) b.pages[p] = placeholderPalette();
+    return b.pages[p];
+  }
+  function setActivePalette(arr){
+    const b=state.palBanks[state.activeBank], p=state.activePage[state.activeBank];
+    b.pages[p] = arr.slice();
+  }
+  function saveGlobalPalette(name, colors){
+    const store = LS.get(GLOBAL_PALS_KEY, {});
+    store[name]=colors.slice();
+    LS.set(GLOBAL_PALS_KEY, store);
+    toast('Saved palette "'+name+'"');
+  }
+  function loadGlobalPalette(name){
+    const store = LS.get(GLOBAL_PALS_KEY, {});
+    return store[name]? store[name].slice(): null;
+  }
+  function listGlobalPaletteNames(){
+    const store = LS.get(GLOBAL_PALS_KEY, {});
+    return Object.keys(store);
+  }
 
   /* ===== Project ===== */
   function normalizeLayers(layers){
@@ -436,7 +522,8 @@
     return layers && layers.length ? layers : [{id:0,name:'Layer 0',visible:true}];
   }
   function newProject(title,w=1024,h=576){
-    return { title, defaultW:w, defaultH:h, pages:[newPage(w,h)], nextId:1, layers:normalizeLayers([0,1,2,3,4]) };
+    const palBanks = ensurePalBanks(null);
+    return { title, defaultW:w, defaultH:h, pages:[newPage(w,h)], nextId:1, layers:normalizeLayers([0,1,2,3,4]), [PROJ_BANKS_KEY]:palBanks };
   }
   function newPage(w,h){ return { w,h, bgTransparent:true, bgColor:'#000000', note:'', objects:[] }; }
   function newObj(type,props={}){
@@ -456,21 +543,32 @@
   /* ===== History ===== */
   function snapshot(){ return JSON.stringify(state.project); }
   function pushHistory(){ if(state.history.lock) return; const s=snapshot(); if(state.history.stack[state.history.idx]===s) return; state.history.stack = state.history.stack.slice(0,state.history.idx+1); state.history.stack.push(s); state.history.idx++; }
-  function undo(){ if(state.history.idx<=0) return; state.history.lock=true; state.history.idx--; state.project = JSON.parse(state.history.stack[state.history.idx]); state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null; refreshUIAfterProjectChange(); state.history.lock=false; }
-  function redo(){ if(state.history.idx>=state.history.stack.length-1) return; state.history.lock=true; state.history.idx++; state.project = JSON.parse(state.history.stack[state.history.idx]); state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null; refreshUIAfterProjectChange(); state.history.lock=false; }
+  function undo(){ if(state.history.idx<=0) return; const cam=deepClone(state.camera);
+    state.history.lock=true; state.history.idx--; state.project = JSON.parse(state.history.stack[state.history.idx]);
+    // restore palbanks into state
+    state.palBanks = ensurePalBanks(state.project[PROJ_BANKS_KEY]);
+    state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null;
+    refreshUIAfterProjectChange({preserveCamera:true}); state.camera = cam; state.history.lock=false;
+  }
+  function redo(){ if(state.history.idx>=state.history.stack.length-1) return; const cam=deepClone(state.camera);
+    state.history.lock=true; state.history.idx++; state.project = JSON.parse(state.history.stack[state.history.idx]);
+    state.palBanks = ensurePalBanks(state.project[PROJ_BANKS_KEY]);
+    state.selection.clear(); state.resizing=null; state.draggingSel=false; state.drawing=null;
+    refreshUIAfterProjectChange({preserveCamera:true}); state.camera = cam; state.history.lock=false;
+  }
 
   /* ===== Canvas ===== */
-  const canvas=$('#canvas'), ctx=canvas.getContext('2d'), overlay=$('#overlay'), marqueeEl=$('#marquee'), canvasPanel=$('#canvasPanel'), pageFrame=$('#pageFrame'), textEditor=$('#textEditor'), cropMaskEl=$('#cropMask');
+  const canvas=$('#canvas'), ctx=canvas.getContext('2d'), marqueeEl=$('#marquee'), canvasPanel=$('#canvasPanel'), pageFrame=$('#pageFrame'), textEditor=$('#textEditor'), cropMaskEl=$('#cropMask');
 
   function resizeCanvas(){
     const rect=canvasPanel.getBoundingClientRect();
     canvas.width = Math.max(200, Math.floor(rect.width));
     canvas.height= Math.max(200, Math.floor(rect.height));
-    overlay.style.width=canvas.width+'px'; overlay.style.height=canvas.height+'px';
     if(state.camera.fit) fitPage(false);
     drawPageFrame(); drawCropMask();
   }
   function drawPageFrame(){
+    if(!state.project) return;
     const p=currPage(); const tl=worldToScreen(0,0), br=worldToScreen(p.w,p.h);
     const x=Math.round(tl.x), y=Math.round(tl.y), w=Math.round(br.x-tl.x), h=Math.round(br.y-tl.y);
     pageFrame.style.left=x+'px'; pageFrame.style.top=y+'px'; pageFrame.style.width=w+'px'; pageFrame.style.height=h+'px';
@@ -601,20 +699,26 @@
     const objs = allObjects().slice().sort((a,b)=> a.layer-b.layer);
     for(const o of objs) drawObject(o);
 
-    // hatch preview (during paint drag)
-    if(state.draw.hatchPreview){
-      const {minx,miny,maxx,maxy}=state.draw.hatchPreview;
+    // hatch preview (during drag) — now circular from origin
+    if(state.draw.hatchPreview && state.draw.hatchOrigin){
+      const o = state.draw.hatchOrigin;
+      const r = state.draw.hatchPreview.r;
+      const minx=o.x-r, maxx=o.x+r, miny=o.y-r, maxy=o.y+r;
       const gap=+($('#hatchGap')?.value||state.draw.hatchGap);
       const ang=(+($('#hatchAngle')?.value||state.draw.hatchAngle))*Math.PI/180;
-      const diag=Math.hypot(maxx-minx,maxy-miny);
+      const diag=r*2*Math.SQRT2;
       ctx.save(); ctx.strokeStyle=rgba(state.currentColor,.7); ctx.lineWidth=1; ctx.setLineDash([6,6]);
       for(let d=-diag; d<diag; d+=gap){
-        const x1=minx + d*Math.cos(ang), y1=miny + d*Math.sin(ang);
+        const x1=o.x + d*Math.cos(ang), y1=o.y + d*Math.sin(ang);
         const x2=x1 + (maxx-minx)*Math.sin(ang+Math.PI/2), y2=y1 - (maxx-minx)*Math.cos(ang+Math.PI/2);
         const s1=worldToScreen(x1,y1), s2=worldToScreen(x2,y2);
         ctx.beginPath(); ctx.moveTo(s1.x,s1.y); ctx.lineTo(s2.x,s2.y); ctx.stroke();
       }
       ctx.setLineDash([]); ctx.restore();
+      // show circle guide
+      const sc=worldToScreen(o.x,o.y);
+      ctx.save(); ctx.strokeStyle=rgba('#ffffff',.35);
+      ctx.beginPath(); ctx.arc(sc.x,sc.y,r*state.camera.scale,0,Math.PI*2); ctx.stroke(); ctx.restore();
     }
 
     // hatch angle guide
@@ -734,7 +838,7 @@
         add(`<div class="grid">
           <div class="stack"><label>Angle</label><input id="hatchAngle" type="range" min="-180" max="180" value="${state.draw.hatchAngle}"/></div>
           <div class="stack"><label>Gap</label><input id="hatchGap" type="range" min="4" max="32" value="${state.draw.hatchGap}"/></div>
-        </div><p class="note">Drag to preview hatch. <b>Middle-drag</b> shows a guide and sets the angle.</p>`);
+        </div><p class="note">Drag from an origin: size is radius from click. <b>Middle-drag</b> shows a guide and sets the angle.</p>`);
       }
       if(['draw-line','draw-rect','draw-circle','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
         const tips={
@@ -742,7 +846,7 @@
           'draw-rect':'Drag from corner.',
           'draw-circle':'Drag from center.',
           'draw-bucket':'Click one; or drag a box to recolor everything it touches.',
-          'draw-crop':'First mark region of interest. Crop again to trim to second box and delete the outer ring.',
+          'draw-crop':'Two-step: first choose mask; second choose keep-area (deletes ring).',
           'draw-erase':'Click deletes one; or drag a box to delete all it touches.'
         };
         add(`<p class="note">${tips[state.tool]}</p>`);
@@ -751,7 +855,7 @@
     }
   }
 
-  /* ===== Theme & Palette ===== */
+  /* ===== Theme & Palette (UI) ===== */
   function applyTheme(){
     const r=document.documentElement, t=state.theme;
     r.style.setProperty('--accent',t.accent1); r.style.setProperty('--accent2',t.accent2);
@@ -759,18 +863,20 @@
   }
   function buildPaletteBar(){
     const wrap=$('#palBubbles'); wrap.innerHTML='';
-    state.palette.forEach((c,i)=>{
+    const pal = activePalette();
+    pal.forEach((c,i)=>{
       const b=document.createElement('div'); b.className='bubble'+(c===state.currentColor?' active':''); b.style.background=c; b.title=`Color ${i+1}`;
       b.addEventListener('click', ()=>{ state.currentColor=c; state.stroke=c; updateMiniSwatches(); buildPaletteBar(); });
       b.addEventListener('contextmenu', ev=>{
         ev.preventDefault();
         const inp=document.createElement('input'); inp.type='color'; inp.value=c; inp.style.position='fixed'; inp.style.left='-9999px'; document.body.appendChild(inp);
-        inp.addEventListener('input', ()=>{ state.palette[i]=inp.value; LS.set(PALETTE_KEY, state.palette); buildPaletteBar(); });
+        inp.addEventListener('input', ()=>{ pal[i]=inp.value; setActivePalette(pal); buildPaletteBar(); buildPalBanksUI(); });
         inp.addEventListener('change', ()=>{ document.body.removeChild(inp); });
         inp.click();
       });
       wrap.appendChild(b);
     });
+    $('#palPageLabel').textContent = (state.activePage[state.activeBank]+1) + '/10';
     updateMiniSwatches();
   }
   function updateMiniSwatches(){
@@ -784,6 +890,47 @@
       inp.addEventListener('input', ()=>{ state.fill=inp.value; $('#swFill').style.background=state.fill; });
       inp.addEventListener('change', ()=>document.body.removeChild(inp)); inp.click();
     };
+  }
+  function buildPalBanksUI(){
+    const host = $('#palBanksUI'); host.innerHTML='';
+    const labels=['A','B','C'];
+    state.palBanks.forEach((bank,bi)=>{
+      const page = state.activePage[bi]??0;
+      const wrap=document.createElement('div'); wrap.className='palBank';
+      const row=document.createElement('div'); row.className='palRow';
+      const title=document.createElement('strong'); title.textContent=`Bank ${labels[bi]} — Page ${page+1}/10`;
+      const useBtn=document.createElement('button'); useBtn.className='btn small'; useBtn.textContent = (state.activeBank===bi)?'Using':'Use';
+      useBtn.addEventListener('click', ()=>{ state.activeBank=bi; buildPaletteBar(); buildPalBanksUI(); });
+      const prev=document.createElement('button'); prev.className='btn small'; prev.textContent='<';
+      prev.addEventListener('click', ()=>{ state.activePage[bi]=Math.max(0,(state.activePage[bi]||0)-1); buildPalBanksUI(); if(bi===state.activeBank) buildPaletteBar(); });
+      const next=document.createElement('button'); next.className='btn small'; next.textContent='>';
+      next.addEventListener('click', ()=>{ state.activePage[bi]=Math.min(9,(state.activePage[bi]||0)+1); if(!bank.pages[state.activePage[bi]]) bank.pages[state.activePage[bi]]=placeholderPalette(); buildPalBanksUI(); if(bi===state.activeBank) buildPaletteBar(); });
+      const load=document.createElement('button'); load.className='btn small'; load.textContent='Load';
+      load.addEventListener('click', ()=>{
+        const names=listGlobalPaletteNames();
+        const name=prompt('Load palette by name:\n'+(names.length?names.join(', '):'(none saved yet)'));
+        if(!name) return;
+        const pal=loadGlobalPalette(name);
+        if(!pal) return alert('Not found');
+        bank.pages[state.activePage[bi]||0]=pal.slice();
+        if(bi===state.activeBank) buildPaletteBar();
+        buildPalBanksUI();
+      });
+      const save=document.createElement('button'); save.className='btn small'; save.textContent='Save';
+      save.addEventListener('click', ()=>{
+        const pal=bank.pages[state.activePage[bi]||0]||placeholderPalette();
+        const name=prompt('Name for palette to save globally:', 'palette-'+labels[bi]+'-'+(state.activePage[bi]+1));
+        if(!name) return;
+        saveGlobalPalette(name, pal);
+      });
+
+      const minis=document.createElement('div'); minis.className='miniCells';
+      (bank.pages[state.activePage[bi]||0]||placeholderPalette()).slice(0,16).forEach(c=>{ const d=document.createElement('div'); d.style.background=c; minis.appendChild(d); });
+
+      row.appendChild(title); row.appendChild(useBtn); row.appendChild(prev); row.appendChild(next); row.appendChild(load); row.appendChild(save);
+      wrap.appendChild(row); wrap.appendChild(minis);
+      host.appendChild(wrap);
+    });
   }
 
   /* ===== Layers UI ===== */
@@ -899,6 +1046,15 @@
   const preventMMB = el => { el.addEventListener('mousedown', e=>{ if(e.button===1){ e.preventDefault(); }}); el.addEventListener('auxclick', e=>{ if(e.button===1){ e.preventDefault(); }}); };
   preventMMB(canvasPanel); preventMMB($('#layerList'));
 
+  // mouse wheel zoom to cursor
+  canvasPanel.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const px=e.clientX-rect.left, py=e.clientY-rect.top;
+    const factor = e.deltaY>0 ? 1/1.1 : 1.1;
+    setZoom(state.camera.scale*factor, px, py);
+  }, {passive:false});
+
   // Settings dialog
   bind('#btnSettings','click', ()=>{
     const HK={...defaultsHK, ...(state.settings?.hotkeys||{})}, t=state.theme;
@@ -928,21 +1084,39 @@
     LS.set(SETTINGS_KEY,state.settings); LS.set(THEME_KEY,state.theme); applyTheme(); $('#saveKbd').textContent=HK.save; updateHotkeySummary(); $('#dlgSettings').close();
   });
 
+  // mini palette bank/page controls (left)
+  bind('#bankA','click', ()=>{ state.activeBank=0; buildPaletteBar(); buildPalBanksUI(); });
+  bind('#bankB','click', ()=>{ state.activeBank=1; buildPaletteBar(); buildPalBanksUI(); });
+  bind('#bankC','click', ()=>{ state.activeBank=2; buildPaletteBar(); buildPalBanksUI(); });
+  bind('#palPrev','click', ()=>{ state.activePage[state.activeBank]=Math.max(0,(state.activePage[state.activeBank]||0)-1); buildPaletteBar(); buildPalBanksUI(); });
+  bind('#palNext','click', ()=>{ state.activePage[state.activeBank]=Math.min(9,(state.activePage[state.activeBank]||0)+1); const b=state.palBanks[state.activeBank]; if(!b.pages[state.activePage[state.activeBank]]) b.pages[state.activePage[state.activeBank]]=placeholderPalette(); buildPaletteBar(); buildPalBanksUI(); });
+
   // project IO
   bind('#btnNew','click', ()=> $('#dlgNew').showModal());
   bind('#btnNewClose','click', ()=> $('#dlgNew').close());
   bind('#btnCreateProj','click', ()=>{
     const t=$('#newTitle').value.trim()||('phik-'+uid()); const w=+$('#newW').value||1024; const h=+$('#newH').value||576;
     state.project=newProject(t,w,h); state.pageIndex=0; state.layer=0; state.selection.clear();
+    state.palBanks = ensurePalBanks(state.project[PROJ_BANKS_KEY]);
     refreshUIAfterProjectChange(); pushHistory(); $('#dlgNew').close();
   });
   bind('#btnLoad','click', ()=> $('#dlgLoad').showModal());
   bind('#btnLoadClose','click', ()=> $('#dlgLoad').close());
   bind('#btnDoLoad','click', async ()=>{
     const f=$('#loadFile').files[0]; if(!f) return alert('Pick a file');
-    try{ const proj=JSON.parse(await f.text()); if(!proj.pages) throw new Error('Invalid project file'); proj.layers=normalizeLayers(proj.layers); state.project=proj; state.pageIndex=0; state.layer=proj.layers[0]?.id??0; state.selection.clear(); refreshUIAfterProjectChange(); pushHistory(); $('#dlgLoad').close(); }catch(err){ alert('Failed to load project: '+err.message); }
+    try{
+      const proj=JSON.parse(await f.text()); if(!proj.pages) throw new Error('Invalid project file'); proj.layers=normalizeLayers(proj.layers);
+      state.project=proj; state.pageIndex=0; state.layer=proj.layers[0]?.id??0; state.selection.clear();
+      state.palBanks = ensurePalBanks(proj[PROJ_BANKS_KEY]);
+      refreshUIAfterProjectChange(); pushHistory(); $('#dlgLoad').close();
+    }catch(err){ alert('Failed to load project: '+err.message); }
   });
-  bind('#btnSave','click', ()=>{ if(!state.project) return alert('No project'); downloadFile((state.project.title||'phik')+'.project.json', JSON.stringify(state.project,null,2)); });
+  bind('#btnSave','click', ()=>{
+    if(!state.project) return alert('No project');
+    // persist banks into project before save
+    state.project[PROJ_BANKS_KEY] = deepClone(state.palBanks);
+    downloadFile((state.project.title||'phik')+'.project.json', JSON.stringify(state.project,null,2));
+  });
   bind('#btnExport','click', ()=>{ if(!state.project) return alert('No project'); const html=makeExportHTML(state.project); downloadFile((state.project.title||'comic')+'.html', html); });
 
   // undo/redo buttons
@@ -954,12 +1128,12 @@
   bind('#modeSeg [data-mode="draw"]','click',  ()=> setMode('draw'));
 
   // page controls
-  bind('#btnNext','click', ()=>{ if(!state.project) return; state.pageIndex=(state.pageIndex+1)%state.project.pages.length; refreshUIAfterProjectChange(); });
-  bind('#btnPrev','click', ()=>{ if(!state.project) return; state.pageIndex=(state.pageIndex-1+state.project.pages.length)%state.project.pages.length; refreshUIAfterProjectChange(); });
+  bind('#btnNext','click', ()=>{ if(!state.project) return; state.pageIndex=(state.pageIndex+1)%state.project.pages.length; refreshUIAfterProjectChange({preserveCamera:true}); });
+  bind('#btnPrev','click', ()=>{ if(!state.project) return; state.pageIndex=(state.pageIndex-1+state.project.pages.length)%state.project.pages.length; refreshUIAfterProjectChange({preserveCamera:true}); });
   bind('#btnApplySize','click', ()=>{ const w=+$('#pageW').value||currPage().w; const h=+$('#pageH').value||currPage().h; currPage().w=w; currPage().h=h; resizeCanvas(); pushHistory(); });
-  bind('#btnNewPage','click', ()=>{ const last=currPage(); state.project.pages.push(newPage(last.w,last.h)); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange(); pushHistory(); });
-  bind('#btnDupPage','click', ()=>{ const cp=currPage(); const dup=deepClone(cp); dup.objects.forEach(o=>o.id=uid()); state.project.pages.push(dup); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange(); pushHistory(); });
-  bind('#btnDelPage','click', ()=>{ if(state.project.pages.length<=1) return alert('At least one page required.'); if(!confirm('Delete current page?')) return; state.project.pages.splice(state.pageIndex,1); state.pageIndex=Math.max(0,state.pageIndex-1); refreshUIAfterProjectChange(); pushHistory(); });
+  bind('#btnNewPage','click', ()=>{ const last=currPage(); state.project.pages.push(newPage(last.w,last.h)); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange({preserveCamera:true}); pushHistory(); });
+  bind('#btnDupPage','click', ()=>{ const cp=currPage(); const dup=deepClone(cp); dup.objects.forEach(o=>o.id=uid()); state.project.pages.push(dup); state.pageIndex=state.project.pages.length-1; refreshUIAfterProjectChange({preserveCamera:true}); pushHistory(); });
+  bind('#btnDelPage','click', ()=>{ if(state.project.pages.length<=1) return alert('At least one page required.'); if(!confirm('Delete current page?')) return; state.project.pages.splice(state.pageIndex,1); state.pageIndex=Math.max(0,state.pageIndex-1); refreshUIAfterProjectChange({preserveCamera:true}); pushHistory(); });
   bind('#pageBg','input',  ()=>{ currPage().bgColor=$('#pageBg').value; });
   bind('#pageBgTransparent','change', ()=>{ currPage().bgTransparent = $('#pageBgTransparent').value==='true'; });
   bind('#pageNote','input', ()=>{ currPage().note=$('#pageNote').value; });
@@ -974,7 +1148,13 @@
   bind('#btnDeselect','click', ()=> state.selection.clear());
   bind('#rotRange','input', e=>{ for(const id of state.selection){ const o=getById(id); if(o) o.r=+e.target.value; } });
 
-  // zoom
+  // universal selection style controls
+  bind('#selStroke','input', e=>{ for(const id of state.selection){ const o=getById(id); if(o){ o.stroke=e.target.value; } } });
+  bind('#selFill','input', e=>{ for(const id of state.selection){ const o=getById(id); if(o){ o.fill=e.target.value; } } });
+  bind('#selStrokeW','input', e=>{ const v=+e.target.value; for(const id of state.selection){ const o=getById(id); if(o){ o.strokeWidth=v; } } });
+  bind('#selOpacity','input', e=>{ const v=clamp(+e.target.value,1,100)/100; for(const id of state.selection){ const o=getById(id); if(o){ o.opacity=v; } } });
+
+  // zoom buttons
   bind('#btnZoomIn','click', ()=> setZoom(state.camera.scale*1.2));
   bind('#btnZoomOut','click', ()=> setZoom(state.camera.scale/1.2));
   bind('#btnZoom100','click', ()=> { setZoom(1); });
@@ -983,7 +1163,7 @@
   /* ===== Canvas interactions ===== */
   function endInteractions(commitHist=true){
     state.mouse.down=false; state.draggingSel=false; state.resizing=null; state.marquee=null; state.panning=false;
-    state.draw.hatchPreview=null;
+    state.draw.hatchPreview=null; state.draw.hatchOrigin=null;
     if(commitHist) pushHistory();
   }
   window.addEventListener('mouseup', ()=> endInteractions(true));
@@ -1005,7 +1185,7 @@
 
     if(state.editingText){ commitTextEdit(); }
 
-    // handles
+    // handles (z-index fixed; works in both modes)
     if(state.tool.endsWith('select') && state.selection.size){
       const bb=selectionBBox();
       if(bb){
@@ -1086,7 +1266,7 @@
         const txt=($('#toolTextContent')?.value||'Text'); const size=+($('#toolTextSize')?.value||24);
         const o=newObj('text',{x:world.x,y:world.y,w:1,h:size, stroke:state.currentColor, meta:{text:txt,size:size,family:'sans-serif', fill:state.currentColor, outline:false, outlineColor:'#000', outlineWidth:2}}); currPage().objects.push(o); state.selection=new Set([o.id]); beginTextEdit(o);
       }
-      if(state.tool==='draw-hatch'){ state.drawing={hatchStart:world}; state.draw.hatchPreview={minx:world.x,miny:world.y,maxx:world.x,maxy:world.y}; }
+      if(state.tool==='draw-hatch'){ state.drawing={hatchStart:world}; state.draw.hatchOrigin={x:world.x,y:world.y}; state.draw.hatchPreview={r:0}; }
     }
   });
 
@@ -1176,8 +1356,9 @@
         state.bucketBox.w=state.mouse.x-state.mouse.ox; state.bucketBox.h=state.mouse.y-state.mouse.oy;
       }
       if(state.tool==='draw-crop' && state.marquee){ state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; }
-      if(state.tool==='draw-hatch' && state.draw.hatchPreview){
-        const p=state.draw.hatchPreview; p.maxx=Math.max(p.maxx,world.x); p.maxy=Math.max(p.maxy,world.y); p.minx=Math.min(p.minx,world.x); p.miny=Math.min(p.miny,world.y);
+      if(state.tool==='draw-hatch' && state.draw.hatchPreview && state.draw.hatchOrigin){
+        const r = Math.hypot(world.x-state.draw.hatchOrigin.x, world.y-state.draw.hatchOrigin.y);
+        state.draw.hatchPreview.r = r;
       }
     }
   });
@@ -1221,21 +1402,19 @@
         }
         state.bucketBox=null; pushHistory();
       }
-      if(state.tool==='draw-hatch' && state.drawing?.hatchStart){
-        const p=state.draw.hatchPreview;
-        if(p){
-          const ang=(+($('#hatchAngle')?.value||state.draw.hatchAngle))*Math.PI/180;
-          const gap=+($('#hatchGap')?.value||state.draw.hatchGap);
-          const minx=p.minx, maxx=p.maxx, miny=p.miny, maxy=p.maxy;
-          const diag=Math.hypot(maxx-minx,maxy-miny);
-          for(let d=-diag; d<diag; d+=gap){
-            const x1=minx + d*Math.cos(ang), y1=miny + d*Math.sin(ang);
-            const x2=x1 + (maxx-minx)*Math.sin(ang+Math.PI/2), y2=y1 - (maxx-minx)*Math.cos(ang+Math.PI/2);
-            const line=newObj('line',{x:Math.min(x1,x2), y:Math.min(y1,y2), points:[{x:x1,y:y1},{x:x2,y:y2}], stroke: state.currentColor, fill:'#00000000', strokeWidth:1});
-            currPage().objects.push(line);
-          }
+      if(state.tool==='draw-hatch' && state.draw.hatchOrigin && state.draw.hatchPreview){
+        const o = state.draw.hatchOrigin; const r=state.draw.hatchPreview.r;
+        const minx=o.x-r, maxx=o.x+r, miny=o.y-r, maxy=o.y+r;
+        const ang=(+($('#hatchAngle')?.value||state.draw.hatchAngle))*Math.PI/180;
+        const gap=+($('#hatchGap')?.value||state.draw.hatchGap);
+        const diag=r*2*Math.SQRT2;
+        for(let d=-diag; d<diag; d+=gap){
+          const x1=o.x + d*Math.cos(ang), y1=o.y + d*Math.sin(ang);
+          const x2=x1 + (maxx-minx)*Math.sin(ang+Math.PI/2), y2=y1 - (maxx-minx)*Math.cos(ang+Math.PI/2);
+          const line=newObj('line',{x:Math.min(x1,x2), y:Math.min(y1,y2), points:[{x:x1,y:y1},{x:x2,y:y2}], stroke: state.currentColor, fill:'#00000000', strokeWidth:1, kind:'draw'});
+          currPage().objects.push(line);
         }
-        state.drawing=null; state.draw.hatchPreview=null; pushHistory();
+        state.drawing=null; state.draw.hatchPreview=null; state.draw.hatchOrigin=null; pushHistory();
       }
       if(state.tool==='draw-crop' && state.marquee){
         const xm=Math.min(state.marquee.x,state.marquee.x+state.marquee.w);
@@ -1369,7 +1548,10 @@
 
   /* ===== Export ===== */
   function makeExportHTML(project){
-    const JSON_DATA=JSON.stringify(project);
+    const PCLONE = deepClone(project);
+    // prune palettes in export (not used by reader)
+    delete PCLONE[PROJ_BANKS_KEY];
+    const JSON_DATA=JSON.stringify(PCLONE);
     return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${project.title} — Comic</title>
@@ -1415,12 +1597,20 @@
   }
 
   /* ===== Helpers after project change ===== */
-  function refreshUIAfterProjectChange(){ refreshTopMeta(); resizeCanvas(); fitPage(true); }
+  function refreshUIAfterProjectChange(opts={}){
+    const {preserveCamera=false}=opts;
+    const cam=preserveCamera? deepClone(state.camera):null;
+    refreshTopMeta(); resizeCanvas();
+    if(!preserveCamera) fitPage(true); else { state.camera.fit=false; drawPageFrame(); }
+    buildPaletteBar(); buildPalBanksUI();
+  }
 
   /* ===== Init ===== */
   function init(){
     applyTheme();
+    // start project
     state.project=newProject('phik',1024,576);
+    state.palBanks = ensurePalBanks(state.project[PROJ_BANKS_KEY]);
     setMode('panel'); buildToolButtons(); buildDynamicControls();
     refreshUIAfterProjectChange(); render();
     updateMiniSwatches();
