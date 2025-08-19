@@ -299,6 +299,14 @@
           <div class="stack"><label>Inner R</label><input id="uiStarInner" type="number" min="5" value="40"/></div>
           <div class="stack"><label>Outer R</label><input id="uiStarOuter" type="number" min="5" value="100"/></div>
         </div>
+
+        <!-- image controls -->
+        <div id="imgControls" class="grid" style="margin-top:.5rem; display:none">
+          <div class="stack"><label>Left Offset</label><input id="imgOffL" type="number" value="0"/></div>
+          <div class="stack"><label>Right Offset</label><input id="imgOffR" type="number" value="0"/></div>
+          <div class="stack"><label>Top Offset</label><input id="imgOffT" type="number" value="0"/></div>
+          <div class="stack"><label>Bottom Offset</label><input id="imgOffB" type="number" value="0"/></div>
+        </div>
       </div>
 
       <div class="section">
@@ -619,6 +627,31 @@
     if(!layerVisible(o.layer)) return;
     const s = state.camera.scale;
     const sc = worldToScreen(o.x, o.y);
+    if(o.type==='image'){
+      if(!o.meta.img && o.meta.src){
+        const img=new Image(); img.src=o.meta.src;
+        Object.defineProperty(o.meta,'img',{value:img, enumerable:false});
+        img.onload=()=>{ o.w=img.width - (o.meta.left||0) - (o.meta.right||0); o.h=img.height - (o.meta.top||0) - (o.meta.bottom||0); };
+      }
+      if(o.meta.img){
+        ctx.save();
+        ctx.globalAlpha = (o.opacity ?? 1);
+        const px = sc.x + (o.w*s)/2, py = sc.y + (o.h*s)/2;
+        ctx.translate(px, py); ctx.rotate((o.r||0)*Math.PI/180); ctx.translate(-(o.w*s)/2, -(o.h*s)/2);
+        const img=o.meta.img;
+        const sx=o.meta.left||0, sy=o.meta.top||0;
+        const sw=img.width - (o.meta.left||0) - (o.meta.right||0);
+        const sh=img.height - (o.meta.top||0) - (o.meta.bottom||0);
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, o.w*s, o.h*s);
+        ctx.restore();
+      }
+      if(state.selection.has(o.id)){
+        const p=worldToScreen(o.x,o.y);
+        ctx.save(); ctx.setLineDash([6,6]); ctx.strokeStyle='#7aa2f7'; ctx.lineWidth=1;
+        ctx.strokeRect(p.x+0.5,p.y+0.5,o.w*s-1,o.h*s-1); ctx.setLineDash([]); ctx.restore();
+      }
+      return;
+    }
 
     ctx.save();
     ctx.globalAlpha = (o.opacity ?? 1);
@@ -811,6 +844,7 @@
     {id:'draw-line',  label:'Line'},
     {id:'draw-rect',  label:'Rect'},
     {id:'draw-circle',label:'Circle'},
+    {id:'draw-image', label:'Image'},
     {id:'draw-bucket',label:'Bucket'},
     {id:'draw-crop',  label:'Crop'},
     {id:'draw-text',  label:'Text'},
@@ -859,6 +893,24 @@
         buildFontSelect($('#toolTextFont'));
         $('#toolTextFont').value=state.textFont;
         bind('#toolTextFont','change', e=>{ state.textFont=e.target.value; });
+      }
+      if(state.tool==='draw-image'){
+        add(`<div class="stack"><label>Image File</label><input type="file" id="imgFile" accept="image/*"/></div>
+        <p class="note">Choose an image to place on the canvas.</p>`);
+        bind('#imgFile','change', e=>{
+          const file=e.target.files[0]; if(!file) return;
+          const reader=new FileReader();
+          reader.onload=ev=>{
+            const img=new Image();
+            img.onload=()=>{
+              const o=newObj('image',{x:0,y:0,w:img.width,h:img.height, meta:{src:ev.target.result,left:0,top:0,right:0,bottom:0}});
+              Object.defineProperty(o.meta,'img',{value:img, enumerable:false});
+              currPage().objects.push(o); state.selection=new Set([o.id]); pushHistory();
+            };
+            img.src=ev.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
       }
       if(state.tool==='draw-hatch'){
         add(`<div class="grid">
@@ -1555,6 +1607,14 @@
       $('#textOutlineWidth').value=t.meta.outlineWidth||2;
     }
     $('#starControls').style.display = (only('star')) ? 'grid':'none';
+    $('#imgControls').style.display = (only('image')) ? 'grid':'none';
+    if(only('image')){
+      const im=getById([...state.selection][0]);
+      $('#imgOffL').value=im.meta.left||0;
+      $('#imgOffR').value=im.meta.right||0;
+      $('#imgOffT').value=im.meta.top||0;
+      $('#imgOffB').value=im.meta.bottom||0;
+    }
 
     endInteractions(true);
   });
@@ -1600,6 +1660,21 @@
   bind('#textOutline','change', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outline=(e.target.value==='on'); });
   bind('#textOutlineColor','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outlineColor=e.target.value; });
   bind('#textOutlineWidth','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outlineWidth=+e.target.value; });
+
+  ['#imgOffL','#imgOffR','#imgOffT','#imgOffB'].forEach(sel=>{
+    bind(sel,'input', ()=>{
+      if(state.selection.size!==1) return;
+      const o=getById([...state.selection][0]);
+      if(o?.type!=='image') return;
+      const img=o.meta.img; if(!img) return;
+      o.meta.left = clamp(+$('#imgOffL').value||0, 0, img.width);
+      o.meta.right = clamp(+$('#imgOffR').value||0, 0, img.width);
+      o.meta.top = clamp(+$('#imgOffT').value||0, 0, img.height);
+      o.meta.bottom = clamp(+$('#imgOffB').value||0, 0, img.height);
+      o.w = img.width - o.meta.left - o.meta.right;
+      o.h = img.height - o.meta.top - o.meta.bottom;
+    });
+  });
 
   /* ===== Stars ===== */
   function buildStar(cx,cy, points, innerR, outerR){
@@ -1670,6 +1745,11 @@
     else if(o.type==='circle'){ ctx.beginPath(); ctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); }
     else if(o.type==='line' && o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); ctx.lineTo((o.points[1].x-o.x)*s,(o.points[1].y-o.y)*s); ctx.stroke(); }
     else if((o.type==='path'||o.type==='star') && o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){ const p=o.points[k]; ctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} if(o.type==='star'||o.meta?.closed){ ctx.closePath(); if((o.fill??'')!=='#00000000') ctx.fill(); } ctx.stroke(); }
+    else if(o.type==='image'){
+      const img=new Image(); img.src=o.meta?.src||'';
+      const draw=()=>{ ctx.save(); ctx.translate((o.x+o.w/2)*s,(o.y+o.h/2)*s); ctx.rotate((o.r||0)*Math.PI/180); ctx.translate(-(o.w/2)*s, -(o.h/2)*s); const sx=o.meta?.left||0, sy=o.meta?.top||0; const sw=img.width-(o.meta?.left||0)-(o.meta?.right||0); const sh=img.height-(o.meta?.top||0)-(o.meta?.bottom||0); ctx.drawImage(img,sx,sy,sw,sh,0,0,o.w*s,o.h*s); ctx.restore(); };
+      if(img.complete) draw(); else img.onload=draw;
+    }
     else if(o.type==='text'){ const fill=o.meta?.fill||o.stroke||'#eaeaf2'; const outline=o.meta?.outline; const outlineColor=o.meta?.outlineColor||'#000'; const outlineWidth=o.meta?.outlineWidth||2; ctx.font=\`\${o.meta?.size||24}px \${o.meta?.family||'sans-serif'}\`; ctx.textBaseline='top'; const lines=(o.meta?.text||'Text').split('\\n'); lines.forEach((line,i)=>{ if(outline){ ctx.lineWidth=Math.max(1,outlineWidth*s); ctx.strokeStyle=outlineColor; ctx.strokeText(line,0,i*(o.meta?.size||24)); } ctx.fillStyle=fill; ctx.fillText(line,0,i*(o.meta?.size||24)); }); }
     ctx.restore();
   }
