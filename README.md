@@ -135,7 +135,10 @@
       <button class="btn" id="btnLoad"  type="button">Load</button>
       <button class="btn" id="btnSave"  type="button" title="Save Project"><span>Save</span> <span class="kbd" id="saveKbd">Ctrl+S</span></button>
       <button class="btn primary" id="btnExport" type="button" title="Export to standalone .html">Export HTML</button>
+      <button class="btn" id="btnFont" type="button" title="Import custom font">Import Font</button>
     </div>
+
+    <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" style="display:none" />
 
     <div class="spacer"></div>
 
@@ -271,6 +274,7 @@
             <div class="stack"><label>Text</label><input type="text" id="textContent" placeholder="Edit text"></div>
             <div class="stack"><label>Size</label><input type="number" id="textSize" min="6" max="256" value="24"></div>
           </div>
+          <div class="stack"><label>Font</label><select id="textFont"></select></div>
           <div class="grid">
             <div class="stack"><label>Text Color</label><input type="color" id="textFill" value="#e8eaf0"></div>
             <div class="stack"><label>Outline Color</label><input type="color" id="textOutlineColor" value="#000000"></div>
@@ -474,7 +478,9 @@
     theme: Object.assign({ accent1:'#7aa2f7', accent2:'#f7768e', accent3:'#9ece6a', accent4:'#e0af68', accent5:'#7dcfff' }, LS.get(THEME_KEY, {})),
     history:{stack:[], idx:-1, lock:false},
     editingText:null,
-    cropMask:null // first step rectangle in world space
+    cropMask:null, // first step rectangle in world space
+    textFont:'sans-serif',
+    fonts:['sans-serif','serif','monospace']
   };
 
   /* ===== Palettes ===== */
@@ -837,7 +843,12 @@
         add(`<div class="grid">
           <div class="stack"><label>Text</label><input id="toolTextContent" type="text" value="Text"></div>
           <div class="stack"><label>Size</label><input id="toolTextSize" type="number" min="6" max="256" value="24"></div>
-        </div><p class="note">Click canvas to place text; click a text while in Text tool to select/edit it.</p>`);
+        </div>
+        <div class="stack"><label>Font</label><select id="toolTextFont"></select></div>
+        <p class="note">Click canvas to place text; click a text while in Text tool to select/edit it.</p>`);
+        buildFontSelect($('#toolTextFont'));
+        $('#toolTextFont').value=state.textFont;
+        bind('#toolTextFont','change', e=>{ state.textFont=e.target.value; });
       }
       if(state.tool==='draw-hatch'){
         add(`<div class="grid">
@@ -858,6 +869,16 @@
       }
       if(state.tool==='draw-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (touch). Drag inside to move; corner handles to scale; center handle to grab.</p>`); }
     }
+  }
+
+  function buildFontSelect(el){
+    if(!el) return;
+    el.innerHTML='';
+    state.fonts.forEach(f=>{
+      const opt=document.createElement('option');
+      opt.value=f; opt.textContent=f;
+      el.appendChild(opt);
+    });
   }
 
   /* ===== Theme & Palette (UI) ===== */
@@ -1146,6 +1167,23 @@
     downloadFile((state.project.title||'phik')+'.project.json', JSON.stringify(state.project,null,2));
   });
   bind('#btnExport','click', ()=>{ if(!state.project) return alert('No project'); const html=makeExportHTML(state.project); downloadFile((state.project.title||'comic')+'.html', html); });
+  bind('#btnFont','click', ()=> $('#fontFile').click());
+  bind('#fontFile','change', e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const name=file.name.replace(/\.[^/.]+$/,'').replace(/\W+/g,'_');
+    const url=URL.createObjectURL(file);
+    const style=document.createElement('style');
+    style.textContent=`@font-face{font-family:'${name}';src:url('${url}');}`;
+    document.head.appendChild(style);
+    state.fonts.push(name);
+    buildFontSelect($('#textFont'));
+    buildFontSelect($('#toolTextFont'));
+    state.textFont=name;
+    $('#textFont').value=name;
+    $('#toolTextFont')?.value=name;
+    e.target.value='';
+    toast('Loaded font '+file.name);
+  });
 
   // undo/redo buttons
   bind('#btnUndo','click', undo); bind('#btnRedo','click', redo);
@@ -1291,8 +1329,9 @@
       if(state.tool==='draw-text'){
         const hit=hitTest(world,'draw');
         if(hit?.type==='text'){ state.selection=new Set([hit.id]); beginTextEdit(hit); return; }
-        const txt=($('#toolTextContent')?.value||'Text'); const size=+($('#toolTextSize')?.value||24);
-        const o=newObj('text',{x:world.x,y:world.y,w:1,h:size, stroke:state.currentColor, meta:{text:txt,size:size,family:'sans-serif', fill:state.currentColor, outline:false, outlineColor:'#000', outlineWidth:2}}); currPage().objects.push(o); state.selection=new Set([o.id]); beginTextEdit(o);
+        const txt=($('#toolTextContent')?.value||'Text'); const size=+($('#toolTextSize')?.value||24); const fam=$('#toolTextFont')?.value||state.textFont;
+        state.textFont=fam;
+        const o=newObj('text',{x:world.x,y:world.y,w:1,h:size, stroke:state.currentColor, meta:{text:txt,size:size,family:fam, fill:state.currentColor, outline:false, outlineColor:'#000', outlineWidth:2}}); currPage().objects.push(o); state.selection=new Set([o.id]); beginTextEdit(o);
       }
       if(state.tool==='draw-hatch'){ state.drawing={hatchStart:world}; state.draw.hatchOrigin={x:world.x,y:world.y}; state.draw.hatchPreview={r:0}; }
     }
@@ -1482,8 +1521,11 @@
     $('#textControls').style.display = (only('text')) ? 'flex':'none';
     if(only('text')){
       const t=getById([...state.selection][0]);
+      buildFontSelect($('#textFont'));
       $('#textContent').value=t.meta.text||'Text';
       $('#textSize').value=t.meta.size||24;
+      state.textFont=t.meta.family||state.textFont;
+      $('#textFont').value=state.textFont;
       $('#textFill').value=t.meta.fill||t.stroke||'#e8eaf0';
       $('#textOutline').value=t.meta.outline?'on':'off';
       $('#textOutlineColor').value=t.meta.outlineColor||'#000000';
@@ -1530,6 +1572,7 @@
   // sidebar text controls bindings
   bind('#textContent','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.text=e.target.value; });
   bind('#textSize','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.size=+e.target.value; o.h=o.meta.size; });
+  bind('#textFont','change', e=>{ state.textFont=e.target.value; if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.family=e.target.value; });
   bind('#textFill','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.fill=e.target.value; });
   bind('#textOutline','change', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outline=(e.target.value==='on'); });
   bind('#textOutlineColor','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.outlineColor=e.target.value; });
@@ -1641,6 +1684,7 @@
     state.palBanks = ensurePalBanks(state.project[PROJ_BANKS_KEY]);
     setMode('panel'); buildToolButtons(); buildDynamicControls();
     refreshUIAfterProjectChange(); render();
+    buildFontSelect($('#textFont'));
     updateMiniSwatches();
     $('#saveKbd').textContent=(state.settings.hotkeys||defaultsHK).save;
     pushHistory();
