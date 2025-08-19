@@ -439,9 +439,10 @@
   /* ===== Default palettes ===== */
   function placeholderPalette(){
     return [
-      '#000000','#ffffff','#808080','#404040','#ffd1a4','#8b4513','#c0c0c0','#d4af37',
-      '#ff0000','#ff7f00','#ffff00','#00ff00','#00ffff','#0000ff','#8a2be2','#ff00ff',
-      '#ff6b6b','#f5a97f','#a6da95','#91d7e3','#8bd5ca','#7dc4e4','#c6a0f6','#ed8796'
+      '#00000000','#000000','#ffffff',
+      '#ff0000','#ffa500','#ffff00','#00ff00','#00ffff','#0000ff','#8a2be2','#ff00ff',
+      '#d4af37','#c0c0c0','#cd7f32',
+      '#f1c27d','#e0ac69','#c68642','#8d5524'
     ];
   }
 
@@ -869,12 +870,35 @@
     const wrap=$('#palBubbles'); wrap.innerHTML='';
     const pal = activePalette();
     pal.forEach((c,i)=>{
-      const b=document.createElement('div'); b.className='bubble'+(c===state.currentColor?' active':''); b.style.background=c; b.title=`Color ${i+1}`;
-      b.addEventListener('click', ()=>{ state.currentColor=c; state.stroke=c; updateMiniSwatches(); buildPaletteBar(); });
+      const b=document.createElement('div');
+      b.className='bubble'+(c===state.currentColor?' active':'');
+      b.style.background=c;
+      b.title=`Color ${i+1}`;
+      b.addEventListener('click', ()=>{
+        state.currentColor=c;
+        state.stroke=c;
+        updateMiniSwatches();
+        buildPaletteBar();
+      });
       b.addEventListener('contextmenu', ev=>{
         ev.preventDefault();
-        const inp=document.createElement('input'); inp.type='color'; inp.value=c; inp.style.position='fixed'; inp.style.left='-9999px'; document.body.appendChild(inp);
-        inp.addEventListener('input', ()=>{ pal[i]=inp.value; setActivePalette(pal); buildPaletteBar(); buildPalBanksUI(); });
+        state.fill=c;
+        updateMiniSwatches();
+      });
+      b.addEventListener('dblclick', ev=>{
+        ev.preventDefault();
+        const inp=document.createElement('input');
+        inp.type='color';
+        inp.value=c;
+        inp.style.position='fixed';
+        inp.style.left='-9999px';
+        document.body.appendChild(inp);
+        inp.addEventListener('input', ()=>{
+          pal[i]=inp.value;
+          setActivePalette(pal);
+          buildPaletteBar();
+          buildPalBanksUI();
+        });
         inp.addEventListener('change', ()=>{ document.body.removeChild(inp); });
         inp.click();
       });
