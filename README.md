@@ -1049,7 +1049,7 @@
   // mouse wheel zoom to cursor
   canvasPanel.addEventListener('wheel', (e)=>{
     e.preventDefault();
-    const rect=canvas.getBoundingClientRect();
+    const rect=canvasPanel.getBoundingClientRect();
     const px=e.clientX-rect.left, py=e.clientY-rect.top;
     const factor = e.deltaY>0 ? 1/1.1 : 1.1;
     setZoom(state.camera.scale*factor, px, py);
@@ -1170,7 +1170,7 @@
 
   canvas.addEventListener('mousedown', e=>{
     if(!state.project) return;
-    const rect=canvas.getBoundingClientRect();
+    const rect=canvasPanel.getBoundingClientRect();
     state.mouse.button=e.button;
     state.mouse.x=e.clientX-rect.left; state.mouse.y=e.clientY-rect.top; state.mouse.ox=state.mouse.x; state.mouse.oy=state.mouse.y; state.mouse.down=true;
     const world=screenToWorld(state.mouse.x,state.mouse.y);
@@ -1271,7 +1271,7 @@
   });
 
   canvas.addEventListener('mousemove', e=>{
-    const rect=canvas.getBoundingClientRect();
+    const rect=canvasPanel.getBoundingClientRect();
     const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
     state.mouse.x=sx; state.mouse.y=sy;
     const world=screenToWorld(state.mouse.x,state.mouse.y);
