@@ -748,7 +748,11 @@
 
   /* ===== Hit / select ===== */
   const aabb = o => ({x:o.x,y:o.y,w:o.w,h:o.h});
-  const pointInAABB=(px,py,bb)=> px>=bb.x && py>=bb.y && px<=bb.x+bb.w && py<=bb.y+bb.h;
+  const pointInAABB=(px,py,bb)=>{
+    const x1=Math.min(bb.x, bb.x+bb.w), x2=Math.max(bb.x, bb.x+bb.w);
+    const y1=Math.min(bb.y, bb.y+bb.h), y2=Math.max(bb.y, bb.y+bb.h);
+    return px>=x1 && py>=y1 && px<=x2 && py<=y2;
+  };
   const rectsIntersect = (A,B)=> !(B.x>A.x+A.w || B.x+B.w<A.x || B.y>A.y+A.h || B.y+B.h<A.y);
 
   // Strict-by-mode hit test
