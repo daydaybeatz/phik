@@ -179,6 +179,10 @@
           <div id="swFill" class="swatch" title="Fill"></div>
         </div>
       </div>
+      <div class="stack" id="snapControls">
+        <label><input type="checkbox" id="snapToggle"> Snap to Grid</label>
+        <input type="number" id="snapSize" min="1" value="8" />
+      </div>
     </div>
 
     <!-- CANVAS -->
@@ -474,7 +478,8 @@
     theme: Object.assign({ accent1:'#7aa2f7', accent2:'#f7768e', accent3:'#9ece6a', accent4:'#e0af68', accent5:'#7dcfff' }, LS.get(THEME_KEY, {})),
     history:{stack:[], idx:-1, lock:false},
     editingText:null,
-    cropMask:null // first step rectangle in world space
+    cropMask:null, // first step rectangle in world space
+    snap:{enabled:false, size:8}
   };
 
   /* ===== Palettes ===== */
@@ -585,6 +590,8 @@
   }
   const screenToWorld=(x,y)=>({x:x/state.camera.scale+state.camera.x, y:y/state.camera.scale+state.camera.y});
   const worldToScreen=(x,y)=>({x:(x-state.camera.x)*state.camera.scale, y:(y-state.camera.y)*state.camera.scale});
+  const snap = v => state.snap.enabled ? Math.round(v/state.snap.size)*state.snap.size : v;
+  const snapPoint = p => ({x:snap(p.x), y:snap(p.y)});
 
   function clearCanvas(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -1031,11 +1038,11 @@
     state.resizing={dir, bbox0:bb, items};
   }
   function applyResize(world){
-    const R=state.resizing; if(!R) return; const bb0=R.bbox0;
+    const R=state.resizing; if(!R) return; world=snapPoint(world); const bb0=R.bbox0;
     const anchors={ 'nw':{ax:bb0.x+bb0.w, ay:bb0.y+bb0.h}, 'ne':{ax:bb0.x, ay:bb0.y+bb0.h}, 'sw':{ax:bb0.x+bb0.w, ay:bb0.y}, 'se':{ax:bb0.x, ay:bb0.y} };
     const {ax,ay}=anchors[R.dir]||anchors.se;
-    const nx=Math.min(ax,world.x), ny=Math.min(ay,world.y);
-    const nw=Math.abs(world.x-ax), nh=Math.abs(world.y-ay);
+    const nx=snap(Math.min(ax,world.x)), ny=snap(Math.min(ay,world.y));
+    const nw=snap(Math.abs(world.x-ax)), nh=snap(Math.abs(world.y-ay));
     const sx = (nw||0.0001)/bb0.w, sy=(nh||0.0001)/bb0.h;
 
     for(const [id,base] of R.items){
@@ -1118,6 +1125,8 @@
   bind('#bankC','click', ()=>{ state.activeBank=2; buildPaletteBar(); buildPalBanksUI(); });
   bind('#palPrev','click', ()=>{ state.activePage[state.activeBank]=Math.max(0,(state.activePage[state.activeBank]||0)-1); buildPaletteBar(); buildPalBanksUI(); });
   bind('#palNext','click', ()=>{ state.activePage[state.activeBank]=Math.min(9,(state.activePage[state.activeBank]||0)+1); const b=state.palBanks[state.activeBank]; if(!b.pages[state.activePage[state.activeBank]]) b.pages[state.activePage[state.activeBank]]=placeholderPalette(); buildPaletteBar(); buildPalBanksUI(); });
+  bind('#snapToggle','change', e=>{ state.snap.enabled = e.target.checked; });
+  bind('#snapSize','input', e=>{ state.snap.size = Math.max(1, +e.target.value); });
 
   // project IO
   bind('#btnNew','click', ()=> $('#dlgNew').showModal());
@@ -1201,7 +1210,7 @@
     const rect=canvasPanel.getBoundingClientRect();
     state.mouse.button=e.button;
     state.mouse.x=e.clientX-rect.left; state.mouse.y=e.clientY-rect.top; state.mouse.ox=state.mouse.x; state.mouse.oy=state.mouse.y; state.mouse.down=true;
-    const world=screenToWorld(state.mouse.x,state.mouse.y);
+    let world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
 
     if(e.button===1){
       if(!(state.tool==='draw-hatch')){
@@ -1302,7 +1311,7 @@
     const rect=canvasPanel.getBoundingClientRect();
     const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
     state.mouse.x=sx; state.mouse.y=sy;
-    const world=screenToWorld(state.mouse.x,state.mouse.y);
+    let world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
     if(!state.mouse.down) return;
 
     if(state.panning){
@@ -1322,7 +1331,7 @@
       if(state.tool==='panel-select' && state.draggingSel){
         const dx=(state.mouse.x - state.mouse.ox)/state.camera.scale;
         const dy=(state.mouse.y - state.mouse.oy)/state.camera.scale;
-        for(const id of state.selection){ const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id); o.x=start.x+dx; o.y=start.y+dy; }
+        for(const id of state.selection){ const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id); o.x=snap(start.x+dx); o.y=snap(start.y+dy); }
       }
       if(state.tool==='panel-rect' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
@@ -1354,7 +1363,7 @@
       if(state.tool==='draw-select' && state.draggingSel){
         const dx=(state.mouse.x - state.mouse.ox)/state.camera.scale;
         const dy=(state.mouse.y - state.mouse.oy)/state.camera.scale;
-        for(const id of state.selection){ const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id); o.x=start.x+dx; o.y=start.y+dy; }
+        for(const id of state.selection){ const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id); o.x=snap(start.x+dx); o.y=snap(start.y+dy); }
       }
       if(state.tool==='draw-erase' && state.marquee && state.marquee.erase){ state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; return; }
       if(state.tool==='draw-brush' && state.drawing){
@@ -1392,7 +1401,7 @@
   });
 
   canvas.addEventListener('mouseup', e=>{
-    const world=screenToWorld(state.mouse.x,state.mouse.y);
+    const world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
 
     if(state.draw.hatchGuide){
       const a=state.draw.hatchGuide.a, b=state.draw.hatchGuide.b;
@@ -1498,7 +1507,7 @@
   canvas.addEventListener('click', e=>{
     if(state.mouse.button!==0) return;
     if(Math.hypot(state.mouse.x-state.mouse.ox, state.mouse.y-state.mouse.oy) < 2 && !state.resizing && !state.draggingSel){
-      const world=screenToWorld(state.mouse.x,state.mouse.y);
+      const world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
       const hit=hitTest(world);
       if(!hit) state.selection.clear();
     }
@@ -1642,6 +1651,8 @@
     setMode('panel'); buildToolButtons(); buildDynamicControls();
     refreshUIAfterProjectChange(); render();
     updateMiniSwatches();
+    $('#snapToggle').checked = state.snap.enabled;
+    $('#snapSize').value = state.snap.size;
     $('#saveKbd').textContent=(state.settings.hotkeys||defaultsHK).save;
     pushHistory();
   }
