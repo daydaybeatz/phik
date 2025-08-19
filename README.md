@@ -56,6 +56,9 @@
   .bubble.active{outline:2px solid var(--accent)}
   .sf-mini{display:flex; gap:.35rem; align-items:center}
   .swatch{width:18px;height:18px;border-radius:4px;border:1px solid var(--line);cursor:pointer}
+  .snapControls{margin-top:.5rem;display:flex;gap:.35rem;align-items:center}
+  .snapControls label{display:flex;align-items:center;gap:.25rem;font-size:.85rem}
+  .snapControls input[type="number"]{width:48px}
 
   .canvasWrap{position:relative; overflow:hidden;
     background: conic-gradient(from 90deg at 1px 1px, #0000 90deg, #0002 0) 0 0/10px 10px;
@@ -181,6 +184,10 @@
           <div id="swStroke" class="swatch" title="Stroke"></div>
           <div id="swFill" class="swatch" title="Fill"></div>
         </div>
+      </div>
+      <div class="snapControls">
+        <label><input type="checkbox" id="snapToggle"> Snap</label>
+        <input type="number" id="snapSize" min="1" value="8" title="Grid size (px)">
       </div>
     </div>
 
@@ -470,6 +477,7 @@
     resizing:null,
     stroke:'#e8eaf0', fill:'#00000000', strokeWidth:2, opacity:100,
     currentColor:'#e8eaf0',
+    snap:{enabled:false,size:8},
     templates: LS.get(TEMPLATES_KEY, []),
     stamps: LS.get(STAMPS_KEY, []),
     // Palettes: 3 banks, each up to 10 pages, each page is array of colors
@@ -591,6 +599,8 @@
   }
   const screenToWorld=(x,y)=>({x:x/state.camera.scale+state.camera.x, y:y/state.camera.scale+state.camera.y});
   const worldToScreen=(x,y)=>({x:(x-state.camera.x)*state.camera.scale, y:(y-state.camera.y)*state.camera.scale});
+  const snapValue = v => { const s=state.snap.size; return Math.round(v/s)*s; };
+  const snapPoint = p => state.snap.enabled ? {x:snapValue(p.x), y:snapValue(p.y)} : p;
 
   function clearCanvas(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -1187,6 +1197,9 @@
 
   // undo/redo buttons
   bind('#btnUndo','click', undo); bind('#btnRedo','click', redo);
+  // snap controls
+  bind('#snapToggle','change', e=>{ state.snap.enabled = e.target.checked; });
+  bind('#snapSize','change', e=>{ const v=Math.max(1,+e.target.value||1); state.snap.size = v; });
 
   // mode & tools
   bind('#uiToggle','click', ()=> document.body.classList.toggle('ui-hidden'));
@@ -1239,7 +1252,7 @@
     const rect=canvasPanel.getBoundingClientRect();
     state.mouse.button=e.button;
     state.mouse.x=e.clientX-rect.left; state.mouse.y=e.clientY-rect.top; state.mouse.ox=state.mouse.x; state.mouse.oy=state.mouse.y; state.mouse.down=true;
-    const world=screenToWorld(state.mouse.x,state.mouse.y);
+    let world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
 
     if(e.button===1){
       if(!(state.tool==='draw-hatch')){
@@ -1341,7 +1354,7 @@
     const rect=canvasPanel.getBoundingClientRect();
     const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
     state.mouse.x=sx; state.mouse.y=sy;
-    const world=screenToWorld(state.mouse.x,state.mouse.y);
+    let world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
     if(!state.mouse.down) return;
 
     if(state.panning){
@@ -1361,7 +1374,12 @@
       if(state.tool==='panel-select' && state.draggingSel){
         const dx=(state.mouse.x - state.mouse.ox)/state.camera.scale;
         const dy=(state.mouse.y - state.mouse.oy)/state.camera.scale;
-        for(const id of state.selection){ const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id); o.x=start.x+dx; o.y=start.y+dy; }
+        for(const id of state.selection){
+          const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id);
+          let nx=start.x+dx, ny=start.y+dy;
+          if(state.snap.enabled){ nx=snapValue(nx); ny=snapValue(ny); }
+          o.x=nx; o.y=ny;
+        }
       }
       if(state.tool==='panel-rect' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
@@ -1393,7 +1411,12 @@
       if(state.tool==='draw-select' && state.draggingSel){
         const dx=(state.mouse.x - state.mouse.ox)/state.camera.scale;
         const dy=(state.mouse.y - state.mouse.oy)/state.camera.scale;
-        for(const id of state.selection){ const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id); o.x=start.x+dx; o.y=start.y+dy; }
+        for(const id of state.selection){
+          const o=getById(id); if(!o) continue; const start=state.dragStartPositions.get(id);
+          let nx=start.x+dx, ny=start.y+dy;
+          if(state.snap.enabled){ nx=snapValue(nx); ny=snapValue(ny); }
+          o.x=nx; o.y=ny;
+        }
       }
       if(state.tool==='draw-erase' && state.marquee && state.marquee.erase){ state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; return; }
       if(state.tool==='draw-brush' && state.drawing){
@@ -1431,7 +1454,7 @@
   });
 
   canvas.addEventListener('mouseup', e=>{
-    const world=screenToWorld(state.mouse.x,state.mouse.y);
+    let world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
 
     if(state.draw.hatchGuide){
       const a=state.draw.hatchGuide.a, b=state.draw.hatchGuide.b;
@@ -1540,7 +1563,7 @@
   canvas.addEventListener('click', e=>{
     if(state.mouse.button!==0) return;
     if(Math.hypot(state.mouse.x-state.mouse.ox, state.mouse.y-state.mouse.oy) < 2 && !state.resizing && !state.draggingSel){
-      const world=screenToWorld(state.mouse.x,state.mouse.y);
+      const world=snapPoint(screenToWorld(state.mouse.x,state.mouse.y));
       const hit=hitTest(world);
       if(!hit) state.selection.clear();
     }
@@ -1686,6 +1709,8 @@
     refreshUIAfterProjectChange(); render();
     buildFontSelect($('#textFont'));
     updateMiniSwatches();
+    $('#snapToggle').checked = state.snap.enabled;
+    $('#snapSize').value = state.snap.size;
     $('#saveKbd').textContent=(state.settings.hotkeys||defaultsHK).save;
     pushHistory();
   }
