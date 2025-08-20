@@ -407,7 +407,7 @@
   <form method="dialog">
     <h3>New Project</h3>
     <div class="grid">
-      <div class="stack"><label>Title</label><input type="text" id="newTitle" placeholder="phik project"></div>
+      <div class="stack"><label>Title</label><input type="text" id="newTitle" placeholder="project_#"></div>
       <div class="stack"><label>Default Width</label><input type="number" id="newW" value="1024"></div>
       <div class="stack"><label>Default Height</label><input type="number" id="newH" value="576"></div>
     </div>
@@ -454,6 +454,7 @@
   const TEMPLATES_KEY='PHIK_PANEL_TEMPLATES', STAMPS_KEY='PHIK_STAMPS', SETTINGS_KEY='PHIK_SETTINGS', THEME_KEY='PHIK_THEME';
   const GLOBAL_PALS_KEY='PHIK_GLOBAL_PALETTES';
   const PROJ_BANKS_KEY='palBanks'; // stored on project
+  const PROJECT_COUNT_KEY='PHIK_PROJECT_COUNT';
 
   /* ===== Default palettes ===== */
   function placeholderPalette(){
@@ -496,7 +497,8 @@
     editingText:null,
     cropMask:null, // first step rectangle in world space
     textFont:'sans-serif',
-    fonts:['sans-serif','serif','monospace']
+    fonts:['sans-serif','serif','monospace'],
+    projectCounter: LS.get(PROJECT_COUNT_KEY,1)
   };
 
   /* ===== Palettes ===== */
@@ -1203,10 +1205,12 @@
   bind('#palNext','click', ()=>{ state.activePage[state.activeBank]=Math.min(9,(state.activePage[state.activeBank]||0)+1); const b=state.palBanks[state.activeBank]; if(!b.pages[state.activePage[state.activeBank]]) b.pages[state.activePage[state.activeBank]]=placeholderPalette(); buildPaletteBar(); buildPalBanksUI(); });
 
   // project IO
-  bind('#btnNew','click', ()=> $('#dlgNew').showModal());
+  bind('#btnNew','click', ()=>{ $('#newTitle').placeholder = `project_${state.projectCounter}`; $('#dlgNew').showModal(); });
   bind('#btnNewClose','click', ()=> $('#dlgNew').close());
   bind('#btnCreateProj','click', ()=>{
-    const t=$('#newTitle').value.trim()||('phik-'+uid()); const w=+$('#newW').value||1024; const h=+$('#newH').value||576;
+    let t=$('#newTitle').value.trim();
+    if(!t){ t=`project_${state.projectCounter}`; state.projectCounter++; LS.set(PROJECT_COUNT_KEY,state.projectCounter); }
+    const w=+$('#newW').value||1024; const h=+$('#newH').value||576;
     state.project=newProject(t,w,h); state.pageIndex=0; state.layer=0; state.selection.clear();
     state.palBanks = ensurePalBanks(state.project[PROJ_BANKS_KEY]);
     refreshUIAfterProjectChange(); pushHistory(); $('#dlgNew').close();
