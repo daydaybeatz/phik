@@ -927,7 +927,7 @@
           'draw-circle':'Drag from center.',
           'draw-bucket':'Click one; or drag a box to recolor everything it touches.',
           'draw-crop':'Two-step: first choose mask; second choose keep-area (deletes ring).',
-          'draw-erase':'Click deletes one; or drag a box to delete all it touches.'
+          'draw-erase':'Click deletes brush strokes; drag a box to delete all strokes it touches.'
         };
         add(`<p class="note">${tips[state.tool]}</p>`);
       }
@@ -1372,8 +1372,13 @@
       }
       if(state.tool==='draw-erase'){
         const hit=hitTest(world,'draw');
-        if(hit){ currPage().objects = currPage().objects.filter(o=>o.id!==hit.id); pushHistory(); endInteractions(false); }
-        else { state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0, erase:true}; }
+        if(hit && hit.kind==='draw'){
+          currPage().objects = currPage().objects.filter(o=>o.id!==hit.id);
+          pushHistory();
+          endInteractions(false);
+        } else if(!hit){
+          state.marquee={x:state.mouse.x,y:state.mouse.y,w:0,h:0, erase:true};
+        }
         return;
       }
       if(state.tool==='draw-brush'){
