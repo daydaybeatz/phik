@@ -467,9 +467,12 @@
 
   /* ===== Default palettes ===== */
   const DEFAULT_PAL_PAGES=[
+    // Page 1: transparent, black, white, then the rainbow
     ['#00000000','#000000','#ffffff','#ff0000','#ffa500','#ffff00','#00ff00','#0000ff','#4b0082','#ee82ee'],
-    ['#d4af37','#c0c0c0','#cd7f32','#ffdbac','#f1c27d','#e0ac69','#c68642','#8d5524','#683b17','#4a2511'],
-    Array(10).fill('#00000000')
+    // Page 2: metals followed by light-to-dark skin tones
+    ['#ffd700','#c0c0c0','#cd7f32','#ffdbac','#f1c27d','#e0ac69','#c68642','#8d5524','#7d3f15','#603914'],
+    // Page 3: additional skin tones to round out the default set
+    ['#4a2511','#3b200c','#2b1709','#ffe0bd','#ffcd94','#eac086','#d8a577','#bf8a60','#a16b46','#7f4a25']
   ];
 
   function placeholderPalette(){
