@@ -175,7 +175,7 @@
           </div>
           <div class="bank">
             <button class="btn small" id="palPrev" title="Prev page">&lt;</button>
-            <span class="pill" id="palPageLabel">1/10</span>
+            <span class="pill" id="palPageLabel">1/3</span>
             <button class="btn small" id="palNext" title="Next page">&gt;</button>
           </div>
         </div>
@@ -457,13 +457,14 @@
   const PROJECT_COUNT_KEY='PHIK_PROJECT_COUNT';
 
   /* ===== Default palettes ===== */
+  const DEFAULT_PAL_PAGES=[
+    ['#00000000','#000000','#ffffff','#ff0000','#ffa500','#ffff00','#00ff00','#0000ff','#4b0082','#ee82ee'],
+    ['#d4af37','#c0c0c0','#cd7f32','#ffdbac','#f1c27d','#e0ac69','#c68642','#8d5524','#683b17','#4a2511'],
+    Array(10).fill('#00000000')
+  ];
+
   function placeholderPalette(){
-    return [
-      '#00000000','#000000','#ffffff',
-      '#ff0000','#ffa500','#ffff00','#00ff00','#00ffff','#0000ff','#8a2be2','#ff00ff',
-      '#d4af37','#c0c0c0','#cd7f32',
-      '#f1c27d','#e0ac69','#c68642','#8d5524'
-    ];
+    return Array(10).fill('#00000000');
   }
 
   /* ===== State ===== */
@@ -504,14 +505,20 @@
   /* ===== Palettes ===== */
   function ensurePalBanks(banks){
     if(banks && banks.length===3) return banks.map(b=>{
-      const pages = Array.isArray(b.pages)? b.pages.slice(0,10):[];
-      if(!pages.length) pages.push(placeholderPalette());
-      return { pages };
+      const pages = Array.isArray(b.pages)? b.pages.slice(0,3):[];
+      while(pages.length<3) pages.push(placeholderPalette());
+      return {
+        pages: pages.map(p=>{
+          const arr=p.slice(0,10);
+          while(arr.length<10) arr.push('#00000000');
+          return arr;
+        })
+      };
     });
     return [
-      {pages:[placeholderPalette()]},
-      {pages:[placeholderPalette()]},
-      {pages:[placeholderPalette()]}
+      {pages: DEFAULT_PAL_PAGES.map(p=>p.slice())},
+      {pages: DEFAULT_PAL_PAGES.map(p=>p.slice())},
+      {pages: DEFAULT_PAL_PAGES.map(p=>p.slice())}
     ];
   }
   function activePalette(){
@@ -995,7 +1002,7 @@
       });
       wrap.appendChild(b);
     });
-    $('#palPageLabel').textContent = (state.activePage[state.activeBank]+1) + '/10';
+    $('#palPageLabel').textContent = (state.activePage[state.activeBank]+1) + '/3';
     updateMiniSwatches();
   }
   function updateMiniSwatches(){
@@ -1017,13 +1024,13 @@
       const page = state.activePage[bi]??0;
       const wrap=document.createElement('div'); wrap.className='palBank';
       const row=document.createElement('div'); row.className='palRow';
-      const title=document.createElement('strong'); title.textContent=`Bank ${labels[bi]} — Page ${page+1}/10`;
+      const title=document.createElement('strong'); title.textContent=`Bank ${labels[bi]} — Page ${page+1}/3`;
       const useBtn=document.createElement('button'); useBtn.className='btn small'; useBtn.textContent = (state.activeBank===bi)?'Using':'Use';
       useBtn.addEventListener('click', ()=>{ state.activeBank=bi; buildPaletteBar(); buildPalBanksUI(); });
       const prev=document.createElement('button'); prev.className='btn small'; prev.textContent='<';
       prev.addEventListener('click', ()=>{ state.activePage[bi]=Math.max(0,(state.activePage[bi]||0)-1); buildPalBanksUI(); if(bi===state.activeBank) buildPaletteBar(); });
       const next=document.createElement('button'); next.className='btn small'; next.textContent='>';
-      next.addEventListener('click', ()=>{ state.activePage[bi]=Math.min(9,(state.activePage[bi]||0)+1); if(!bank.pages[state.activePage[bi]]) bank.pages[state.activePage[bi]]=placeholderPalette(); buildPalBanksUI(); if(bi===state.activeBank) buildPaletteBar(); });
+      next.addEventListener('click', ()=>{ state.activePage[bi]=Math.min(2,(state.activePage[bi]||0)+1); if(!bank.pages[state.activePage[bi]]) bank.pages[state.activePage[bi]]=placeholderPalette(); buildPalBanksUI(); if(bi===state.activeBank) buildPaletteBar(); });
       const load=document.createElement('button'); load.className='btn small'; load.textContent='Load';
       load.addEventListener('click', ()=>{
         const names=listGlobalPaletteNames();
@@ -1031,20 +1038,21 @@
         if(!name) return;
         const pal=loadGlobalPalette(name);
         if(!pal) return alert('Not found');
-        bank.pages[state.activePage[bi]||0]=pal.slice();
+        while(pal.length<10) pal.push('#00000000');
+        bank.pages[state.activePage[bi]||0]=pal.slice(0,10);
         if(bi===state.activeBank) buildPaletteBar();
         buildPalBanksUI();
       });
       const save=document.createElement('button'); save.className='btn small'; save.textContent='Save';
       save.addEventListener('click', ()=>{
-        const pal=bank.pages[state.activePage[bi]||0]||placeholderPalette();
+        const pal=(bank.pages[state.activePage[bi]||0]||placeholderPalette()).slice(0,10);
         const name=prompt('Name for palette to save globally:', 'palette-'+labels[bi]+'-'+(state.activePage[bi]+1));
         if(!name) return;
         saveGlobalPalette(name, pal);
       });
 
       const minis=document.createElement('div'); minis.className='miniCells';
-      (bank.pages[state.activePage[bi]||0]||placeholderPalette()).slice(0,16).forEach(c=>{ const d=document.createElement('div'); d.style.background=c; minis.appendChild(d); });
+      (bank.pages[state.activePage[bi]||0]||placeholderPalette()).slice(0,10).forEach(c=>{ const d=document.createElement('div'); d.style.background=c; minis.appendChild(d); });
 
       row.appendChild(title); row.appendChild(useBtn); row.appendChild(prev); row.appendChild(next); row.appendChild(load); row.appendChild(save);
       wrap.appendChild(row); wrap.appendChild(minis);
@@ -1208,7 +1216,7 @@
   bind('#bankB','click', ()=>{ state.activeBank=1; buildPaletteBar(); buildPalBanksUI(); });
   bind('#bankC','click', ()=>{ state.activeBank=2; buildPaletteBar(); buildPalBanksUI(); });
   bind('#palPrev','click', ()=>{ state.activePage[state.activeBank]=Math.max(0,(state.activePage[state.activeBank]||0)-1); buildPaletteBar(); buildPalBanksUI(); });
-  bind('#palNext','click', ()=>{ state.activePage[state.activeBank]=Math.min(9,(state.activePage[state.activeBank]||0)+1); const b=state.palBanks[state.activeBank]; if(!b.pages[state.activePage[state.activeBank]]) b.pages[state.activePage[state.activeBank]]=placeholderPalette(); buildPaletteBar(); buildPalBanksUI(); });
+  bind('#palNext','click', ()=>{ state.activePage[state.activeBank]=Math.min(2,(state.activePage[state.activeBank]||0)+1); const b=state.palBanks[state.activeBank]; if(!b.pages[state.activePage[state.activeBank]]) b.pages[state.activePage[state.activeBank]]=placeholderPalette(); buildPaletteBar(); buildPalBanksUI(); });
 
   // project IO
   bind('#btnNew','click', ()=>{ $('#newTitle').placeholder = `project_${state.projectCounter}`; $('#dlgNew').showModal(); });
