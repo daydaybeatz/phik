@@ -126,12 +126,7 @@
 <div id="app">
   <!-- ===== TOPBAR ===== -->
   <div class="topbar">
-    <div class="brand"><span id="appName">phik</span> <span class="pill" id="versionPill">v0.82</span> <span class="pill" id="modePill">PANEL MODE</span></div>
-
-    <div class="seg" id="modeSeg">
-      <button class="btn" data-mode="panel" type="button" title="Panel Mode">Panels</button>
-      <button class="btn" data-mode="draw"  type="button" title="Draw Mode">Draw</button>
-    </div>
+    <div class="brand"><span id="appName">phik</span> <span class="pill" id="versionPill">v0.82</span></div>
 
     <div class="row">
       <button class="btn" id="btnNew"   type="button">New</button>
@@ -204,7 +199,7 @@
     <!-- RIGHT SIDEBAR -->
     <div class="panel right">
       <div class="section">
-        <h3 id="sidebarTitle">Panel Tools</h3>
+        <h3 id="sidebarTitle">Tools</h3>
         <div class="stack" id="dynamicControls"></div>
       </div>
 
@@ -368,8 +363,6 @@
     <div class="section" style="border:0">
       <h4>Hotkeys</h4>
       <div class="stack">
-        <label>Switch Mode</label>
-        <input id="hkMode" type="text" placeholder="Key (e.g. Tab)" />
         <label>Save</label>
         <input id="hkSave" type="text" placeholder="Key (e.g. Ctrl+S)" />
         <label>Undo</label>
@@ -468,9 +461,8 @@
   }
 
   /* ===== State ===== */
-  const defaultsHK = { mode:'Tab', save:'Ctrl+S', undo:'Ctrl+Z', redo:'Ctrl+Y', brush:'B', erase:'E', line:'L', rect:'R', circle:'C', star:'S', select:'V', hatch:'H', bucket:'K', crop:'X', text:'T' };
+  const defaultsHK = { save:'Ctrl+S', undo:'Ctrl+Z', redo:'Ctrl+Y', brush:'B', erase:'E', line:'L', rect:'R', circle:'C', star:'S', select:'V', hatch:'H', bucket:'K', crop:'X', text:'T' };
   const state = {
-    mode:'panel',
     project:null,
     pageIndex:0,
     layer:0,
@@ -560,7 +552,7 @@
   function newPage(w,h){ return { w,h, bgTransparent:true, bgColor:'#000000', note:'', objects:[] }; }
   function newObj(type,props={}){
     return Object.assign({
-      id:uid(), type, kind: state.mode,
+      id:uid(), type, kind: state.tool.startsWith('panel-')?'panel':'draw',
       x:0,y:0,w:0,h:0,r:0,
       points:[],
       stroke: state.stroke, fill: state.fill,
@@ -715,7 +707,7 @@
   }
 
   function selectionBBox(){
-    const items=[...state.selection].map(getById).filter(Boolean).filter(o=>o.kind===state.mode && layerVisible(o.layer));
+    const items=[...state.selection].map(getById).filter(Boolean).filter(o=>layerVisible(o.layer));
     if(!items.length) return null;
     let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
     for(const o of items){
@@ -814,18 +806,17 @@
   };
   const rectsIntersect = (A,B)=> !(B.x>A.x+A.w || B.x+B.w<A.x || B.y>A.y+A.h || B.y+B.h<A.y);
 
-  // Strict-by-mode hit test
-  function hitTest(world, kind=state.mode){
+  function hitTest(world, kind=null){
     const objects = allObjects().slice().reverse();
     for(const o of objects){
-      if(o.kind!==kind) continue;
+      if(kind && o.kind!==kind) continue;
       if(!layerVisible(o.layer)) continue;
       if(pointInAABB(world.x,world.y,aabb(o))) return o;
     }
     return null;
   }
 
-  function selectInMarquee_intersect(add=false){
+  function selectInMarquee_intersect(add=false, kind=null){
     if(!state.marquee) return;
     const xm=Math.min(state.marquee.x,state.marquee.x+state.marquee.w);
     const ym=Math.min(state.marquee.y,state.marquee.y+state.marquee.h);
@@ -834,7 +825,7 @@
     const box={x:topLeft.x,y:topLeft.y,w:bottomRight.x-topLeft.x,h:bottomRight.y-topLeft.y};
     if(!add) state.selection.clear();
     for(const o of allObjects()){
-      if(o.kind!==state.mode) continue;
+      if(kind && o.kind!==kind) continue;
       if(!layerVisible(o.layer)) continue;
       if(rectsIntersect(aabb(o), box)) state.selection.add(o.id);
     }
@@ -843,11 +834,11 @@
   /* ===== Tools ===== */
   const TOOLS_PANEL = [
     {id:'panel-rect', label:'Panel Rect'},
-    {id:'panel-star', label:'Star'},
-    {id:'panel-line', label:'Line'},
-    {id:'panel-select', label:'Select'}
+    {id:'panel-star', label:'Panel Star'},
+    {id:'panel-line', label:'Panel Line'},
+    {id:'panel-select', label:'Panel Select'}
   ];
-  // tools available while in draw mode
+  // tools available while drawing
   const TOOLS_DRAW = [
     // freehand brush for sketching
     {id:'draw-brush', label:'Brush'},
@@ -867,7 +858,7 @@
 
   function buildToolButtons(){
     const tpanel=$('#toolPanel'); tpanel.innerHTML='';
-    const defs = (state.mode==='panel')? TOOLS_PANEL : TOOLS_DRAW;
+    const defs=[...TOOLS_PANEL, ...TOOLS_DRAW];
     defs.forEach(d=>{
       const b=document.createElement('button'); b.type='button'; b.className='tbtn'+(state.tool===d.id?' active':''); b.textContent=d.label;
       b.addEventListener('click', ()=>{ state.tool=d.id; buildDynamicControls(); updateToolButtons(); });
@@ -876,12 +867,11 @@
     buildPaletteBar();
   }
   function updateToolButtons(){ $$('#toolPanel .tbtn').forEach(btn=> btn.classList.toggle('active', btn.textContent.trim().toLowerCase()===toolLabel(state.tool).toLowerCase())); }
-  function setMode(mode){ state.mode=mode; $('#modePill').textContent = mode==='panel' ? 'PANEL MODE' : 'DRAW MODE'; $('#sidebarTitle').textContent = mode==='panel'? 'Panel Tools':'Draw Tools'; buildToolButtons(); buildDynamicControls(); state.selection.clear(); }
 
   function buildDynamicControls(){
     const wrap=$('#dynamicControls'); wrap.innerHTML='';
     const add=html=>wrap.insertAdjacentHTML('beforeend',html);
-    if(state.mode==='panel'){
+    if(state.tool.startsWith('panel-')){
       if(state.tool==='panel-rect'){ add(`<p class="note">Drag to create rectangles. Use Select to move/scale.</p>`); }
       if(state.tool==='panel-star'){ add(`<div class="grid">
         <div class="stack"><label>Points</label><input id="starPoints" type="number" value="5" min="3" max="24"/></div>
@@ -1205,8 +1195,8 @@
   // Settings dialog
   bind('#btnSettings','click', ()=>{
     const HK={...defaultsHK, ...(state.settings?.hotkeys||{})}, t=state.theme;
-    const ids=['hkMode','hkSave','hkUndo','hkRedo','hkBrush','hkErase','hkLine','hkRect','hkCircle','hkStar','hkSelect','hkHatch','hkBucket','hkCrop','hkText'];
-    const vals=[HK.mode,HK.save,HK.undo,HK.redo,HK.brush,HK.erase,HK.line,HK.rect,HK.circle,HK.star,HK.select,HK.hatch,HK.bucket,HK.crop,HK.text];
+    const ids=['hkSave','hkUndo','hkRedo','hkBrush','hkErase','hkLine','hkRect','hkCircle','hkStar','hkSelect','hkHatch','hkBucket','hkCrop','hkText'];
+    const vals=[HK.save,HK.undo,HK.redo,HK.brush,HK.erase,HK.line,HK.rect,HK.circle,HK.star,HK.select,HK.hatch,HK.bucket,HK.crop,HK.text];
     ids.forEach((id,i)=>{ const el=$('#'+id); if(el) el.value=vals[i]; });
     $('#th1').value=t.accent1; $('#th2').value=t.accent2; $('#th3').value=t.accent3; $('#th4').value=t.accent4; $('#th5').value=t.accent5;
     updateHotkeySummary(HK); $('#dlgSettings').showModal();
@@ -1216,15 +1206,15 @@
     e.preventDefault(); const parts=[]; if(e.ctrlKey) parts.push('Ctrl'); if(e.altKey) parts.push('Alt'); if(e.shiftKey) parts.push('Shift');
     const key = e.key.length===1 ? e.key.toUpperCase() : e.key; if(!['Control','Alt','Shift'].includes(key)) parts.push(key); el.value=parts.join('+');
   });
-  ['#hkMode','#hkSave','#hkUndo','#hkRedo','#hkBrush','#hkErase','#hkLine','#hkRect','#hkCircle','#hkStar','#hkSelect','#hkHatch','#hkBucket','#hkCrop','#hkText'].forEach(sel=>{ const el=$(sel); el && captureKeyIn(el); });
+  ['#hkSave','#hkUndo','#hkRedo','#hkBrush','#hkErase','#hkLine','#hkRect','#hkCircle','#hkStar','#hkSelect','#hkHatch','#hkBucket','#hkCrop','#hkText'].forEach(sel=>{ const el=$(sel); el && captureKeyIn(el); });
   function updateHotkeySummary(HK=state.settings.hotkeys){
-    $('#hkSummary').innerHTML = `Mode: <b>${HK.mode}</b> • Save: <b>${HK.save}</b> • Undo: <b>${HK.undo}</b> • Redo: <b>${HK.redo}</b><br>
+    $('#hkSummary').innerHTML = `Save: <b>${HK.save}</b> • Undo: <b>${HK.undo}</b> • Redo: <b>${HK.redo}</b><br>
       Brush: <b>${HK.brush}</b> • Erase: <b>${HK.erase}</b> • Line: <b>${HK.line}</b> • Rect: <b>${HK.rect}</b> • Circle: <b>${HK.circle}</b> • Star: <b>${HK.star}</b> • Select: <b>${HK.select}</b> • Hatch: <b>${HK.hatch}</b> • Bucket: <b>${HK.bucket}</b> • Crop: <b>${HK.crop}</b> • Text: <b>${HK.text}</b>`;
   }
   bind('#btnSaveSettings','click', ()=>{
     const HK=state.settings.hotkeys || (state.settings.hotkeys={...defaultsHK}), t=state.theme;
     Object.assign(HK, {
-      mode:$('#hkMode').value||HK.mode, save:$('#hkSave').value||HK.save, undo:$('#hkUndo').value||HK.undo, redo:$('#hkRedo').value||HK.redo,
+      save:$('#hkSave').value||HK.save, undo:$('#hkUndo').value||HK.undo, redo:$('#hkRedo').value||HK.redo,
       brush:$('#hkBrush').value||HK.brush, erase:$('#hkErase').value||HK.erase, line:$('#hkLine').value||HK.line, rect:$('#hkRect').value||HK.rect, circle:$('#hkCircle').value||HK.circle, star:$('#hkStar').value||HK.star, select:$('#hkSelect').value||HK.select, hatch:$('#hkHatch').value||HK.hatch, bucket:$('#hkBucket').value||HK.bucket, crop:$('#hkCrop').value||HK.crop, text:$('#hkText').value||HK.text
     });
     state.theme.accent1=$('#th1').value; state.theme.accent2=$('#th2').value; state.theme.accent3=$('#th3').value; state.theme.accent4=$('#th4').value; state.theme.accent5=$('#th5').value;
@@ -1291,10 +1281,8 @@
   bind('#snapToggle','change', e=>{ state.snap.enabled = e.target.checked; });
   bind('#snapSize','change', e=>{ const v=Math.max(1,+e.target.value||1); state.snap.size = v; });
 
-  // mode & tools
+  // tools
   bind('#uiToggle','click', ()=> document.body.classList.toggle('ui-hidden'));
-  bind('#modeSeg [data-mode="panel"]','click', ()=> setMode('panel'));
-  bind('#modeSeg [data-mode="draw"]','click',  ()=> setMode('draw'));
 
   // page controls
   bind('#btnNext','click', ()=>{ if(!state.project) return; state.pageIndex=(state.pageIndex+1)%state.project.pages.length; refreshUIAfterProjectChange({preserveCamera:true}); });
@@ -1320,7 +1308,7 @@
   bind('#btnToLayer','click', ()=>{ if(!state.selection.size) return; const L=prompt('Send selection to which layer id?', state.layer); if(L===null) return; for(const id of state.selection){ const o=getById(id); if(o) o.layer=+L; } pushHistory(); });
   bind('#btnSaveAsPanel','click', ()=>{ const items=[...state.selection].map(getById).filter(Boolean).filter(o=>o.kind==='panel'); if(!items.length) return alert('Select panels first'); const name=prompt('Template name?','tpl-'+uid()); if(!name) return; state.templates.push({name,items:items.map(deepClone)}); LS.set(TEMPLATES_KEY,state.templates); buildLibrary(); alert('Saved to panel_templates'); });
   bind('#btnSaveAsStamp','click', ()=>{ const items=[...state.selection].map(getById).filter(Boolean); if(!items.length) return alert('Select items first'); const name=prompt('Stamp name?','stamp-'+uid()); if(!name) return; state.stamps.push({name,items:items.map(deepClone)}); LS.set(STAMPS_KEY,state.stamps); buildLibrary(); alert('Saved to stamps'); });
-  bind('#btnSelectAll','click', ()=>{ const vis=new Set(state.project.layers.filter(l=>l.visible!==false).map(l=>l.id)); state.selection = new Set(allObjects().filter(o=>o.kind===state.mode && vis.has(o.layer)).map(o=>o.id)); });
+  bind('#btnSelectAll','click', ()=>{ const vis=new Set(state.project.layers.filter(l=>l.visible!==false).map(l=>l.id)); state.selection = new Set(allObjects().filter(o=>vis.has(o.layer)).map(o=>o.id)); });
   bind('#btnDeselect','click', ()=> state.selection.clear());
   bind('#rotRange','input', e=>{ for(const id of state.selection){ const o=getById(id); if(o) o.r=+e.target.value; } });
 
@@ -1361,7 +1349,7 @@
 
     if(state.editingText){ commitTextEdit(); }
 
-    // handles (z-index fixed; works in both modes)
+    // handles (z-index fixed)
     if(state.tool.endsWith('select') && state.selection.size){
       const bb=selectionBBox();
       if(bb){
@@ -1380,7 +1368,7 @@
       }
     }
 
-    if(state.mode==='panel'){
+    if(state.tool.startsWith('panel-')){
       if(state.tool==='panel-select'){
         const hit=hitTest(world,'panel');
         if(hit){ if(state.selection.has(hit.id)) state.selection.delete(hit.id); else state.selection.add(hit.id);
@@ -1469,9 +1457,9 @@
     if(state.draw.hatchGuide){ state.draw.hatchGuide.b=world; return; }
     if(state.resizing){ applyResize(world); return; }
 
-    if(state.mode==='panel'){
+    if(state.tool.startsWith('panel-')){
       if(state.tool==='panel-select' && state.marquee){
-        state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; selectInMarquee_intersect(false);
+        state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; selectInMarquee_intersect(false,'panel');
       }
       if(state.tool==='panel-select' && state.draggingSel){
         const dx=(state.mouse.x - state.mouse.ox)/state.camera.scale;
@@ -1508,7 +1496,7 @@
       }
     } else {
       if(state.tool==='draw-select' && state.marquee){
-        state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; selectInMarquee_intersect(false);
+        state.marquee.w=state.mouse.x-state.mouse.ox; state.marquee.h=state.mouse.y-state.mouse.oy; selectInMarquee_intersect(false,'draw');
       }
       if(state.tool==='draw-select' && state.draggingSel){
         const dx=(state.mouse.x - state.mouse.ox)/state.camera.scale;
@@ -1566,7 +1554,7 @@
       state.draw.hatchGuide=null;
     }
 
-    if(state.mode==='panel'){
+    if(state.tool.startsWith('panel-')){
       if(state.tool==='panel-rect' && state.drawing){
         const o=getById(state.drawing.id); if(o){ if(o.w<0){o.x+=o.w;o.w*=-1;} if(o.h<0){o.y+=o.h;o.h*=-1;} } state.drawing=null;
       }
@@ -1868,7 +1856,7 @@
     // start project
     state.project=newProject('phik',1024,576);
     state.palBanks = ensurePalBanks(state.project[PROJ_BANKS_KEY]);
-    setMode('panel'); buildToolButtons(); buildDynamicControls();
+    buildToolButtons(); buildDynamicControls();
     refreshUIAfterProjectChange(); render();
     buildFontSelect($('#textFont'));
     updateMiniSwatches();
