@@ -292,12 +292,17 @@
           </div>
           <span class="note">Click a text object to edit inline. <b>Enter</b> inserts a newline. <b>Ctrl+Enter</b> finishes.</span>
         </div>
+        <!-- circle controls -->
+        <div id="circleControls" class="grid" style="margin-top:.5rem; display:none">
+          <div class="stack"><label>Angle</label><input id="uiCircleAngle" type="range" min="-180" max="180" value="0"/></div>
+        </div>
 
         <!-- star controls -->
         <div id="starControls" class="grid" style="margin-top:.5rem; display:none">
           <div class="stack"><label>Points</label><input id="uiStarPoints" type="number" min="3" max="24" value="5"/></div>
           <div class="stack"><label>Inner R</label><input id="uiStarInner" type="number" min="5" value="40"/></div>
           <div class="stack"><label>Outer R</label><input id="uiStarOuter" type="number" min="5" value="100"/></div>
+            <div class="stack"><label>Angle</label><input id="uiStarAngle" type="range" min="-180" max="180" value="0"/></div>
         </div>
 
         <!-- image controls -->
@@ -849,6 +854,7 @@
     // rectangle drawing tool
     {id:'draw-rect',  label:'Rect'},
     {id:'draw-circle',label:'Circle'},
+    {id:'draw-star',  label:'Star'},
     {id:'draw-image', label:'Image'},
     {id:'draw-bucket',label:'Bucket'},
     {id:'draw-crop',  label:'Crop'},
@@ -919,18 +925,26 @@
           reader.readAsDataURL(file);
         });
       }
+      if(state.tool==='draw-star'){
+        add(`<div class="grid">
+        <div class="stack"><label>Points</label><input id="starPoints" type="number" value="5" min="3" max="24"/></div>
+        <div class="stack"><label>Inner Radius</label><input id="starInner" type="number" value="40" min="5" /></div>
+        <div class="stack"><label>Outer Radius</label><input id="starOuter" type="number" value="100" min="5" /></div>
+      </div><p class="note">Click an existing star to edit; click-drag to place a new star (scales while dragging).</p>`);
+      }
       if(state.tool==='draw-hatch'){
         add(`<div class="grid">
           <div class="stack"><label>Angle</label><input id="hatchAngle" type="range" min="-180" max="180" value="${state.draw.hatchAngle}"/></div>
           <div class="stack"><label>Gap</label><input id="hatchGap" type="range" min="4" max="32" value="${state.draw.hatchGap}"/></div>
         </div><p class="note">Drag from an origin: size is radius from click. <b>Middle-drag</b> shows a guide and sets the angle.</p>`);
       }
-      if(['draw-brush','draw-line','draw-rect','draw-circle','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
+      if(['draw-brush','draw-line','draw-rect','draw-circle','draw-star','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
         const tips={
           'draw-brush':'Freehand pen.',
           'draw-line':'Click-drag; free angle. Hold Shift to lock to 0°/90°.',
           'draw-rect':'Drag from corner.',
-          'draw-circle':'Drag from center.',
+          'draw-circle':'Drag from corner.',
+          'draw-star':'Click an existing star to edit; click-drag to place a new star (scales while dragging).',
           'draw-bucket':'Click one; or drag a box to recolor everything it touches.',
           'draw-crop':'Two-step: first choose mask; second choose keep-area (deletes ring).',
           'draw-erase':'Click deletes brush strokes; drag a box to delete all strokes it touches.'
@@ -1397,8 +1411,24 @@
       if(state.tool==='draw-rect'){
         const o=newObj('rect',{x:world.x,y:world.y,w:1,h:1, stroke:state.currentColor, fill:state.fill}); currPage().objects.push(o); state.drawing={id:o.id,start:world};
       }
-      if(state.tool==='draw-circle'){
-        const o=newObj('circle',{x:world.x,y:world.y,w:2,h:2, stroke:state.currentColor, fill:state.fill, meta:{center:{x:world.x,y:world.y}}}); currPage().objects.push(o); state.drawing={id:o.id,center:world};
+        if(state.tool==='draw-circle'){
+          const hit=hitTest(world,'draw');
+          if(hit?.type==='circle'){ state.selection=new Set([hit.id]); showCircleControls(hit); }
+          else {
+            const o=newObj('circle',{x:world.x,y:world.y,w:1,h:1, stroke:state.currentColor, fill:state.fill, strokeWidth:state.strokeWidth, r:0});
+            currPage().objects.push(o); state.selection=new Set([o.id]); state.drawing={id:o.id,start:world};
+            showCircleControls(o);
+          }
+        }
+      if(state.tool==='draw-star'){
+        const hit=hitTest(world,'draw');
+        if(hit?.type==='star'){ state.selection=new Set([hit.id]); showStarControls(hit); }
+        else {
+          const pts=+($('#starPoints')?.value||5), rin=+($('#starInner')?.value||40), rout=+($('#starOuter')?.value||100);
+          const star=buildStar(world.x,world.y,pts,rin,rout); star.kind='draw'; currPage().objects.push(star);
+          state.selection=new Set([star.id]); state.drawing={starId:star.id, center:{x:world.x,y:world.y}, baseInner:rin, baseOuter:rout};
+          showStarControls(star);
+        }
       }
       if(state.tool==='draw-bucket'){
         const hit=hitTest(world,'draw');
@@ -1506,8 +1536,19 @@
       }
       if(state.tool==='draw-circle' && state.drawing){
         const o=getById(state.drawing.id); if(!o) return;
-        const c=o.meta.center; const r=Math.hypot(world.x-c.x, world.y-c.y);
-        o.x=c.x-r; o.y=c.y-r; o.w=r*2; o.h=r*2;
+        o.w=(world.x - state.drawing.start.x); o.h=(world.y - state.drawing.start.y);
+      }
+      if(state.tool==='draw-star' && state.drawing?.starId){
+        const st=getById(state.drawing.starId); if(!st) return;
+        const c=state.drawing.center;
+        const baseOuter=state.drawing.baseOuter;
+        const baseInner=state.drawing.baseInner;
+        const rout=Math.hypot(world.x-c.x, world.y-c.y);
+        const scale=rout/baseOuter;
+        st.meta.outer=rout; st.meta.inner=baseInner*scale; st.points=starPointsFromMeta(st.meta);
+        const minx=Math.min(...st.points.map(p=>p.x)), miny=Math.min(...st.points.map(p=>p.y));
+        const maxx=Math.max(...st.points.map(p=>p.x)), maxy=Math.max(...st.points.map(p=>p.y));
+        st.x=minx; st.y=miny; st.w=maxx-minx; st.h=maxy-miny;
       }
       if(state.tool==='draw-bucket' && state.bucketBox){
         state.bucketBox.w=state.mouse.x-state.mouse.ox; state.bucketBox.h=state.mouse.y-state.mouse.oy;
@@ -1601,7 +1642,9 @@
         }
         state.marquee=null; pushHistory();
       }
-      if(state.drawing && state.tool.startsWith('draw-')){
+      if(state.tool==='draw-star' && state.drawing?.starId){
+        state.drawing=null;
+      } else if(state.drawing && state.tool.startsWith('draw-')){
         const o=getById(state.drawing.id); if(o){ if(o.w<0){o.x+=o.w;o.w*=-1;} if(o.h<0){o.y+=o.h;o.h*=-1;} }
         state.drawing=null;
       }
@@ -1621,7 +1664,10 @@
       $('#textOutlineColor').value=t.meta.outlineColor||'#000000';
       $('#textOutlineWidth').value=t.meta.outlineWidth||2;
     }
+    $('#circleControls').style.display = (only('circle')) ? 'grid':'none';
+    if(only('circle')) showCircleControls(getById([...state.selection][0]));
     $('#starControls').style.display = (only('star')) ? 'grid':'none';
+    if(only('star')) showStarControls(getById([...state.selection][0]));
     $('#imgControls').style.display = (only('image')) ? 'grid':'none';
     if(only('image')){
       const im=getById([...state.selection][0]);
@@ -1692,8 +1738,8 @@
   });
 
   /* ===== Stars ===== */
-  function buildStar(cx,cy, points, innerR, outerR){
-    const meta={cx,cy,points,inner:innerR,outer:outerR};
+  function buildStar(cx,cy, points, innerR, outerR, angle=0){
+    const meta={cx,cy,points,inner:innerR,outer:outerR,angle};
     const pts=starPointsFromMeta(meta);
     const minx=Math.min(...pts.map(p=>p.x)), miny=Math.min(...pts.map(p=>p.y));
     const maxx=Math.max(...pts.map(p=>p.x)), maxy=Math.max(...pts.map(p=>p.y));
@@ -1702,24 +1748,44 @@
   }
   function starPointsFromMeta(meta){
     const pts=[]; const step=Math.PI/meta.points;
-    for(let i=0;i<2*meta.points;i++){ const r=(i%2===0)?meta.outer:meta.inner; const a=-Math.PI/2 + i*step; const x=meta.cx + r*Math.cos(a), y=meta.cy + r*Math.sin(a); pts.push({x,y}); }
+    for(let i=0;i<2*meta.points;i++){
+      const r=(i%2===0)?meta.outer:meta.inner;
+      const a=-Math.PI/2 + i*step;
+      const x=meta.cx + r*Math.cos(a), y=meta.cy + r*Math.sin(a);
+      pts.push({x,y});
+    }
+    if(meta.angle){
+      const rad=meta.angle*Math.PI/180;
+      const cos=Math.cos(rad), sin=Math.sin(rad);
+      return pts.map(p=>({x:meta.cx + (p.x-meta.cx)*cos - (p.y-meta.cy)*sin, y:meta.cy + (p.x-meta.cx)*sin + (p.y-meta.cy)*cos}));
+    }
     return pts;
   }
-  function showStarControls(star){
+function showStarControls(star){
     $('#starControls').style.display='grid';
     $('#uiStarPoints').value=star.meta.points||5;
     $('#uiStarInner').value=Math.round(star.meta.inner||40);
     $('#uiStarOuter').value=Math.round(star.meta.outer||100);
+      $('#uiStarAngle').value=Math.round(star.meta.angle||0);
   }
-  ['#uiStarPoints','#uiStarInner','#uiStarOuter'].forEach(sel=>{
+  ['#uiStarPoints','#uiStarInner','#uiStarOuter','#uiStarAngle'].forEach(sel=>{
     bind(sel,'input', ()=>{
       if(state.selection.size!==1) return; const st=getById([...state.selection][0]); if(!st || st.type!=='star') return;
-      st.meta.points=+$('#uiStarPoints').value; st.meta.inner=+$('#uiStarInner').value; st.meta.outer=+$('#uiStarOuter').value;
+      st.meta.points=+$('#uiStarPoints').value; st.meta.inner=+$('#uiStarInner').value; st.meta.outer=+$('#uiStarOuter').value; st.meta.angle=+$('#uiStarAngle').value;
       st.points=starPointsFromMeta(st.meta);
       const minx=Math.min(...st.points.map(p=>p.x)), miny=Math.min(...st.points.map(p=>p.y));
       const maxx=Math.max(...st.points.map(p=>p.x)), maxy=Math.max(...st.points.map(p=>p.y));
       st.x=minx; st.y=miny; st.w=maxx-minx; st.h=maxy-miny;
     });
+  });
+
+  function showCircleControls(c){
+    $('#circleControls').style.display='grid';
+    $('#uiCircleAngle').value=c.r||0;
+  }
+  bind('#uiCircleAngle','input',()=>{
+    if(state.selection.size!==1) return; const c=getById([...state.selection][0]); if(!c || c.type!=='circle') return;
+    c.r=+$('#uiCircleAngle').value;
   });
 
   /* ===== Bucket recolor ===== */
