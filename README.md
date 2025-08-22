@@ -840,10 +840,13 @@
     {id:'panel-line', label:'Line'},
     {id:'panel-select', label:'Select'}
   ];
+  // tools available while in draw mode
   const TOOLS_DRAW = [
+    // freehand brush for sketching
     {id:'draw-brush', label:'Brush'},
     {id:'draw-erase', label:'Erase'},
     {id:'draw-line',  label:'Line'},
+    // rectangle drawing tool
     {id:'draw-rect',  label:'Rect'},
     {id:'draw-circle',label:'Circle'},
     {id:'draw-image', label:'Image'},
@@ -881,10 +884,12 @@
       if(state.tool==='panel-line'){ add(`<p class="note">Click-drag to place a line. Hold Shift to lock to 0°/90°.</p>`); }
       if(state.tool==='panel-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (selects anything it touches). Drag inside to move; handles to scale.</p>`); }
     } else {
-      if(state.tool==='draw-brush'){ add(`<div class="grid">
+      if(state.tool==='draw-brush'){
+        add(`<div class="grid">
           <div class="stack"><label>Size</label><input id="sizeBrush" type="range" min="1" max="64" value="${state.strokeWidth}"/></div>
           <div class="stack"><label>Round/Rect</label><select id="brushShape"><option>round</option><option>square</option></select></div>
-        </div><p class="note">Freehand pen.</p>`); }
+        </div>`);
+      }
       if(state.tool==='draw-text'){
         add(`<div class="grid">
           <div class="stack"><label>Text</label><input id="toolTextContent" type="text" value="Text"></div>
@@ -920,8 +925,9 @@
           <div class="stack"><label>Gap</label><input id="hatchGap" type="range" min="4" max="32" value="${state.draw.hatchGap}"/></div>
         </div><p class="note">Drag from an origin: size is radius from click. <b>Middle-drag</b> shows a guide and sets the angle.</p>`);
       }
-      if(['draw-line','draw-rect','draw-circle','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
+      if(['draw-brush','draw-line','draw-rect','draw-circle','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
         const tips={
+          'draw-brush':'Freehand pen.',
           'draw-line':'Click-drag; free angle. Hold Shift to lock to 0°/90°.',
           'draw-rect':'Drag from corner.',
           'draw-circle':'Drag from center.',
