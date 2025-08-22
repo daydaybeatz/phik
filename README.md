@@ -1101,7 +1101,23 @@
     const mk=(arr,wrap)=> arr.length? arr.map((t)=>{ const r=document.createElement('div'); r.className='row'; const b=document.createElement('button'); b.className='btn small'; b.textContent='Place'; const lbl=document.createElement('span'); lbl.className='note'; lbl.textContent=t.name; r.appendChild(b); r.appendChild(lbl); wrap.appendChild(r); b.addEventListener('click', ()=> placeTemplate(t.items)); }): (wrap.innerHTML='<span class="note">Empty — save some!</span>');
     mk(state.templates, P); mk(state.stamps, S);
   }
-  function placeTemplate(items){ const placed = items.map(o=>{ const n=deepClone(o); n.id=uid(); currPage().objects.push(n); return n.id; }); state.selection=new Set(placed); pushHistory(); }
+  function placeTemplate(items){
+    const minx=Math.min(...items.map(o=>o.x)), miny=Math.min(...items.map(o=>o.y));
+    const maxx=Math.max(...items.map(o=>o.x+o.w)), maxy=Math.max(...items.map(o=>o.y+o.h));
+    const cx=(minx+maxx)/2, cy=(miny+maxy)/2;
+    const center=screenToWorld(canvas.width/2, canvas.height/2);
+    const dx=center.x-cx, dy=center.y-cy;
+    const placed = items.map(o=>{
+      const n=deepClone(o);
+      n.id=uid();
+      n.x+=dx;
+      n.y+=dy;
+      currPage().objects.push(n);
+      return n.id;
+    });
+    state.selection=new Set(placed);
+    pushHistory();
+  }
 
   /* ===== Meta/UI ===== */
   function refreshTopMeta(){
@@ -1602,7 +1618,18 @@
         state.marquee=null; pushHistory();
       }
       if(state.drawing && state.tool.startsWith('draw-')){
-        const o=getById(state.drawing.id); if(o){ if(o.w<0){o.x+=o.w;o.w*=-1;} if(o.h<0){o.y+=o.h;o.h*=-1;} }
+        const o=getById(state.drawing.id);
+        if(state.tool==='draw-brush' && o){
+          const pts=o.points||[];
+          const minx=Math.min(...pts.map(p=>p.x)), miny=Math.min(...pts.map(p=>p.y));
+          const maxx=Math.max(...pts.map(p=>p.x)), maxy=Math.max(...pts.map(p=>p.y));
+          o.x=minx; o.y=miny; o.w=maxx-minx; o.h=maxy-miny;
+          const first=pts[0], last=pts[pts.length-1];
+          if(first && last && dist(first,last)<5) o.meta.closed=true;
+        } else if(o){
+          if(o.w<0){o.x+=o.w;o.w*=-1;}
+          if(o.h<0){o.y+=o.h;o.h*=-1;}
+        }
         state.drawing=null;
       }
     }
