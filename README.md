@@ -1280,7 +1280,14 @@
   bind('#pageNote','input', ()=>{ currPage().note=$('#pageNote').value; });
 
   // selection actions
-  bind('#btnDeleteSel','click', ()=>{ const ids=[...state.selection]; currPage().objects = currPage().objects.filter(o=>!ids.includes(o.id)); state.selection.clear(); pushHistory(); });
+  function deleteSelection(){
+    if(!state.selection.size) return;
+    const ids=[...state.selection];
+    currPage().objects = currPage().objects.filter(o=>!ids.includes(o.id));
+    state.selection.clear();
+    pushHistory();
+  }
+  bind('#btnDeleteSel','click', deleteSelection);
   bind('#btnCombineSel','click', ()=>{ if(state.selection.size<2) return; const items=[...state.selection].map(getById).filter(Boolean); const minx=Math.min(...items.map(o=>o.x)), miny=Math.min(...items.map(o=>o.y)); const maxx=Math.max(...items.map(o=>o.x+o.w)), maxy=Math.max(...items.map(o=>o.y+o.h)); const group=newObj('group',{x:minx,y:miny,w:maxx-minx,h:maxy-miny, meta:{children:items.map(i=>i.id)}}); currPage().objects.push(group); state.selection=new Set([group.id]); pushHistory(); });
   bind('#btnToLayer','click', ()=>{ if(!state.selection.size) return; const L=prompt('Send selection to which layer id?', state.layer); if(L===null) return; for(const id of state.selection){ const o=getById(id); if(o) o.layer=+L; } pushHistory(); });
   bind('#btnSaveAsPanel','click', ()=>{ const items=[...state.selection].map(getById).filter(Boolean).filter(o=>o.kind==='panel'); if(!items.length) return alert('Select panels first'); const name=prompt('Template name?','tpl-'+uid()); if(!name) return; state.templates.push({name,items:items.map(deepClone)}); LS.set(TEMPLATES_KEY,state.templates); buildLibrary(); alert('Saved to panel_templates'); });
@@ -1689,6 +1696,22 @@
       o.w = img.width - o.meta.left - o.meta.right;
       o.h = img.height - o.meta.top - o.meta.bottom;
     });
+  });
+
+  // global shortcuts for undo/redo and deleting selection
+  addEventListener('keydown', e=>{
+    const tag=(e.target.tagName||'').toLowerCase();
+    if(tag==='input' || tag==='textarea' || e.target.isContentEditable) return;
+    const ctrl=e.ctrlKey||e.metaKey;
+    if(ctrl && e.key.toLowerCase()==='z'){
+      e.preventDefault();
+      if(e.shiftKey) redo(); else undo();
+    } else if(ctrl && e.key.toLowerCase()==='y'){
+      e.preventDefault();
+      redo();
+    } else if(e.key==='Delete' || e.key==='Backspace'){
+      if(state.selection.size){ e.preventDefault(); deleteSelection(); }
+    }
   });
 
   /* ===== Stars ===== */
