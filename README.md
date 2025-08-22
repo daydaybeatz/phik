@@ -901,24 +901,27 @@
         $('#toolTextFont').value=state.textFont;
         bind('#toolTextFont','change', e=>{ state.textFont=e.target.value; });
       }
-      if(state.tool==='draw-image'){
-        add(`<div class="stack"><label>Image File</label><input type="file" id="imgFile" accept="image/*"/></div>
-        <p class="note">Choose an image to place on the canvas.</p>`);
-        bind('#imgFile','change', e=>{
-          const file=e.target.files[0]; if(!file) return;
-          const reader=new FileReader();
-          reader.onload=ev=>{
-            const img=new Image();
-            img.onload=()=>{
-              const o=newObj('image',{x:0,y:0,w:img.width,h:img.height, meta:{src:ev.target.result,left:0,top:0,right:0,bottom:0}});
-              Object.defineProperty(o.meta,'img',{value:img, enumerable:false});
-              currPage().objects.push(o); state.selection=new Set([o.id]); pushHistory();
+        if(state.tool==='draw-image'){
+          add(`<div class="stack"><label>Image File</label><input type="file" id="imgFile" accept="image/*"/></div>
+          <p class="note">Choose an image to place on the canvas.</p>`);
+          bind('#imgFile','change', e=>{
+            const file=e.target.files[0]; if(!file) return;
+            const reader=new FileReader();
+            reader.onload=ev=>{
+              const img=new Image();
+              img.onload=()=>{
+                const o=newObj('image',{x:0,y:0,w:img.width,h:img.height, meta:{src:ev.target.result,left:0,top:0,right:0,bottom:0}});
+                Object.defineProperty(o.meta,'img',{value:img, enumerable:false});
+                currPage().objects.push(o); state.selection=new Set([o.id]); pushHistory();
+                state.tool='draw-select';
+                updateToolButtons();
+                buildDynamicControls();
+              };
+              img.src=ev.target.result;
             };
-            img.src=ev.target.result;
-          };
-          reader.readAsDataURL(file);
-        });
-      }
+            reader.readAsDataURL(file);
+          });
+        }
       if(state.tool==='draw-hatch'){
         add(`<div class="grid">
           <div class="stack"><label>Angle</label><input id="hatchAngle" type="range" min="-180" max="180" value="${state.draw.hatchAngle}"/></div>
@@ -939,6 +942,7 @@
       }
       if(state.tool==='draw-select'){ add(`<p class="note">Click toggles selection. Drag to marquee (touch). Drag inside to move; corner handles to scale; center handle to grab.</p>`); }
     }
+    updateTextControls();
   }
 
   function buildFontSelect(el){
@@ -1608,19 +1612,7 @@
     }
 
     const only = (type)=> state.selection.size===1 && getById([...state.selection][0])?.type===type;
-    $('#textControls').style.display = (only('text')) ? 'flex':'none';
-    if(only('text')){
-      const t=getById([...state.selection][0]);
-      buildFontSelect($('#textFont'));
-      $('#textContent').value=t.meta.text||'Text';
-      $('#textSize').value=t.meta.size||24;
-      state.textFont=t.meta.family||state.textFont;
-      $('#textFont').value=state.textFont;
-      $('#textFill').value=t.meta.fill||t.stroke||'#e8eaf0';
-      $('#textOutline').value=t.meta.outline?'on':'off';
-      $('#textOutlineColor').value=t.meta.outlineColor||'#000000';
-      $('#textOutlineWidth').value=t.meta.outlineWidth||2;
-    }
+    updateTextControls();
     $('#starControls').style.display = (only('star')) ? 'grid':'none';
     $('#imgControls').style.display = (only('image')) ? 'grid':'none';
     if(only('image')){
@@ -1654,6 +1646,7 @@
     textEditor.textContent=o.meta.text||'';
     state.editingText={id:o.id};
     textEditor.focus();
+    updateTextControls();
   }
   function commitTextEdit(){
     if(!state.editingText) return;
@@ -1666,6 +1659,23 @@
     if(e.key==='Enter' && e.ctrlKey){ e.preventDefault(); commitTextEdit(); } // Enter alone inserts newline
   });
   textEditor.addEventListener('blur', commitTextEdit);
+
+  function updateTextControls(){
+    const onlyText = state.selection.size===1 && getById([...state.selection][0])?.type==='text';
+    $('#textControls').style.display = onlyText ? 'flex':'none';
+    if(onlyText){
+      const t=getById([...state.selection][0]);
+      buildFontSelect($('#textFont'));
+      $('#textContent').value=t.meta.text||'Text';
+      $('#textSize').value=t.meta.size||24;
+      state.textFont=t.meta.family||state.textFont;
+      $('#textFont').value=state.textFont;
+      $('#textFill').value=t.meta.fill||t.stroke||'#e8eaf0';
+      $('#textOutline').value=t.meta.outline?'on':'off';
+      $('#textOutlineColor').value=t.meta.outlineColor||'#000000';
+      $('#textOutlineWidth').value=t.meta.outlineWidth||2;
+    }
+  }
 
   // sidebar text controls bindings
   bind('#textContent','input', e=>{ if(state.selection.size!==1) return; const o=getById([...state.selection][0]); if(o?.type!=='text') return; o.meta.text=e.target.value; });
