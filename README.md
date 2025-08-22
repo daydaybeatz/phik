@@ -669,6 +669,7 @@
       case 'panel-rect': case 'rect':
         ctx.beginPath(); ctx.rect(0,0,o.w*s,o.h*s); if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); break;
       case 'circle':
+      case 'ellipse':
         ctx.beginPath(); ctx.ellipse((o.w*s)/2,(o.h*s)/2, Math.abs(o.w*s/2), Math.abs(o.h*s/2), 0, 0, Math.PI*2);
         if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); break;
       case 'line':
@@ -847,6 +848,8 @@
     // rectangle drawing tool
     {id:'draw-rect',  label:'Rect'},
     {id:'draw-circle',label:'Circle'},
+    {id:'draw-ellipse',label:'Ellipse'},
+    {id:'draw-star', label:'Star'},
     {id:'draw-image', label:'Image'},
     {id:'draw-bucket',label:'Bucket'},
     {id:'draw-crop',  label:'Crop'},
@@ -919,18 +922,27 @@
             reader.readAsDataURL(file);
           });
         }
+      if(state.tool==='draw-star'){
+        add(`<div class="grid">
+        <div class="stack"><label>Points</label><input id="starPoints" type="number" value="5" min="3" max="24"/></div>
+        <div class="stack"><label>Inner Radius</label><input id="starInner" type="number" value="40" min="5" /></div>
+        <div class="stack"><label>Outer Radius</label><input id="starOuter" type="number" value="100" min="5" /></div>
+      </div><p class="note">Click-drag to place a star (scales while dragging).</p>`);
+      }
       if(state.tool==='draw-hatch'){
         add(`<div class="grid">
           <div class="stack"><label>Angle</label><input id="hatchAngle" type="range" min="-180" max="180" value="${state.draw.hatchAngle}"/></div>
           <div class="stack"><label>Gap</label><input id="hatchGap" type="range" min="4" max="32" value="${state.draw.hatchGap}"/></div>
         </div><p class="note">Drag from an origin: size is radius from click. <b>Middle-drag</b> shows a guide and sets the angle.</p>`);
       }
-      if(['draw-brush','draw-line','draw-rect','draw-circle','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
+      if(['draw-brush','draw-line','draw-rect','draw-circle','draw-ellipse','draw-star','draw-bucket','draw-crop','draw-erase'].includes(state.tool)){
         const tips={
           'draw-brush':'Freehand pen.',
           'draw-line':'Click-drag; free angle. Hold Shift to lock to 0°/90°.',
           'draw-rect':'Drag from corner.',
           'draw-circle':'Drag from center.',
+          'draw-ellipse':'Drag from corner.',
+          'draw-star':'Drag from center.',
           'draw-bucket':'Click one; or drag a box to recolor everything it touches.',
           'draw-crop':'Two-step: first choose mask; second choose keep-area (deletes ring).',
           'draw-erase':'Click deletes brush strokes; drag a box to delete all strokes it touches.'
@@ -1087,7 +1099,7 @@
       tctx.translate(ox+(o.x+o.w/2)*s, oy+(o.y+o.h/2)*s); tctx.rotate((o.r||0)*Math.PI/180); tctx.translate(-(o.w/2)*s, -(o.h/2)*s);
       tctx.lineWidth=Math.max(1,(o.strokeWidth||1)*s); tctx.strokeStyle=o.stroke||'#e8eaf0'; tctx.fillStyle=o.fill||'#0000';
       if(o.type==='rect'||o.type==='panel-rect'){ tctx.beginPath(); tctx.rect(0,0,o.w*s,o.h*s); if((o.fill??'')!=='#00000000') tctx.fill(); tctx.stroke(); }
-      else if(o.type==='circle'){ tctx.beginPath(); tctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') tctx.fill(); tctx.stroke(); }
+      else if(o.type==='circle' || o.type==='ellipse'){ tctx.beginPath(); tctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') tctx.fill(); tctx.stroke(); }
       else if(o.type==='line' && o.points?.length>=2){ tctx.beginPath(); tctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); tctx.lineTo((o.points[1].x-o.x)*s,(o.points[1].y-o.y)*s); tctx.stroke(); }
       else if((o.type==='path'||o.type==='star') && o.points?.length>=2){ tctx.beginPath(); tctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){ const p=o.points[k]; tctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} if(o.type==='star'||o.meta?.closed){ tctx.closePath(); if((o.fill??'')!=='#00000000') tctx.fill(); } tctx.stroke(); }
       else if(o.type==='text'){ tctx.font=`${o.meta?.size||24}px ${o.meta?.family||'sans-serif'}`; tctx.textBaseline='top'; tctx.fillStyle=o.meta?.fill||o.stroke||'#eaeaf2'; tctx.fillText((o.meta?.text||'T').slice(0,1),0,0); }
@@ -1423,6 +1435,14 @@
       if(state.tool==='draw-circle'){
         const o=newObj('circle',{x:world.x,y:world.y,w:2,h:2, stroke:state.currentColor, fill:state.fill, meta:{center:{x:world.x,y:world.y}}}); currPage().objects.push(o); state.drawing={id:o.id,center:world};
       }
+      if(state.tool==='draw-ellipse'){
+        const o=newObj('ellipse',{x:world.x,y:world.y,w:1,h:1, stroke:state.currentColor, fill:state.fill}); currPage().objects.push(o); state.drawing={id:o.id,start:world};
+      }
+      if(state.tool==='draw-star'){
+        const pts=+($('#starPoints')?.value||5), rin=+($('#starInner')?.value||10), rout=+($('#starOuter')?.value||10);
+        const star=buildStar(world.x,world.y,pts,rin,rout); currPage().objects.push(star);
+        state.selection=new Set([star.id]); state.drawing={starId:star.id, center:{x:world.x,y:world.y}}; showStarControls(star);
+      }
       if(state.tool==='draw-bucket'){
         const hit=hitTest(world,'draw');
         if(hit){ recolorObject(hit, state.currentColor); pushHistory(); }
@@ -1532,6 +1552,19 @@
         const c=o.meta.center; const r=Math.hypot(world.x-c.x, world.y-c.y);
         o.x=c.x-r; o.y=c.y-r; o.w=r*2; o.h=r*2;
       }
+      if(state.tool==='draw-ellipse' && state.drawing){
+        const o=getById(state.drawing.id); if(!o) return;
+        o.w=(world.x - state.drawing.start.x); o.h=(world.y - state.drawing.start.y);
+      }
+      if(state.tool==='draw-star' && state.drawing?.starId){
+        const st=getById(state.drawing.starId); if(!st) return;
+        const c=state.drawing.center;
+        const rout=Math.hypot(world.x-c.x, world.y-c.y); const rin=rout*0.5;
+        st.meta.outer=rout; st.meta.inner=rin; st.points=starPointsFromMeta(st.meta);
+        const minx=Math.min(...st.points.map(p=>p.x)), miny=Math.min(...st.points.map(p=>p.y));
+        const maxx=Math.max(...st.points.map(p=>p.x)), maxy=Math.max(...st.points.map(p=>p.y));
+        st.x=minx; st.y=miny; st.w=maxx-minx; st.h=maxy-miny;
+      }
       if(state.tool==='draw-bucket' && state.bucketBox){
         state.bucketBox.w=state.mouse.x-state.mouse.ox; state.bucketBox.h=state.mouse.y-state.mouse.oy;
       }
@@ -1582,6 +1615,7 @@
         }
         state.bucketBox=null; pushHistory();
       }
+      if(state.tool==='draw-star' && state.drawing?.starId){ state.drawing=null; }
       if(state.tool==='draw-hatch' && state.draw.hatchOrigin && state.draw.hatchPreview){
         const o = state.draw.hatchOrigin; const r=state.draw.hatchPreview.r;
         const minx=o.x-r, maxx=o.x+r, miny=o.y-r, maxy=o.y+r;
@@ -1780,8 +1814,8 @@
 
   /* ===== Bucket recolor ===== */
   function recolorObject(o, color){
-    if(['rect','circle','star','panel-rect','path'].includes(o.type) && o.meta?.closed){ o.fill=color; }
-    else if(['rect','circle','star','panel-rect'].includes(o.type)){ o.fill=color; }
+    if(['rect','circle','ellipse','star','panel-rect','path'].includes(o.type) && o.meta?.closed){ o.fill=color; }
+    else if(['rect','circle','ellipse','star','panel-rect'].includes(o.type)){ o.fill=color; }
     else if(['line','path'].includes(o.type)){ o.stroke=color; }
     else if(o.type==='text'){ o.meta.fill=color; }
   }
@@ -1813,7 +1847,7 @@
     ctx.translate((o.x+o.w/2)*s,(o.y+o.h/2)*s); ctx.rotate((o.r||0)*Math.PI/180); ctx.translate(-(o.w/2)*s, -(o.h/2)*s);
     ctx.lineWidth=Math.max(1,(o.strokeWidth||1)*s); ctx.strokeStyle=o.stroke||'#e8eaf0'; ctx.fillStyle=o.fill||'#00000000';
     if(o.type==='rect'||o.type==='panel-rect'){ ctx.beginPath(); ctx.rect(0,0,o.w*s,o.h*s); if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); }
-    else if(o.type==='circle'){ ctx.beginPath(); ctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); }
+    else if(o.type==='circle' || o.type==='ellipse'){ ctx.beginPath(); ctx.ellipse((o.w*s)/2,(o.h*s)/2,Math.abs(o.w*s/2),Math.abs(o.h*s/2),0,0,Math.PI*2); if((o.fill??'')!=='#00000000') ctx.fill(); ctx.stroke(); }
     else if(o.type==='line' && o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); ctx.lineTo((o.points[1].x-o.x)*s,(o.points[1].y-o.y)*s); ctx.stroke(); }
     else if((o.type==='path'||o.type==='star') && o.points?.length>=2){ ctx.beginPath(); ctx.moveTo((o.points[0].x-o.x)*s,(o.points[0].y-o.y)*s); for(let k=1;k<o.points.length;k++){ const p=o.points[k]; ctx.lineTo((p.x-o.x)*s,(p.y-o.y)*s);} if(o.type==='star'||o.meta?.closed){ ctx.closePath(); if((o.fill??'')!=='#00000000') ctx.fill(); } ctx.stroke(); }
     else if(o.type==='image'){
