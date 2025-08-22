@@ -159,7 +159,23 @@
   <div class="main">
     <!-- LEFT: TOOLS + mini color cluster -->
     <div class="panel tools">
-      <div id="toolPanel" class="stack"></div>
+      <div id="toolPanel" class="stack">
+        <button class="tbtn" data-tool="panel-rect">Panel Rect</button>
+        <button class="tbtn" data-tool="panel-star">Panel Star</button>
+        <button class="tbtn" data-tool="panel-line">Panel Line</button>
+        <button class="tbtn" data-tool="panel-select">Panel Select</button>
+        <button class="tbtn" data-tool="draw-brush">Brush</button>
+        <button class="tbtn" data-tool="draw-erase">Erase</button>
+        <button class="tbtn" data-tool="draw-line">Line</button>
+        <button class="tbtn" data-tool="draw-rect">Rect</button>
+        <button class="tbtn" data-tool="draw-circle">Circle</button>
+        <button class="tbtn" data-tool="draw-image">Image</button>
+        <button class="tbtn" data-tool="draw-bucket">Bucket</button>
+        <button class="tbtn" data-tool="draw-crop">Crop</button>
+        <button class="tbtn" data-tool="draw-text">Text</button>
+        <button class="tbtn" data-tool="draw-hatch">Hatch</button>
+        <button class="tbtn" data-tool="draw-select">Select</button>
+      </div>
 
       <div class="colors">
         <div class="palHeader">
@@ -857,16 +873,31 @@
   function toolLabel(id){ return ([...TOOLS_PANEL,...TOOLS_DRAW].find(t=>t.id===id)||{}).label||id; }
 
   function buildToolButtons(){
-    const tpanel=$('#toolPanel'); tpanel.innerHTML='';
-    const defs=[...TOOLS_PANEL, ...TOOLS_DRAW];
-    defs.forEach(d=>{
-      const b=document.createElement('button'); b.type='button'; b.className='tbtn'+(state.tool===d.id?' active':''); b.textContent=d.label;
-      b.addEventListener('click', ()=>{ state.tool=d.id; buildDynamicControls(); updateToolButtons(); });
-      tpanel.appendChild(b);
+    const tpanel=$('#toolPanel');
+    if(!tpanel) return;
+    if(!tpanel.children.length){
+      const defs=[...TOOLS_PANEL, ...TOOLS_DRAW];
+      defs.forEach(d=>{
+        const b=document.createElement('button');
+        b.type='button';
+        b.className='tbtn';
+        b.dataset.tool=d.id;
+        b.textContent=d.label;
+        tpanel.appendChild(b);
+      });
+    }
+    $$('#toolPanel .tbtn').forEach(btn=>{
+      const id=btn.dataset.tool;
+      btn.onclick=()=>{ state.tool=id; buildDynamicControls(); updateToolButtons(); };
     });
+    updateToolButtons();
     buildPaletteBar();
   }
-  function updateToolButtons(){ $$('#toolPanel .tbtn').forEach(btn=> btn.classList.toggle('active', btn.textContent.trim().toLowerCase()===toolLabel(state.tool).toLowerCase())); }
+  function updateToolButtons(){
+    $$('#toolPanel .tbtn').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.tool===state.tool);
+    });
+  }
 
   function buildDynamicControls(){
     const wrap=$('#dynamicControls'); wrap.innerHTML='';
