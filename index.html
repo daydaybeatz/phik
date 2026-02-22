@@ -115,7 +115,7 @@
     .shop-choices { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     @media (max-width: 760px) {
       .app { gap: 6px; padding-inline: 8px; }
-      .controls { grid-template-columns: 1fr 1fr; }
+      .controls { grid-template-columns: 1fr auto 1fr; }
       #aimStick { justify-self: end; }
       .stick { width: min(30vw, 120px); }
       .play-layout.shop-open { grid-template-columns: minmax(0, 1fr) minmax(140px, 40%); }
@@ -123,10 +123,11 @@
     }
     .controls {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr auto 1fr;
       align-items: end;
       gap: 10px;
     }
+    .interact-btn { min-width: 72px; min-height: 48px; align-self: center; }
     .hotbar {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
@@ -247,6 +248,7 @@
 
     <div class="controls">
       <div id="moveStick" class="stick"><div class="knob"></div></div>
+      <button id="mobileInteract" class="interact-btn" type="button">SPACE</button>
       <div id="aimStick" class="stick"><div class="knob"></div></div>
     </div>
   </div>
@@ -317,6 +319,7 @@
       hurtFlash: 0,
       abilitySlots: [],
       abilityOrder: ['teleportStep', 'sentinelClone', 'graveWall', 'sprintBurst', 'novaBlast', 'bladeWhirl', 'dashRampage', 'glueTrap', 'downgradeHex', 'dualWield', 'voidLance', 'meteorCall', 'timeBubble'],
+      world: { roomX: 0, roomY: 0, cache: {} },
       phaseWalkUntil: 0,
       entityScale: 1,
       upgradeLevels: {},
@@ -340,7 +343,7 @@
     };
 
     const EMOJIS = {
-      player: '🧛', bullet: '🔸', gem: '💠', health: '❤️', clone: '🫥', trap: '🕸️',
+      player: '🧛', bullet: '🔸', gem: '💵', health: '❤️', clone: '🫥', trap: '🕸️',
       enemy: { batling: '🦇', brute: '🧟', wraith: '👻', juggernaut: '💀', boss: '👹' }
     };
 
@@ -362,6 +365,7 @@
     const shopPanel = document.getElementById('shopPanel');
     const shopChoices = document.getElementById('shopChoices');
     const controlsEl = document.querySelector('.controls');
+    const mobileInteractBtn = document.getElementById('mobileInteract');
 
     function fmtTime(s){ const m = Math.floor(s/60); const r = Math.floor(s%60); return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
 
@@ -383,10 +387,25 @@
     ];
 
     const SAFEHOUSE_FIXTURES = [
-      { id: 'armorStand', symbol: '🛡️', name: 'Armor Stand', desc: 'Permanent +16 shield each run', cost: 50, x: 8.5, y: 8.5 },
-      { id: 'gunRack', symbol: '🔫', name: 'Gun Rack', desc: 'Permanent starting weapon choice', cost: 50, x: GRID_W / 2, y: 8.5 },
-      { id: 'perkMachine', symbol: '🧪', name: 'Perk Machine', desc: 'Unlocks map pad perk rolls', cost: 50, x: GRID_W - 8.5, y: 8.5 },
-      { id: 'vault', symbol: '🏦', name: 'Vault', desc: 'Bank all/withdraw all between runs', cost: 50, x: GRID_W / 2, y: 5.5 }
+      { id: 'armorStand', symbol: '🛡️', name: 'Armor Stand', desc: 'Permanent +16 shield each run', cost: 500, x: 8.5, y: 8.5 },
+      { id: 'gunRack', symbol: '🔫', name: 'Gun Rack', desc: 'Permanent starting weapon choice', cost: 500, x: GRID_W / 2, y: 8.5 },
+      { id: 'perkMachine', symbol: '🧪', name: 'Perk Machine', desc: 'Unlocks map pad perk rolls', cost: 500, x: GRID_W - 8.5, y: 8.5 },
+      { id: 'vault', symbol: '🏦', name: 'Vault', desc: 'Bank all/withdraw all between runs', cost: 500, x: GRID_W / 2, y: 5.5 },
+      { id: 'bloodFountain', symbol: '⛲', name: 'Blood Fountain', desc: 'Heal pulse between runs', cost: 500, x: 6.5, y: 13 },
+      { id: 'moonTotem', symbol: '🌙', name: 'Moon Totem', desc: 'Night luck increases drops', cost: 500, x: 11.5, y: 13 },
+      { id: 'batRoost', symbol: '🦇', name: 'Bat Roost', desc: 'Extra bat at run start', cost: 500, x: 16.5, y: 13 },
+      { id: 'forgeAnvil', symbol: '⚒️', name: 'Forge Anvil', desc: 'Boost wall damage', cost: 500, x: 21.5, y: 13 },
+      { id: 'cryptMap', symbol: '🗺️', name: 'Crypt Cartograph', desc: 'Smoother room chaining', cost: 500, x: 26.5, y: 13 },
+      { id: 'emberLantern', symbol: '🏮', name: 'Ember Lantern', desc: 'Fire particles on crit', cost: 500, x: 10, y: 17 },
+      { id: 'boneBell', symbol: '🔔', name: 'Bone Bell', desc: 'Summon louder swarms', cost: 500, x: 15, y: 17 },
+      { id: 'stormPillar', symbol: '🗼', name: 'Storm Pillar', desc: 'Spark chain chance', cost: 500, x: 20, y: 17 },
+      { id: 'acidVat', symbol: '🧫', name: 'Acid Vat', desc: 'Corrosive resistance', cost: 500, x: 25, y: 17 },
+      { id: 'relicCase', symbol: '📦', name: 'Relic Case', desc: 'More shop options', cost: 500, x: 8.5, y: 21 },
+      { id: 'skullBanner', symbol: '🏴', name: 'Skull Banner', desc: 'Faster enemy packs', cost: 500, x: 13.5, y: 21 },
+      { id: 'oracleMirror', symbol: '🪞', name: 'Oracle Mirror', desc: 'Sharper auto-aim', cost: 500, x: 18.5, y: 21 },
+      { id: 'graveClock', symbol: '🕰️', name: 'Grave Clock', desc: 'Ability recharge bonus', cost: 500, x: 23.5, y: 21 },
+      { id: 'chaliceRack', symbol: '🏺', name: 'Chalice Rack', desc: 'Extra max HP', cost: 500, x: 28.5, y: 21 },
+      { id: 'catacombGate', symbol: '🚪', name: 'Catacomb Gate', desc: 'Room transitions glow', cost: 500, x: GRID_W / 2, y: 24 }
     ];
 
     const AUTO_AIM_ENABLED = true;
@@ -420,14 +439,12 @@
     }
 
     function worldScale(){
-      return {
-        sx: screen.width / GRID_W,
-        sy: screen.height / GRID_H
-      };
+      const s = Math.min(screen.width / GRID_W, screen.height / GRID_H);
+      return { sx: s, sy: s, ox: (screen.width - GRID_W * s) * 0.5, oy: (screen.height - GRID_H * s) * 0.5 };
     }
 
-    function toScreen(x, y, sx, sy){
-      return { x: x * sx, y: y * sy };
+    function toScreen(x, y, sx, sy, ox = 0, oy = 0){
+      return { x: ox + x * sx, y: oy + y * sy };
     }
 
     function drawCircle(ctx, x, y, r, color){
@@ -496,6 +513,7 @@
       bindAbilityNavigator();
       bindSafehouseControls();
       bindDesktopPointerAim();
+      mobileInteractBtn.addEventListener('click', handleInteractPress);
       updateControlVisibility();
       requestAnimationFrame(loop);
     }
@@ -564,6 +582,7 @@
     function updateControlVisibility(){
       const touchOnly = window.matchMedia?.('(pointer: coarse)').matches;
       controlsEl.style.display = (!state.usingKeyboardMove || touchOnly) ? 'grid' : 'none';
+      mobileInteractBtn.style.display = touchOnly ? 'inline-block' : 'none';
     }
 
     function bindDesktopPointerAim(){
@@ -582,8 +601,9 @@
         if(window.matchMedia?.('(pointer: coarse)').matches) return;
         if(!state.mouseAimActive) return;
         const rect = screen.getBoundingClientRect();
-        const nx = ((e.clientX - rect.left) / rect.width) * GRID_W;
-        const ny = ((e.clientY - rect.top) / rect.height) * GRID_H;
+        const { sx, sy, ox, oy } = worldScale();
+        const nx = ((e.clientX - rect.left - ox) / sx);
+        const ny = ((e.clientY - rect.top - oy) / sy);
         const aim = normalize(nx - state.player.x, ny - state.player.y);
         state.player.aimX = aim.x;
         state.player.aimY = aim.y;
@@ -859,6 +879,7 @@
       state.activeWeapon = state.fixtures.gunRack ? state.selectedStartWeapon : 'rifle';
       state.player.shield = state.player.maxShield;
       state.deathNote = '';
+      state.world.roomX = 0; state.world.roomY = 0;
       rebuildLevelGeometry();
       state.doorTouchSec = 0;
       state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 };
@@ -1055,7 +1076,8 @@
       const canFire = AUTO_FIRE_ENABLED || state.joysticks.aim.active || state.usingMouseAim;
       const weapon = getWeaponDrop(state.activeWeapon);
       const bubbleHaste = state.effects.timeBubbleUntil > state.timeSec ? 0.65 : 1;
-      const cooldown = Math.max(90, p.cooldownMs * weapon.cooldownMult * bubbleHaste);
+      const smgBoost = weapon.id === 'smg' ? Math.max(0.55, 1 - (p.smgRate || 0)) : 1;
+      const cooldown = Math.max(70, p.cooldownMs * weapon.cooldownMult * bubbleHaste * smgBoost);
       if(!canFire || now - p.lastShot < cooldown) return;
       p.lastShot = now;
       const aim = normalize(p.aimX, p.aimY);
@@ -1068,8 +1090,10 @@
         for(let i=0;i<count;i++){
           const t = count === 1 ? 0 : (i / (count - 1)) * 2 - 1;
           const a = Math.atan2(aim.y, aim.x) + t * spread + aimOffset;
-          const crit = Math.random() < (p.critChance || 0);
-          const dmgBase = (2 + p.damage + p.stakesLevel * 0.45) * w.damageMult;
+          const critChance = (p.critChance || 0) + (w.id === 'sniper' ? (p.sniperCrit || 0) : 0);
+          const crit = Math.random() < critChance;
+          const gunBonus = (w.id === 'rifle' ? (p.rifleDamage || 0) : 0) + (w.id === 'shotgun' ? (p.shotgunDamage || 0) : 0) + (w.id === 'laser' ? (p.laserDamage || 0) : 0);
+          const dmgBase = (2 + p.damage + p.stakesLevel * 0.45 + gunBonus) * w.damageMult;
           state.bullets.push({
             x:p.x, y:p.y,
             vx:Math.cos(a)*(w.speed + p.stakesLevel * 0.4), vy:Math.sin(a)*(w.speed + p.stakesLevel * 0.4),
@@ -1082,10 +1106,11 @@
         }
       };
       fireWeapon(weapon);
-      spawnParticles('spark', p.x + aim.x * 0.5, p.y + aim.y * 0.5, weapon.id === 'shotgun' ? 7 : 4);
+      spawnParticles('spark', p.x + aim.x * 0.5, p.y + aim.y * 0.5, weapon.id === 'shotgun' ? 10 : 6);
       if(state.effects.dualWieldUntil > state.timeSec){
         const alt = WEAPON_DROPS.find(w => w.id !== weapon.id) || weapon;
-        fireWeapon(alt, 0.08);
+        const oscillate = Math.sin(state.timeSec * 10) * 0.28;
+        fireWeapon(alt, oscillate);
       }
     }
 
@@ -1121,11 +1146,12 @@
     function batsTick(dt){
       if(state.player.batsLevel <= 0) return;
       const p = state.player;
-      const count = p.batsLevel + 1;
+      const count = 2 + p.batsLevel * 2;
       for(let i=0;i<count;i++){
         const a = state.timeSec*2.2 + (Math.PI*2/count)*i;
-        const r = 1.8 + p.batsLevel*0.25;
-        const bx = p.x + Math.cos(a)*r, by = p.y + Math.sin(a)*r;
+        const flutter = Math.sin(state.timeSec * 8 + i) * 0.22;
+        const r = 1.8 + p.batsLevel*0.3 + flutter;
+        const bx = p.x + Math.cos(a)*r, by = p.y + Math.sin(a*1.1)*r + flutter * 0.6;
         for(const e of state.enemies){
           if(Math.hypot(e.x-bx,e.y-by) < 0.8){
             e.hp -= dt*(7 + p.batsLevel + p.damage*0.4);
@@ -1145,9 +1171,13 @@
           if(dist(c, e) <= c.range && (!target || dist(c, e) < dist(c, target))) target = e;
         }
         if(target){
-          target.hp -= c.dps * dt;
-          target.hitFlash = 0.06;
-          if(Math.random() < dt * 12) state.fx.push({ x: c.x, y: c.y, vx: (target.x-c.x)*2, vy: (target.y-c.y)*2, life: 0.1, char: '•', color: '#c9d4ff' });
+          c.fireRate = (c.fireRate || 0) - dt;
+          if(c.fireRate <= 0){
+            c.fireRate = Math.max(0.08, 0.34 - c.dps * 0.005);
+            const n = normalize(target.x - c.x, target.y - c.y);
+            state.bullets.push({ x:c.x, y:c.y, vx:n.x * c.projectileSpeed, vy:n.y * c.projectileSpeed, dmg: c.dps * 0.55, life: 0.95, pierce: 1, ricochet: 0, char: '·' });
+            state.fx.push({ x: c.x, y: c.y, vx: n.x * 3, vy: n.y * 3, life: 0.16, char: '✦', color: '#c9d4ff' });
+          }
         }
       }
     }
@@ -1287,7 +1317,33 @@
           }
         }
 
-        const radius = 0.3 * (e.size || 1);
+        
+        if(e.type === 'fireDemon'){
+          e.cast = Math.max(0, (e.cast || 0) - dt);
+          if(e.cast <= 0 && dist(e,p) < 11){
+            e.cast = 2.8;
+            const n2 = normalize(p.x - e.x, p.y - e.y);
+            state.bullets.push({ x:e.x, y:e.y, vx:n2.x * 4.2, vy:n2.y * 4.2, dmg: 4 + e.touchDamage * 0.35, life: 2.2, pierce:0, ricochet:0, char:'🔥', enemyShot:true });
+          }
+        }
+        if(e.type === 'batWizard'){
+          e.orbit = (e.orbit || 0) + dt * 1.5;
+          for(let bi=0; bi<3; bi++){
+            const ba = e.orbit + bi * Math.PI * 0.66;
+            const bx = e.x + Math.cos(ba) * 1.2;
+            const by = e.y + Math.sin(ba) * 1.2;
+            if(Math.hypot(p.x - bx, p.y - by) < 0.6) applyPlayerDamage(10 * dt);
+            if(Math.random() < dt * 8) state.fx.push({ x:bx, y:by, vx:Math.cos(ba)*0.4, vy:Math.sin(ba)*0.4, life:0.22, char:'🦇', color:'#baa4ff' });
+          }
+        }
+        if(e.type === 'mummy'){
+          e.trail = (e.trail || 0) - dt;
+          if(e.trail <= 0){
+            e.trail = 0.25;
+            state.traps.push({ x:e.x, y:e.y, ttl: 2.8, radius: 0.9, slow: 0.72, dps: 2.8, enemyOwned: true });
+          }
+        }
+const radius = 0.3 * (e.size || 1);
         const dashBreaking = e.type === 'juggernaut' && e.dashing > 0;
         const beforeX = e.x;
         const beforeY = e.y;
@@ -1319,7 +1375,7 @@
       for(let i=state.enemies.length-1;i>=0;i--){
         const e = state.enemies[i];
         if(e.hp <= 0){
-          spawnParticles('blood', e.x, e.y, e.boss ? 24 : 12);
+          spawnParticles('blood', e.x, e.y, e.boss ? 14 : 7);
           spawnParticles('blast', e.x, e.y, e.boss ? 10 : 6);
           state.kills++;
           state.gems.push({x:e.x,y:e.y,v:Math.max(1, Math.round(e.xp * 2))});
@@ -1350,11 +1406,12 @@
       for(let i=state.bullets.length-1;i>=0;i--){
         const b = state.bullets[i];
         b.x += b.vx*dt; b.y += b.vy*dt; b.life -= dt;
-        const hitWall = damageWallAt(b.x, b.y, Math.max(1, b.dmg * 0.9));
+        const hitWall = b.enemyShot ? false : damageWallAt(b.x, b.y, Math.max(1, b.dmg * 0.9));
         if(b.x<0||b.x>=GRID_W||b.y<0||b.y>=GRID_H||hitWall){
           if(b.ricochet>0){ b.ricochet--; b.vx*=-1; b.vy*=-1; }
           else { state.bullets.splice(i,1); continue; }
         }
+        if(b.enemyShot && dist(b, state.player) < 0.55){ applyPlayerDamage(b.dmg * dt * 8); state.bullets.splice(i,1); continue; }
         let used = false;
         for(const e of state.enemies){
           if(Math.hypot(e.x-b.x,e.y-b.y) < 0.55){
@@ -1376,7 +1433,7 @@
           state.gems.splice(i,1);
         } else if(d < p.pickupRadius + 2.5){
           const n = normalize(p.x-g.x,p.y-g.y);
-          g.x += n.x*0.06; g.y += n.y*0.06;
+          g.x += n.x*0.06; g.y += n.y*0.06; g.magnetized = true;
         }
       }
       for(let i=state.pickups.length-1;i>=0;i--){
@@ -1446,7 +1503,7 @@
           if(state.money < cost) return;
           state.money -= cost;
           applyUpgrade(up);
-          state.shopOpen = false;
+          openCrateShop(true);
         };
         btn.addEventListener('pointerdown', pick, { passive: false });
         btn.addEventListener('click', pick);
@@ -1591,6 +1648,11 @@
       if(fx.critChance) p.critChance = (p.critChance || 0) + fx.critChance;
       if(fx.critMult) p.critMult = (p.critMult || 1.5) + fx.critMult;
       if(fx.armor) p.armor = (p.armor || 0) + fx.armor;
+      if(fx.rifleDamage) p.rifleDamage = (p.rifleDamage || 0) + fx.rifleDamage;
+      if(fx.shotgunDamage) p.shotgunDamage = (p.shotgunDamage || 0) + fx.shotgunDamage;
+      if(fx.laserDamage) p.laserDamage = (p.laserDamage || 0) + fx.laserDamage;
+      if(fx.smgRate) p.smgRate = (p.smgRate || 0) + fx.smgRate;
+      if(fx.sniperCrit) p.sniperCrit = (p.sniperCrit || 0) + fx.sniperCrit;
       p.hp = clamp(p.hp,0,p.maxHp);
       p.shield = clamp(p.shield || 0,0,p.maxShield || 0);
     }
@@ -1669,7 +1731,7 @@
         return true;
       }
       if(slot.id === 'sentinelClone'){
-        state.clones.push({ x: p.x, y: p.y, ttl: 5 + slot.level * 1.5, dps: 8 + slot.level * 4, range: 4 + slot.level * 0.6 });
+        state.clones.push({ x: p.x, y: p.y, ttl: 6 + slot.level * 2, dps: 14 + slot.level * 6, range: 6 + slot.level, fireRate: 0, projectileSpeed: 11 + slot.level * 1.2 });
         return true;
       }
       if(slot.id === 'graveWall'){
@@ -1765,7 +1827,9 @@
         const roll = Math.random() < 0.025;
         const swarmWeight = Math.min(220, 30 + state.timeSec * 1.6 + state.kills * 0.28);
         const mix = w.mix.map(m => m.type === 'batling' ? { ...m, weight: m.weight + swarmWeight } : m);
-        spawnEnemy(roll ? 'juggernaut' : pickWeighted(mix));
+        const spawnType = roll ? 'juggernaut' : pickWeighted(mix);
+        const group = Math.random() < 0.45 ? 1 + Math.floor(Math.random() * 3) : 1;
+        for(let i=0;i<group;i++) spawnEnemy(spawnType);
         const earlyBoost = state.timeSec < 35 ? 0.62 : (state.timeSec < 70 ? 0.78 : 1);
         const killRamp = Math.max(0.28, 1 - Math.min(0.7, state.kills * 0.0032));
         state.nextSpawnAt = now + w.spawnEveryMs * earlyBoost * killRamp * levelProgression().spawn;
@@ -1775,7 +1839,21 @@
         state.nextBossAt += Math.max(20, state.levelDef.bossIntervalSec * (0.92 - Math.min(0.3, state.selectedLevelIndex * 0.05)));
       }
     }
-    function inputLogic(dt){
+    
+    function tryRoomShift(){
+      const p = state.player;
+      const margin = 1.15;
+      let shifted = false;
+      if(p.x <= margin){ state.world.roomX--; p.x = GRID_W - 2.3; shifted = true; }
+      else if(p.x >= GRID_W - margin){ state.world.roomX++; p.x = 2.3; shifted = true; }
+      if(p.y <= margin){ state.world.roomY--; p.y = GRID_H - 2.3; shifted = true; }
+      else if(p.y >= GRID_H - margin){ state.world.roomY++; p.y = 2.3; shifted = true; }
+      if(shifted){
+        rebuildLevelGeometry();
+        state.enemies = state.enemies.filter(e => dist(e,p) < 12);
+      }
+    }
+function inputLogic(dt){
       const p = state.player;
       const move = state.joysticks.move;
       if(state.usingKeyboardMove){
@@ -1796,6 +1874,7 @@
         state.movement.vy *= drag;
       }
       moveWithWallCollision(p, state.movement.vx * dt, state.movement.vy * dt, 0.32);
+      tryRoomShift();
 
       // Keep movement arena free-form: no ability should paint tile-locked walls on the run map.
 
@@ -1819,10 +1898,12 @@
     function render(){
       resizeScreenCanvas();
       const ctx = screenCtx;
-      const { sx, sy } = worldScale();
+      const { sx, sy, ox, oy } = worldScale();
       ctx.clearRect(0, 0, screen.width, screen.height);
       ctx.fillStyle = '#080b12';
       ctx.fillRect(0, 0, screen.width, screen.height);
+      ctx.save();
+      ctx.translate(ox, oy);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
@@ -1831,7 +1912,7 @@
           const hp = state.walls[y]?.[x] || 0;
           if(hp <= 0) continue;
           const n = (Math.sin((x + state.timeSec) * 0.8) + Math.cos((y - state.timeSec) * 0.7)) * 0.5;
-          const base = hp > 6 ? [95, 120, 176] : (hp > 3 ? [78, 98, 144] : [60, 77, 112]);
+          const base = hp >= 900 ? [120, 24, 24] : (hp > 6 ? [95, 120, 176] : (hp > 3 ? [78, 98, 144] : [60, 77, 112]));
           const bump = Math.floor(n * 14);
           ctx.fillStyle = `rgb(${base[0] + bump}, ${base[1] + bump}, ${base[2] + bump})`;
           ctx.fillRect(x * sx, y * sy, sx, sy);
@@ -1843,15 +1924,20 @@
       }
 
       for(const g of state.gems){
-        const p = toScreen(g.x, g.y, sx, sy);
-        ctx.font = `${Math.max(10, Math.min(sx, sy) * 0.44)}px ui-monospace, monospace`; ctx.fillStyle='#7dff95'; ctx.fillText(EMOJIS.gem, p.x, p.y);
+        const p = toScreen(g.x, g.y, sx, sy, 0, 0);
+        g.spin = (g.spin || 0) + (g.magnetized ? 0.28 : 0.08);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(g.spin);
+        ctx.font = `${Math.max(10, Math.min(sx, sy) * 0.44)}px ui-monospace, monospace`; ctx.fillStyle='#7dff95'; ctx.fillText(EMOJIS.gem, 0, 0);
+        ctx.restore();
       }
       for(const pickup of state.pickups){
         const age = state.timeSec - (pickup.bornAt || 0);
         const blinkAt = pickup.blinkAt || 1.6;
         const blink = age > blinkAt && Math.floor(state.timeSec * 12) % 2 === 0;
         if(blink) continue;
-        const p = toScreen(pickup.x, pickup.y, sx, sy);
+        const p = toScreen(pickup.x, pickup.y, sx, sy, 0, 0);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         if((pickup.kind || 'weapon') === 'health'){
@@ -1870,7 +1956,7 @@
       const p = state.player;
       if(p.garlicLevel>0){
         const r = (1.2 + p.garlicLevel * 0.45) * Math.min(sx, sy);
-        const cp = toScreen(p.x, p.y, sx, sy);
+        const cp = toScreen(p.x, p.y, sx, sy, 0, 0);
         ctx.strokeStyle = 'rgba(212,255,122,0.55)';
         ctx.lineWidth = Math.max(1.5, Math.min(sx, sy) * 0.08);
         ctx.beginPath();
@@ -1879,7 +1965,7 @@
       }
 
       if(p.batsLevel>0){
-        const count = p.batsLevel + 1;
+        const count = 2 + p.batsLevel * 2;
         for(let i=0;i<count;i++){
           const a = state.timeSec*2.2 + (Math.PI*2/count)*i;
           const r = 1.8 + p.batsLevel*0.25;
@@ -1913,7 +1999,7 @@
         ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : (e.color || '#ff6f7d'); ctx.font = `${Math.max(10, radius * 2.3)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.enemy[e.type] || '👾', ep.x, ep.y);
       }
       for(const c of state.clones){
-        const cp = toScreen(c.x, c.y, sx, sy);
+        const cp = toScreen(c.x, c.y, sx, sy, 0, 0);
         ctx.fillStyle = '#c1ccff'; ctx.font = `${Math.max(11, Math.min(sx, sy) * 0.4)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.clone, cp.x, cp.y);
       }
       for(const t of state.traps){
@@ -1930,7 +2016,7 @@
         ctx.stroke();
       }
       for(const f of state.fx){
-        const fp = toScreen(f.x, f.y, sx, sy);
+        const fp = toScreen(f.x, f.y, sx, sy, 0, 0);
         ctx.fillStyle = f.color;
         ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.3)}px ui-monospace, monospace`;
         ctx.fillText(f.char || '·', fp.x, fp.y);
@@ -1946,7 +2032,7 @@
 
       if(state.room === 'safehouse'){
         for(const fixture of SAFEHOUSE_FIXTURES){
-          const fp = toScreen(fixture.x, fixture.y, sx, sy);
+          const fp = toScreen(fixture.x, fixture.y, sx, sy, 0, 0);
           const purchased = state.fixtures[fixture.id];
           const progress = state.fixturePadTimers[fixture.id] || 0;
           ctx.fillStyle = purchased ? '#8cffaa' : '#a5a8b6';
@@ -1968,7 +2054,7 @@
         }
       }
 
-      const pp = toScreen(p.x, p.y, sx, sy);
+      const pp = toScreen(p.x, p.y, sx, sy, 0, 0);
       const hurtMix = clamp(state.hurtFlash * 3.2, 0, 1); const playerColor = `rgb(${Math.floor(115 + 120 * hurtMix)}, ${Math.floor(240 - 120 * hurtMix)}, ${Math.floor(255 - 140 * hurtMix)})`; ctx.fillStyle = playerColor; ctx.font = `${Math.max(14, Math.min(sx, sy) * 0.6)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.player, pp.x, pp.y);
       if(state.effects.spinUntil > state.timeSec){
         ctx.strokeStyle = '#d4ff7a';
@@ -1997,9 +2083,10 @@
       extraHpFill.style.width = `${(bonusHp / Math.max(1, p.maxHp)) * 100}%`;
       xpFill.style.width = `${(state.doorTouchSec / 2) * 100}%`;
       const shapeTag = state.levelDef?.wallPattern === 'shape' && state.shapeName ? ` · ${state.shapeName}` : '';
-      const roomTag = state.room === 'run' ? `${state.levelDef?.name || ''}${shapeTag}` : `Safehouse · Target ${state.configs.levels[state.selectedLevelIndex]?.name || ''}`;
+      ctx.restore();
+      const roomTag = state.room === 'run' ? `${state.levelDef?.name || ''}${shapeTag} · Room ${state.world.roomX},${state.world.roomY}` : `Safehouse · Target ${state.configs.levels[state.selectedLevelIndex]?.name || ''}`;
       const levelTag = `Lv ${Math.max(1, state.selectedLevelIndex + 1)}/${Math.max(1, state.highestUnlockedLevel)}`;
-      stats.textContent = `$${state.money} · Bank $${Math.floor(state.bankMoney)} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · ${levelTag} · KOs ${state.kills}`;
+      stats.textContent = `💵${state.money} · Bank 💵${Math.floor(state.bankMoney)} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · ${levelTag} · KOs ${state.kills}`;
       const inSafehouse = state.room === 'safehouse';
       safehouseControls.style.display = inSafehouse ? 'flex' : 'none';
       shopBtn.textContent = state.shopOpen ? 'Crate Shop ◀' : 'Crate Shop ▶';

@@ -35,7 +35,7 @@
   },
   {
     "id": "juggernaut",
-    "char": "☠",
+    "char": "\u2620",
     "name": "Dread Juggernaut",
     "hp": 220,
     "speed": 0.45,
@@ -56,5 +56,63 @@
     "color": "#ff7a3d",
     "boss": true,
     "wallDamage": 2.2
+  },
+  {
+    "id": "fireDemon",
+    "char": "\ud83d\ude08",
+    "name": "Cinder Demon",
+    "hp": 55,
+    "speed": 0.62,
+    "touchDamage": 12,
+    "xp": 6,
+    "color": "#ff7f50",
+    "wallDamage": 1.1,
+    "ranged": true
+  },
+  {
+    "id": "batWizard",
+    "char": "\ud83e\uddd9",
+    "name": "Bat Wizard",
+    "hp": 70,
+    "speed": 0.7,
+    "touchDamage": 10,
+    "xp": 7,
+    "color": "#b693ff",
+    "wallDamage": 0.9,
+    "summoner": true
+  },
+  {
+    "id": "mummy",
+    "char": "\ud83e\udddf\u200d\u2642\ufe0f",
+    "name": "Acid Mummy",
+    "hp": 95,
+    "speed": 0.5,
+    "touchDamage": 18,
+    "xp": 8,
+    "color": "#d9c896",
+    "wallDamage": 0.8,
+    "acidTrail": true
+  },
+  {
+    "id": "imp",
+    "char": "\ud83d\udc7a",
+    "name": "Skitter Imp",
+    "hp": 30,
+    "speed": 1.9,
+    "touchDamage": 8,
+    "xp": 4,
+    "color": "#ff9aa2",
+    "wallDamage": 0.4
+  },
+  {
+    "id": "sentinel",
+    "char": "\ud83d\uddff",
+    "name": "Obsidian Sentinel",
+    "hp": 180,
+    "speed": 0.35,
+    "touchDamage": 22,
+    "xp": 10,
+    "color": "#8890a8",
+    "wallDamage": 2.4
   }
 ]
