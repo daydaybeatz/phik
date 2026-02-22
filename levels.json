@@ -10,16 +10,16 @@
   {
     "id": "icon_forge",
     "name": "Icon Forge",
-    "durationSec": 90,
-    "bossIntervalSec": 75,
+    "durationSec": 100,
+    "bossIntervalSec": 78,
     "waves": ["opening_swarm", "mid_pressure", "late_hunt"],
     "wallPattern": "shape"
   },
   {
     "id": "rune_fields",
     "name": "Rune Fields",
-    "durationSec": 90,
-    "bossIntervalSec": 70,
+    "durationSec": 110,
+    "bossIntervalSec": 68,
     "waves": ["opening_swarm", "mid_pressure", "late_hunt"],
     "wallPattern": "shape"
   },
@@ -27,7 +27,7 @@
     "id": "totem_arena",
     "name": "Totem Arena",
     "durationSec": 120,
-    "bossIntervalSec": 60,
+    "bossIntervalSec": 58,
     "waves": ["opening_swarm", "mid_pressure", "late_hunt"],
     "wallPattern": "shape"
   }
