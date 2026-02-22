@@ -27,7 +27,7 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       background: var(--bg);
       color: var(--fg);
-      touch-action: none;
+      touch-action: manipulation;
       overscroll-behavior: none;
       user-select: none;
     }
@@ -65,7 +65,9 @@
       border-radius: 999px;
       overflow: hidden;
       margin-top: 4px;
+      position: relative;
     }
+    .bar-stack .fill { position: absolute; left: 0; top: 0; height: 100%; }
     .fill { height: 100%; }
     .hp-fill { background: var(--hp); }
     .xp-fill { background: var(--xp); }
@@ -207,8 +209,11 @@
     <div class="hud">
       <div>
         <div>HP</div>
-        <div class="bar"><div id="shieldFill" class="fill shield-fill" style="width:0%"></div></div>
-        <div class="bar"><div id="hpFill" class="fill hp-fill" style="width:100%"></div></div>
+        <div class="bar bar-stack">
+          <div id="hpFill" class="fill hp-fill" style="width:100%"></div>
+          <div id="shieldFill" class="fill shield-fill" style="width:0%;opacity:0.85"></div>
+          <div id="extraHpFill" class="fill xp-fill" style="width:0%;opacity:0.6"></div>
+        </div>
         <div id="deathNote" class="death-note"></div>
         <div class="door-row">
           <span>Door</span>
@@ -311,8 +316,10 @@
       hotbarBound: false,
       selectedAbilityIndex: 0,
       shopOpen: false,
-      fixtures: { armorStand: false, gunRack: false, perkMachine: false },
-      fixturePadTimers: { armorStand: 0, gunRack: 0, perkMachine: 0 },
+      fixtures: { armorStand: false, gunRack: false, perkMachine: false, vault: false },
+      fixturePadTimers: { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 },
+      fixtureUseTimers: { gunRack: 0, perkMachine: 0, vault: 0 },
+      bankMoney: 0,
       deathNote: '',
       effects: {
         sprintUntil: 0,
@@ -331,6 +338,7 @@
     const abilitySlotBtn = document.getElementById('abilitySlot');
     const shieldFill = document.getElementById('shieldFill');
     const hpFill = document.getElementById('hpFill');
+    const extraHpFill = document.getElementById('extraHpFill');
     const xpFill = document.getElementById('xpFill');
     const stats = document.getElementById('stats');
     const deathNote = document.getElementById('deathNote');
@@ -364,7 +372,8 @@
     const SAFEHOUSE_FIXTURES = [
       { id: 'armorStand', symbol: 'A', name: 'Armor Stand', desc: 'Permanent +16 shield each run', cost: 50, x: 8.5, y: 8.5 },
       { id: 'gunRack', symbol: 'G', name: 'Gun Rack', desc: 'Permanent starting weapon choice', cost: 50, x: GRID_W / 2, y: 8.5 },
-      { id: 'perkMachine', symbol: 'P', name: 'Perk Machine', desc: 'Unlocks $10 random perk rolls', cost: 50, x: GRID_W - 8.5, y: 8.5 }
+      { id: 'perkMachine', symbol: 'P', name: 'Perk Machine', desc: 'Unlocks map pad perk rolls', cost: 50, x: GRID_W - 8.5, y: 8.5 },
+      { id: 'vault', symbol: 'V', name: 'Vault', desc: 'Bank all/withdraw all between runs', cost: 50, x: GRID_W / 2, y: 5.5 }
     ];
 
     const AUTO_AIM_ENABLED = true;
@@ -437,12 +446,16 @@
         state.fixtures.armorStand = !!save.fixtures?.armorStand;
         state.fixtures.gunRack = !!save.fixtures?.gunRack;
         state.fixtures.perkMachine = !!save.fixtures?.perkMachine;
+        state.fixtures.vault = !!save.fixtures?.vault;
+        state.bankMoney = Math.max(0, save.bankMoney || 0);
+        state.highestUnlockedLevel = Math.max(1, save.highestUnlockedLevel || 1);
+        state.selectedLevelIndex = clamp((save.selectedLevelIndex || 0), 0, state.highestUnlockedLevel - 1);
         if(save.selectedStartWeapon && WEAPON_DROPS.some(w=>w.id===save.selectedStartWeapon)) state.selectedStartWeapon = save.selectedStartWeapon;
       }catch(_err){}
     }
 
     function savePersistentState(){
-      const payload = { fixtures: state.fixtures, selectedStartWeapon: state.selectedStartWeapon };
+      const payload = { fixtures: state.fixtures, selectedStartWeapon: state.selectedStartWeapon, bankMoney: state.bankMoney, highestUnlockedLevel: state.highestUnlockedLevel, selectedLevelIndex: state.selectedLevelIndex };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     }
 
@@ -453,7 +466,9 @@
       state.configs.enemyTypes = await loadJson('./enemy-types.json');
       state.configs.waves = await loadJson('./waves.json');
       state.configs.levels = await loadJson('./levels.json');
-      state.levelDef = state.configs.levels[0];
+      state.highestUnlockedLevel = clamp(state.highestUnlockedLevel, 1, Math.max(1, state.configs.levels.length));
+      state.selectedLevelIndex = clamp(state.selectedLevelIndex, 0, state.highestUnlockedLevel - 1);
+      state.levelDef = state.configs.levels[state.selectedLevelIndex] || state.configs.levels[0];
       state.levelStartTime = 0;
       state.nextBossAt = state.levelDef.bossIntervalSec;
       resetPlayer();
@@ -509,12 +524,16 @@
 
     function bindSafehouseControls(){
       document.getElementById('levelPrev').addEventListener('click', ()=>{
-        state.selectedLevelIndex = clamp(state.selectedLevelIndex + 1, 0, state.highestUnlockedLevel - 1);
+        if(state.room !== 'safehouse') return;
+        state.selectedLevelIndex = clamp(state.selectedLevelIndex - 1, 0, state.highestUnlockedLevel - 1);
+        savePersistentState();
       });
       document.getElementById('levelNext').addEventListener('click', ()=>{
-        state.selectedLevelIndex = clamp(state.selectedLevelIndex - 1, 0, state.highestUnlockedLevel - 1);
+        if(state.room !== 'safehouse') return;
+        state.selectedLevelIndex = clamp(state.selectedLevelIndex + 1, 0, state.highestUnlockedLevel - 1);
+        savePersistentState();
       });
-      document.getElementById('shopBtn').addEventListener('click', openCrateShop);
+      document.getElementById('shopBtn').addEventListener('click', ()=>openCrateShop(!state.shopOpen));
     }
 
     function cellBlocked(x, y){
@@ -668,6 +687,34 @@
           }
           return walls;
         }},
+        { name: 'Castle Courtyard', build: () => {
+          const walls = emptyWallGrid();
+          for(let x=4;x<GRID_W-4;x++){ paintCell(walls, x, 4, x%4===0?999:8); paintCell(walls, x, GRID_H-5, x%4===0?999:8); }
+          for(let y=4;y<GRID_H-4;y++){ paintCell(walls, 4, y, y%4===0?999:8); paintCell(walls, GRID_W-5, y, y%4===0?999:8); }
+          for(let y=9;y<GRID_H-8;y++) for(let x=9;x<GRID_W-9;x++) if((x+y)%7===0) paintCell(walls, x, y, 7);
+          return walls;
+        }},
+        { name: 'Blueprint Blocks', build: () => {
+          const walls = emptyWallGrid();
+          const blocks = [[6,6,8,6],[18,6,10,5],[7,16,9,7],[20,15,8,8]];
+          for(const [sx,sy,w,h] of blocks){
+            for(let x=sx;x<sx+w;x++){ paintCell(walls,x,sy,8); paintCell(walls,x,sy+h-1,8); }
+            for(let y=sy;y<sy+h;y++){ paintCell(walls,sx,y,8); paintCell(walls,sx+w-1,y,8); }
+          }
+          return walls;
+        }},
+        { name: 'Spiral Swirl', build: () => {
+          const walls = emptyWallGrid();
+          let minX=3,minY=3,maxX=GRID_W-4,maxY=GRID_H-4;
+          while(minX<maxX && minY<maxY){
+            for(let x=minX;x<=maxX;x++) paintCell(walls,x,minY,7);
+            for(let y=minY;y<=maxY;y++) paintCell(walls,maxX,y,7);
+            for(let x=maxX;x>=minX+2;x--) paintCell(walls,x,maxY,7);
+            for(let y=maxY;y>=minY+2;y--) paintCell(walls,minX,y,7);
+            minX+=3; minY+=2; maxX-=3; maxY-=2;
+          }
+          return walls;
+        }},
         { name: 'Shitty Maze', build: buildMaze },
         { name: 'Shape Mash', build: () => carveShape(['skull','sword','potion','shield','tree','mountain'][Math.floor(Math.random()*6)]) }
       ];
@@ -725,7 +772,8 @@
       state.walls[1][Math.floor(GRID_W / 2)] = 0;
       state.enemies = []; state.bullets = []; state.gems = []; state.pickups = [];
       state.doorTouchSec = 0;
-      state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0 };
+      state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 };
+      state.fixtureUseTimers = { gunRack: 0, perkMachine: 0, vault: 0 };
     }
 
     function startRun(){
@@ -742,7 +790,8 @@
       state.deathNote = '';
       rebuildLevelGeometry();
       state.doorTouchSec = 0;
-      state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0 };
+      state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 };
+      state.fixtureUseTimers = { gunRack: 0, perkMachine: 0, vault: 0 };
     }
 
     function updateFlowField(){
@@ -1160,6 +1209,10 @@
         if(e.type === 'juggernaut' && moved < 0.02){
           breakWallTowardEntity(e, p.x, p.y, dt * 1.25);
           crushWallsAround(e, radius + 0.42, dt, dashBreaking ? 2.5 : 1.6);
+          if(e.x <= 1.35 || e.x >= GRID_W - 1.35) e.dashDirX *= -1;
+          if(e.y <= 1.35 || e.y >= GRID_H - 1.35) e.dashDirY *= -1;
+          e.x = clampInsideBounds(e.x + rand(-0.08,0.08), radius, GRID_W);
+          e.y = clampInsideBounds(e.y + rand(-0.08,0.08), radius, GRID_H);
         } else if(e.type === 'juggernaut' && e.dashing > 0){
           crushWallsAround(e, radius + 0.28, dt, 1.5);
         }
@@ -1186,7 +1239,7 @@
       const gx = clamp(Math.floor(x), 0, GRID_W - 1);
       const gy = clamp(Math.floor(y), 0, GRID_H - 1);
       const hp = state.walls[gy]?.[gx] || 0;
-      if(hp <= 0) return false;
+      if(hp <= 0 || hp >= 900) return false;
       const nextHp = Math.max(0, hp - dmg);
       state.walls[gy][gx] = nextHp;
       if(nextHp <= 0) spawnParticles('blast', gx + 0.5, gy + 0.5, 8);
@@ -1214,7 +1267,7 @@
       }
     }
 
-    function pickupGems(){
+    function pickupGems(dt){
       const p = state.player;
       for(let i=state.gems.length-1;i>=0;i--){
         const g = state.gems[i], d = dist(p,g);
@@ -1233,9 +1286,15 @@
           state.pickups.splice(i, 1);
           continue;
         }
-        if(dist(p, pickup) < 0.9){
-          state.activeWeapon = pickup.weaponId;
-          state.pickups.splice(i, 1);
+        const touchingPickup = dist(p, pickup) < 0.42;
+        if(touchingPickup){
+          pickup.touchSec = Math.min(2, (pickup.touchSec || 0) + dt);
+          if(pickup.touchSec >= 2){
+            state.activeWeapon = pickup.weaponId;
+            state.pickups.splice(i, 1);
+          }
+        } else {
+          pickup.touchSec = Math.max(0, (pickup.touchSec || 0) - 0.06);
         }
       }
     }
@@ -1271,45 +1330,6 @@
       const available = state.configs.upgrades.filter(canTakeUpgrade);
       shopChoices.innerHTML = '';
 
-      if(state.fixtures.gunRack){
-        const gunWrap = document.createElement('div');
-        gunWrap.className = 'choice full-row';
-        gunWrap.style.borderLeftColor = '#9a84ff';
-        gunWrap.textContent = 'Gun Rack Loadout';
-        shopChoices.appendChild(gunWrap);
-        for(const weapon of WEAPON_DROPS){
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'choice';
-          const selected = state.selectedStartWeapon === weapon.id;
-          btn.style.borderLeftColor = selected ? '#6cff8d' : '#9a84ff';
-          btn.textContent = `${selected ? '▶' : '○'} ${weapon.name}`;
-          btn.addEventListener('click', ()=>{
-            state.selectedStartWeapon = weapon.id;
-            savePersistentState();
-            openCrateShop(true);
-          });
-          shopChoices.appendChild(btn);
-        }
-      }
-
-      if(state.fixtures.perkMachine){
-        const perkBtn = document.createElement('button');
-        perkBtn.type = 'button';
-        perkBtn.className = 'choice full-row';
-        perkBtn.style.borderLeftColor = '#ffd166';
-        perkBtn.textContent = 'Perk Machine ($10): Roll random upgrade';
-        perkBtn.disabled = state.money < 10 || !available.length;
-        perkBtn.addEventListener('click', ()=>{
-          if(state.money < 10 || !available.length) return;
-          state.money -= 10;
-          const roll = available[Math.floor(Math.random() * available.length)];
-          applyUpgrade(roll);
-          state.shopOpen = false;
-        });
-        shopChoices.appendChild(perkBtn);
-      }
-
       if(!available.length){
         shopChoices.innerHTML += '<div class="choice full-row">Everything is maxed out.</div>';
       }
@@ -1339,22 +1359,54 @@
     function updateSafehouseFixturePads(dt){
       if(state.room !== 'safehouse') return;
       for(const fixture of SAFEHOUSE_FIXTURES){
-        if(state.fixtures[fixture.id]){
-          state.fixturePadTimers[fixture.id] = 0;
+        const touching = Math.hypot(state.player.x - fixture.x, state.player.y - fixture.y) < 1.2;
+        if(!state.fixtures[fixture.id]){
+          if(touching){
+            state.fixturePadTimers[fixture.id] = Math.min(3, (state.fixturePadTimers[fixture.id] || 0) + dt);
+            if(state.fixturePadTimers[fixture.id] >= 3 && state.money >= fixture.cost){
+              state.money -= fixture.cost;
+              state.fixtures[fixture.id] = true;
+              state.fixturePadTimers[fixture.id] = 0;
+              rebuildFromUpgrades();
+              savePersistentState();
+            }
+          } else {
+            state.fixturePadTimers[fixture.id] = Math.max(0, (state.fixturePadTimers[fixture.id] || 0) - dt * 1.8);
+          }
           continue;
         }
-        const touching = Math.hypot(state.player.x - fixture.x, state.player.y - fixture.y) < 1.2;
+        state.fixturePadTimers[fixture.id] = 0;
+        if(!state.fixtureUseTimers[fixture.id]) state.fixtureUseTimers[fixture.id] = 0;
         if(touching){
-          state.fixturePadTimers[fixture.id] = Math.min(3, (state.fixturePadTimers[fixture.id] || 0) + dt);
-          if(state.fixturePadTimers[fixture.id] >= 3 && state.money >= fixture.cost){
-            state.money -= fixture.cost;
-            state.fixtures[fixture.id] = true;
-            state.fixturePadTimers[fixture.id] = 0;
-            rebuildFromUpgrades();
-            savePersistentState();
+          state.fixtureUseTimers[fixture.id] = Math.min(2, state.fixtureUseTimers[fixture.id] + dt);
+          if(state.fixtureUseTimers[fixture.id] >= 2){
+            state.fixtureUseTimers[fixture.id] = 0;
+            if(fixture.id === 'gunRack'){
+              const idx = WEAPON_DROPS.findIndex(w => w.id === state.selectedStartWeapon);
+              const next = WEAPON_DROPS[(idx + 1) % WEAPON_DROPS.length];
+              state.selectedStartWeapon = next.id;
+              savePersistentState();
+            }
+            if(fixture.id === 'perkMachine'){
+              const available = state.configs.upgrades.filter(canTakeUpgrade);
+              if(state.money >= 10 && available.length){
+                state.money -= 10;
+                applyUpgrade(available[Math.floor(Math.random() * available.length)]);
+              }
+            }
+            if(fixture.id === 'vault'){
+              if(state.money > 0){
+                state.bankMoney += state.money;
+                state.money = 0;
+              } else if(state.bankMoney > 0){
+                state.money = state.bankMoney;
+                state.bankMoney = 0;
+              }
+              savePersistentState();
+            }
           }
         } else {
-          state.fixturePadTimers[fixture.id] = Math.max(0, (state.fixturePadTimers[fixture.id] || 0) - dt * 1.8);
+          state.fixtureUseTimers[fixture.id] = Math.max(0, state.fixtureUseTimers[fixture.id] - dt * 2.2);
         }
       }
     }
@@ -1579,14 +1631,15 @@
       const touching = Math.hypot(state.player.x - (door.x + 0.5), state.player.y - (door.y + 0.5)) < 1.1;
       if(touching && state.room === 'safehouse' && state.paused) return;
       if(touching){
-        state.doorTouchSec = Math.min(3, state.doorTouchSec + dt);
+        state.doorTouchSec = Math.min(2, state.doorTouchSec + dt);
       } else {
         state.doorTouchSec = Math.max(0, state.doorTouchSec - dt * 1.7);
       }
-      if(state.doorTouchSec >= 3){
+      if(state.doorTouchSec >= 2){
         state.doorTouchSec = 0;
         if(state.room === 'run'){
           state.highestUnlockedLevel = Math.max(state.highestUnlockedLevel, state.selectedLevelIndex + 1);
+          savePersistentState();
           setupSafehouse();
         } else {
           startRun();
@@ -1601,7 +1654,8 @@
       if(now >= state.nextSpawnAt){
         const roll = Math.random() < 0.025;
         spawnEnemy(roll ? 'juggernaut' : pickWeighted(w.mix));
-        state.nextSpawnAt = now + w.spawnEveryMs;
+        const earlyBoost = state.timeSec < 35 ? 0.62 : (state.timeSec < 70 ? 0.78 : 1);
+        state.nextSpawnAt = now + w.spawnEveryMs * earlyBoost;
       }
       if(state.timeSec >= state.nextBossAt){
         spawnEnemy('boss');
@@ -1795,12 +1849,15 @@
         }
       }
 
-      shieldFill.style.width = `${(p.shield/Math.max(1,p.maxShield))*100}%`;
-      hpFill.style.width = `${(p.hp/p.maxHp)*100}%`;
-      xpFill.style.width = `${(state.doorTouchSec/3)*100}%`;
+      shieldFill.style.width = `${(p.shield / Math.max(1, p.maxShield)) * 100}%`;
+      hpFill.style.width = `${(p.hp / Math.max(1, p.maxHp)) * 100}%`;
+      const bonusHp = Math.max(0, p.maxHp - BASE_PLAYER.maxHp);
+      extraHpFill.style.width = `${(bonusHp / Math.max(1, p.maxHp)) * 100}%`;
+      xpFill.style.width = `${(state.doorTouchSec / 2) * 100}%`;
       const shapeTag = state.levelDef?.wallPattern === 'shape' && state.shapeName ? ` · ${state.shapeName}` : '';
       const roomTag = state.room === 'run' ? `${state.levelDef?.name || ''}${shapeTag}` : `Safehouse · Target ${state.configs.levels[state.selectedLevelIndex]?.name || ''}`;
-      stats.textContent = `$${state.money} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · KOs ${state.kills}`;
+      const levelTag = `Lv ${Math.max(1, state.selectedLevelIndex + 1)}/${Math.max(1, state.highestUnlockedLevel)}`;
+      stats.textContent = `$${state.money} · Bank $${Math.floor(state.bankMoney)} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · ${levelTag} · KOs ${state.kills}`;
       const inSafehouse = state.room === 'safehouse';
       safehouseControls.style.display = inSafehouse ? 'flex' : 'none';
       shopBtn.textContent = state.shopOpen ? 'Crate Shop ◀' : 'Crate Shop ▶';
@@ -1829,7 +1886,7 @@
         bulletLogic(dt);
         enemyLogic(dt);
         fxLogic(dt);
-        pickupGems();
+        pickupGems(dt);
       }
       updateSafehouseFixturePads(dt);
       updateDoorState(dt);
