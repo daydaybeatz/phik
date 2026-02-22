@@ -309,6 +309,10 @@
       levelIndex: 0,
       shapeName: '',
       movement: { vx: 0, vy: 0 },
+      keyboard: { up: false, down: false, left: false, right: false },
+      usingKeyboardMove: false,
+      usingMouseAim: false,
+      hurtFlash: 0,
       abilitySlots: [],
       abilityOrder: ['teleportStep', 'sentinelClone', 'graveWall', 'sprintBurst', 'novaBlast', 'bladeWhirl', 'dashRampage', 'glueTrap', 'downgradeHex', 'dualWield', 'voidLance', 'meteorCall', 'timeBubble'],
       phaseWalkUntil: 0,
@@ -333,6 +337,11 @@
       activeLances: []
     };
 
+    const EMOJIS = {
+      player: '🧛', bullet: '🔸', gem: '💠', health: '❤️', clone: '🫥', trap: '🕸️',
+      enemy: { batling: '🦇', brute: '🧟', wraith: '👻', juggernaut: '💀', boss: '👹' }
+    };
+
     const screen = document.getElementById('screen');
     const screenCtx = screen.getContext('2d');
     const hotbar = document.getElementById('hotbar');
@@ -350,6 +359,7 @@
     const playLayout = document.getElementById('playLayout');
     const shopPanel = document.getElementById('shopPanel');
     const shopChoices = document.getElementById('shopChoices');
+    const controlsEl = document.querySelector('.controls');
 
     function fmtTime(s){ const m = Math.floor(s/60); const r = Math.floor(s%60); return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`; }
 
@@ -364,17 +374,17 @@
 
 
     const WEAPON_DROPS = [
-      { id: 'rifle', name: 'Rifle', glyph: 'R', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false },
-      { id: 'machineGun', name: 'Machine Gun', glyph: 'M', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false },
-      { id: 'laser', name: 'Laser', glyph: 'L', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 999, spread: 0, projectiles: 1, ricochet: false },
-      { id: 'shotgun', name: 'Shotgun', glyph: 'S', color: '#ffb347', cooldownMult: 1.45, damageMult: 0.8, speed: 10.4, life: 0.55, pierce: 0, spread: 0.24, projectiles: 4, ricochet: false }
+      { id: 'rifle', name: 'Rifle', glyph: '🔫', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false },
+      { id: 'machineGun', name: 'Machine Gun', glyph: '🪖', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false },
+      { id: 'laser', name: 'Laser', glyph: '⚡', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 999, spread: 0, projectiles: 1, ricochet: false },
+      { id: 'shotgun', name: 'Shotgun', glyph: '💥', color: '#ffb347', cooldownMult: 1.45, damageMult: 0.8, speed: 10.4, life: 0.55, pierce: 0, spread: 0.24, projectiles: 4, ricochet: false }
     ];
 
     const SAFEHOUSE_FIXTURES = [
-      { id: 'armorStand', symbol: 'A', name: 'Armor Stand', desc: 'Permanent +16 shield each run', cost: 50, x: 8.5, y: 8.5 },
-      { id: 'gunRack', symbol: 'G', name: 'Gun Rack', desc: 'Permanent starting weapon choice', cost: 50, x: GRID_W / 2, y: 8.5 },
-      { id: 'perkMachine', symbol: 'P', name: 'Perk Machine', desc: 'Unlocks map pad perk rolls', cost: 50, x: GRID_W - 8.5, y: 8.5 },
-      { id: 'vault', symbol: 'V', name: 'Vault', desc: 'Bank all/withdraw all between runs', cost: 50, x: GRID_W / 2, y: 5.5 }
+      { id: 'armorStand', symbol: '🛡️', name: 'Armor Stand', desc: 'Permanent +16 shield each run', cost: 50, x: 8.5, y: 8.5 },
+      { id: 'gunRack', symbol: '🔫', name: 'Gun Rack', desc: 'Permanent starting weapon choice', cost: 50, x: GRID_W / 2, y: 8.5 },
+      { id: 'perkMachine', symbol: '🧪', name: 'Perk Machine', desc: 'Unlocks map pad perk rolls', cost: 50, x: GRID_W - 8.5, y: 8.5 },
+      { id: 'vault', symbol: '🏦', name: 'Vault', desc: 'Bank all/withdraw all between runs', cost: 50, x: GRID_W / 2, y: 5.5 }
     ];
 
     const AUTO_AIM_ENABLED = true;
@@ -483,6 +493,8 @@
       bindHotkeys();
       bindAbilityNavigator();
       bindSafehouseControls();
+      bindDesktopPointerAim();
+      updateControlVisibility();
       requestAnimationFrame(loop);
     }
 
@@ -499,9 +511,25 @@
 
     function bindHotkeys(){
       window.addEventListener('keydown', (e) => {
-        if(e.key === 'ArrowLeft') selectAbility(-1);
-        if(e.key === 'ArrowRight') selectAbility(1);
-        if(e.key === ' ') activateSelectedAbility();
+        const key = e.key.toLowerCase();
+        if(['w','a','s','d'].includes(key)){
+          if(key === 'w') state.keyboard.up = true;
+          if(key === 'a') state.keyboard.left = true;
+          if(key === 's') state.keyboard.down = true;
+          if(key === 'd') state.keyboard.right = true;
+          state.usingKeyboardMove = true;
+          updateControlVisibility();
+        }
+        if(key === 'arrowleft' || key === 'q') selectAbility(-1);
+        if(key === 'arrowright' || key === 'e') selectAbility(1);
+        if(key === ' ' || key === 'spacebar'){ e.preventDefault(); activateSelectedAbility(); }
+      });
+      window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        if(key === 'w') state.keyboard.up = false;
+        if(key === 'a') state.keyboard.left = false;
+        if(key === 's') state.keyboard.down = false;
+        if(key === 'd') state.keyboard.right = false;
       });
     }
 
@@ -513,12 +541,34 @@
 
     function selectAbility(dir){
       if(!state.abilitySlots.length) return;
-      const len = state.abilitySlots.length;
-      state.selectedAbilityIndex = (state.selectedAbilityIndex + dir + len) % len;
+      const unlocked = state.abilitySlots.map((slot, i) => slot.level > 0 ? i : -1).filter(i => i >= 0);
+      if(!unlocked.length) return;
+      const current = unlocked.includes(state.selectedAbilityIndex) ? unlocked.indexOf(state.selectedAbilityIndex) : 0;
+      const next = (current + dir + unlocked.length) % unlocked.length;
+      state.selectedAbilityIndex = unlocked[next];
     }
 
     function activateSelectedAbility(){
       activateAbilitySlot(state.selectedAbilityIndex);
+    }
+
+
+    function updateControlVisibility(){
+      const touchOnly = window.matchMedia?.('(pointer: coarse)').matches;
+      controlsEl.style.display = (!state.usingKeyboardMove || touchOnly) ? 'grid' : 'none';
+    }
+
+    function bindDesktopPointerAim(){
+      screen.addEventListener('pointermove', (e)=>{
+        if(window.matchMedia?.('(pointer: coarse)').matches) return;
+        const rect = screen.getBoundingClientRect();
+        const nx = ((e.clientX - rect.left) / rect.width) * GRID_W;
+        const ny = ((e.clientY - rect.top) / rect.height) * GRID_H;
+        const aim = normalize(nx - state.player.x, ny - state.player.y);
+        state.player.aimX = aim.x;
+        state.player.aimY = aim.y;
+        state.usingMouseAim = true;
+      });
     }
 
     function resetPlayer(){ state.player.x = GRID_W/2; state.player.y = GRID_H/2; }
@@ -825,7 +875,7 @@
         knob.style.top = `${28 + dy * 26}%`;
       }
       function clear(){ joy.x=0; joy.y=0; joy.active=false; knob.style.left='28%'; knob.style.top='28%'; }
-      el.addEventListener('pointerdown', e=>{ e.preventDefault(); joy.active=true; update(e.clientX,e.clientY); el.setPointerCapture(e.pointerId); }, { passive: false });
+      el.addEventListener('pointerdown', e=>{ e.preventDefault(); joy.active=true; state.usingKeyboardMove = false; updateControlVisibility(); update(e.clientX,e.clientY); el.setPointerCapture(e.pointerId); }, { passive: false });
       el.addEventListener('pointermove', e=> { if (joy.active) { e.preventDefault(); update(e.clientX,e.clientY); } }, { passive: false });
       el.addEventListener('pointerup', clear);
       el.addEventListener('pointercancel', clear);
@@ -929,8 +979,11 @@
 
     function spawnParticles(kind, x, y, amount){
       const configs = {
-        blood: { chars: ['.'], colors: ['#ff3b3b', '#ff4a4a', '#ff5a5a'], speed: [2.2, 5.3], life: [0.22, 0.55] },
-        blast: { chars: ['+', '*', 'x', ':'], colors: ['#ffd166', '#ff9f40', '#ff6b35'], speed: [0.8, 2.6], life: [0.15, 0.55] }
+        blood: { chars: ['🩸', '•'], colors: ['#ff3b3b', '#ff4a4a', '#ff5a5a'], speed: [2.2, 5.3], life: [0.22, 0.55] },
+        blast: { chars: ['✨', '✴️', '💥'], colors: ['#ffd166', '#ff9f40', '#ff6b35'], speed: [0.8, 2.6], life: [0.15, 0.55] },
+        spark: { chars: ['✦', '·'], colors: ['#ffe08a', '#ffd166', '#fff1b5'], speed: [1.5, 3.5], life: [0.1, 0.24] },
+        heal: { chars: ['💖', '✨'], colors: ['#ff6fcf', '#ff9edf', '#ffc4ee'], speed: [0.5, 1.8], life: [0.2, 0.45] },
+        damage: { chars: ['❗', '💢'], colors: ['#ff6565', '#ff3535'], speed: [1.2, 3.4], life: [0.16, 0.34] }
       };
       const cfg = configs[kind];
       if(!cfg) return;
@@ -964,7 +1017,7 @@
     function fire(){
       const p = state.player;
       const now = performance.now();
-      const canFire = AUTO_FIRE_ENABLED || state.joysticks.aim.active;
+      const canFire = AUTO_FIRE_ENABLED || state.joysticks.aim.active || state.usingMouseAim;
       const weapon = getWeaponDrop(state.activeWeapon);
       const bubbleHaste = state.effects.timeBubbleUntil > state.timeSec ? 0.65 : 1;
       const cooldown = Math.max(90, p.cooldownMs * weapon.cooldownMult * bubbleHaste);
@@ -994,6 +1047,7 @@
         }
       };
       fireWeapon(weapon);
+      spawnParticles('spark', p.x + aim.x * 0.5, p.y + aim.y * 0.5, weapon.id === 'shotgun' ? 7 : 4);
       if(state.effects.dualWieldUntil > state.timeSec){
         const alt = WEAPON_DROPS.find(w => w.id !== weapon.id) || weapon;
         fireWeapon(alt, 0.08);
@@ -1159,7 +1213,7 @@
         p.shield -= used;
         dmg -= used;
       }
-      if(dmg > 0) p.hp -= dmg;
+      if(dmg > 0){ p.hp -= dmg; state.hurtFlash = Math.min(0.35, state.hurtFlash + 0.22); spawnParticles('damage', p.x, p.y, 8); }
     }
 
     function enemyLogic(dt){
@@ -1227,9 +1281,12 @@
           spawnParticles('blood', e.x, e.y, e.boss ? 24 : 12);
           state.kills++;
           state.gems.push({x:e.x,y:e.y,v:Math.max(1, Math.round(e.xp * 2))});
-          if(e.boss || Math.random() < 0.35){
+          if(e.boss || Math.random() < 0.26){
             const drop = randomWeaponDrop();
-            state.pickups.push({ x: e.x, y: e.y, weaponId: drop.id, bornAt: state.timeSec, ttl: rand(3, 5), blinkAt: 1.6 });
+            state.pickups.push({ x: e.x, y: e.y, kind: 'weapon', weaponId: drop.id, bornAt: state.timeSec, ttl: rand(3, 5), blinkAt: 1.6 });
+          }
+          if(Math.random() < 0.03){
+            state.pickups.push({ x: e.x, y: e.y, kind: 'health', heal: 6, bornAt: state.timeSec, ttl: rand(4.5, 7), blinkAt: 3.4 });
           }
           state.enemies.splice(i,1);
         }
@@ -1290,9 +1347,17 @@
         const touchingPickup = dist(p, pickup) < 0.42;
         if(touchingPickup){
           pickup.touchSec = Math.min(2, (pickup.touchSec || 0) + dt);
-          if(pickup.touchSec >= 2){
-            state.activeWeapon = pickup.weaponId;
+          if(pickup.kind === 'health' && pickup.touchSec >= 0.2){
+            state.player.hp = clamp(state.player.hp + (pickup.heal || 4), 0, state.player.maxHp);
+            spawnParticles('heal', pickup.x, pickup.y, 14);
             state.pickups.splice(i, 1);
+            continue;
+          }
+          if((pickup.kind || 'weapon') === 'weapon' && pickup.touchSec >= 2){
+            state.activeWeapon = pickup.weaponId;
+            spawnParticles('spark', pickup.x, pickup.y, 12);
+            state.pickups.splice(i, 1);
+            continue;
           }
         } else {
           pickup.touchSec = Math.max(0, (pickup.touchSec || 0) - 0.06);
@@ -1656,7 +1721,8 @@
         const roll = Math.random() < 0.025;
         spawnEnemy(roll ? 'juggernaut' : pickWeighted(w.mix));
         const earlyBoost = state.timeSec < 35 ? 0.62 : (state.timeSec < 70 ? 0.78 : 1);
-        state.nextSpawnAt = now + w.spawnEveryMs * earlyBoost;
+        const killRamp = Math.max(0.35, 1 - Math.min(0.6, state.kills * 0.0026));
+        state.nextSpawnAt = now + w.spawnEveryMs * earlyBoost * killRamp;
       }
       if(state.timeSec >= state.nextBossAt){
         spawnEnemy('boss');
@@ -1666,6 +1732,12 @@
     function inputLogic(dt){
       const p = state.player;
       const move = state.joysticks.move;
+      if(state.usingKeyboardMove){
+        const keyX = (state.keyboard.right ? 1 : 0) - (state.keyboard.left ? 1 : 0);
+        const keyY = (state.keyboard.down ? 1 : 0) - (state.keyboard.up ? 1 : 0);
+        move.x = keyX;
+        move.y = keyY;
+      }
       const m = normalize(move.x, move.y);
       const accel = 27;
       const drag = 0.83;
@@ -1705,19 +1777,28 @@
       ctx.clearRect(0, 0, screen.width, screen.height);
       ctx.fillStyle = '#080b12';
       ctx.fillRect(0, 0, screen.width, screen.height);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
 
       for(let y=0;y<GRID_H;y++){
         for(let x=0;x<GRID_W;x++){
           const hp = state.walls[y]?.[x] || 0;
           if(hp <= 0) continue;
-          ctx.fillStyle = hp > 6 ? '#5f78b0' : (hp > 3 ? '#4e6290' : '#3c4d70');
+          const n = (Math.sin((x + state.timeSec) * 0.8) + Math.cos((y - state.timeSec) * 0.7)) * 0.5;
+          const base = hp > 6 ? [95, 120, 176] : (hp > 3 ? [78, 98, 144] : [60, 77, 112]);
+          const bump = Math.floor(n * 14);
+          ctx.fillStyle = `rgb(${base[0] + bump}, ${base[1] + bump}, ${base[2] + bump})`;
           ctx.fillRect(x * sx, y * sy, sx, sy);
+          if((x + y) % 3 === 0){
+            ctx.fillStyle = 'rgba(20,30,52,0.35)';
+            ctx.fillRect(x * sx, y * sy, sx * 0.35, sy * 0.35);
+          }
         }
       }
 
       for(const g of state.gems){
         const p = toScreen(g.x, g.y, sx, sy);
-        drawCircle(ctx, p.x, p.y, Math.max(2, Math.min(sx, sy) * 0.17), '#7dff95');
+        ctx.font = `${Math.max(10, Math.min(sx, sy) * 0.44)}px ui-monospace, monospace`; ctx.fillStyle='#7dff95'; ctx.fillText(EMOJIS.gem, p.x, p.y);
       }
       for(const pickup of state.pickups){
         const age = state.timeSec - (pickup.bornAt || 0);
@@ -1725,12 +1806,19 @@
         const blink = age > blinkAt && Math.floor(state.timeSec * 12) % 2 === 0;
         if(blink) continue;
         const p = toScreen(pickup.x, pickup.y, sx, sy);
-        const weapon = getWeaponDrop(pickup.weaponId);
-        ctx.fillStyle = '#b98dff';
-        ctx.font = `${Math.max(10, Math.min(sx, sy) * 0.46)}px ui-monospace, monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(weapon.glyph || '?', p.x, p.y);
+        if((pickup.kind || 'weapon') === 'health'){
+          const pulse = 1 + Math.sin(state.timeSec * 8 + pickup.x) * 0.2;
+          ctx.fillStyle = '#ff8fd7';
+          ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.56 * pulse)}px ui-monospace, monospace`;
+          ctx.fillText(EMOJIS.health, p.x, p.y);
+        } else {
+          const weapon = getWeaponDrop(pickup.weaponId);
+          ctx.fillStyle = '#b98dff';
+          ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.53)}px ui-monospace, monospace`;
+          ctx.fillText(weapon.glyph || '🔫', p.x, p.y);
+        }
       }
 
       const p = state.player;
@@ -1756,7 +1844,7 @@
 
       for(const b of state.bullets){
         const bp = toScreen(b.x, b.y, sx, sy);
-        drawCircle(ctx, bp.x, bp.y, Math.max(2, Math.min(sx, sy) * 0.14), '#ffd166');
+        ctx.fillStyle = '#ffd166'; ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.32)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.bullet, bp.x, bp.y);
       }
       for(const e of state.enemies){
         const ep = toScreen(e.x, e.y, sx, sy);
@@ -1775,15 +1863,15 @@
             ctx.stroke();
           }
         }
-        drawCircle(ctx, ep.x, ep.y, Math.max(3, radius), e.hitFlash > 0 ? '#ffffff' : (e.color || '#ff6f7d'));
+        ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : (e.color || '#ff6f7d'); ctx.font = `${Math.max(10, radius * 2.3)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.enemy[e.type] || '👾', ep.x, ep.y);
       }
       for(const c of state.clones){
         const cp = toScreen(c.x, c.y, sx, sy);
-        drawCircle(ctx, cp.x, cp.y, Math.max(3, Math.min(sx, sy) * 0.2), '#c1ccff');
+        ctx.fillStyle = '#c1ccff'; ctx.font = `${Math.max(11, Math.min(sx, sy) * 0.4)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.clone, cp.x, cp.y);
       }
       for(const t of state.traps){
         const tp = toScreen(t.x, t.y, sx, sy);
-        drawCircle(ctx, tp.x, tp.y, Math.max(2, Math.min(sx, sy) * 0.16), '#98f59f');
+        ctx.fillStyle = '#98f59f'; ctx.font = `${Math.max(10, Math.min(sx, sy) * 0.3)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.trap, tp.x, tp.y);
       }
       for(const l of state.activeLances){
         const lp = toScreen(l.x, l.y, sx, sy);
@@ -1796,12 +1884,18 @@
       }
       for(const f of state.fx){
         const fp = toScreen(f.x, f.y, sx, sy);
-        drawCircle(ctx, fp.x, fp.y, Math.max(1, Math.min(sx, sy) * 0.08), f.color);
+        ctx.fillStyle = f.color;
+        ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.3)}px ui-monospace, monospace`;
+        ctx.fillText(f.char || '·', fp.x, fp.y);
       }
 
       const door = doorInfo();
       const dp = toScreen(door.x + 0.5, door.y + 0.5, sx, sy);
-      drawCircle(ctx, dp.x, dp.y, Math.max(3, Math.min(sx, sy) * 0.24), state.doorTouchSec > 0 ? '#9fffad' : '#d9f0ff');
+      const dw = sx * 0.42, dh = sy * 0.75;
+      ctx.fillStyle = '#9e57ff';
+      ctx.fillRect(dp.x - dw / 2, dp.y - dh / 2, dw, dh);
+      ctx.fillStyle = '#5d2ea3';
+      ctx.fillRect(dp.x - dw * 0.24, dp.y - dh * 0.28, dw * 0.48, dh * 0.56);
 
       if(state.room === 'safehouse'){
         for(const fixture of SAFEHOUSE_FIXTURES){
@@ -1809,13 +1903,13 @@
           const purchased = state.fixtures[fixture.id];
           const progress = state.fixturePadTimers[fixture.id] || 0;
           ctx.fillStyle = purchased ? '#8cffaa' : '#a5a8b6';
-          ctx.font = `${Math.max(11, Math.min(sx, sy) * 0.52)}px ui-monospace, monospace`;
+          ctx.font = `${Math.max(12.5, Math.min(sx, sy) * 0.6)}px ui-monospace, monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(fixture.symbol, fp.x, fp.y - sy * 0.35);
           const line = purchased ? `${fixture.name} ✔` : `${fixture.name} $${fixture.cost}`;
           ctx.fillStyle = purchased ? '#8aa19f' : '#7e8599';
-          ctx.font = `${Math.max(8, Math.min(sx, sy) * 0.24)}px ui-monospace, monospace`;
+          ctx.font = `${Math.max(9.2, Math.min(sx, sy) * 0.276)}px ui-monospace, monospace`;
           ctx.fillText(line, fp.x, fp.y + sy * 0.2);
           if(!purchased && progress > 0){
             ctx.strokeStyle = '#cfd2de';
@@ -1828,7 +1922,7 @@
       }
 
       const pp = toScreen(p.x, p.y, sx, sy);
-      drawCircle(ctx, pp.x, pp.y, Math.max(3, Math.min(sx, sy) * 0.24), '#73f0ff');
+      const hurtMix = clamp(state.hurtFlash * 3.2, 0, 1); const playerColor = `rgb(${Math.floor(115 + 120 * hurtMix)}, ${Math.floor(240 - 120 * hurtMix)}, ${Math.floor(255 - 140 * hurtMix)})`; ctx.fillStyle = playerColor; ctx.font = `${Math.max(14, Math.min(sx, sy) * 0.6)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.player, pp.x, pp.y);
       if(state.effects.spinUntil > state.timeSec){
         ctx.strokeStyle = '#d4ff7a';
         ctx.lineWidth = Math.max(1.5, Math.min(sx, sy) * 0.07);
@@ -1887,6 +1981,7 @@
         bulletLogic(dt);
         enemyLogic(dt);
         fxLogic(dt);
+        state.hurtFlash = Math.max(0, state.hurtFlash - dt * 1.8);
         pickupGems(dt);
       }
       updateSafehouseFixturePads(dt);
