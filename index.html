@@ -44,7 +44,7 @@
       grid-template-columns: 1fr auto;
       gap: 8px;
       align-items: center;
-      font-size: 14px;
+      font-size: 15px;
     }
     .door-row {
       display: flex;
@@ -73,10 +73,17 @@
     .xp-fill { background: var(--xp); }
     .shield-fill { background: #53b7ff; }
     .death-note {
-      margin-top: 4px;
-      min-height: 1.2em;
-      color: #9ecbff;
-      font-size: 12px;
+      position: fixed;
+      left: 50%;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      min-height: 1.4em;
+      color: #c8dcff;
+      font-size: 14px;
+      text-align: center;
+      pointer-events: none;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      z-index: 7;
     }
     .screen-wrap {
       position: relative;
@@ -111,7 +118,7 @@
       overflow: hidden;
       min-height: 0;
     }
-    .shop-panel h3 { margin: 0 0 8px; font-size: 14px; }
+    .shop-panel h3 { margin: 0 0 8px; font-size: 15px; }
     .shop-choices { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     @media (max-width: 760px) {
       .app { gap: 6px; padding-inline: 8px; }
@@ -141,7 +148,7 @@
       border-radius: 8px;
       background: #0d1322;
       color: #b9c7ec;
-      font-size: 12px;
+      font-size: 13px;
       padding: 6px;
       min-height: 56px;
       display: grid;
@@ -262,6 +269,9 @@
 
   <script>
     const GRID_W = 34, GRID_H = 30;
+    const KILLS_PER_INTENSITY_LEVEL = 35;
+    const CAMERA_ZOOM_RUN = 1.45;
+    const CAMERA_ZOOM_SAFEHOUSE = 1.16;
     const BASE_PLAYER = {
       hp: 30, maxHp: 30, moveSpeed: 5.4, damage: 1, pickupRadius: 1.8, cooldownMs: 520,
       whipLevel: 0, garlicLevel: 0, stakesLevel: 1, batsLevel: 0
@@ -339,7 +349,9 @@
         timeBubbleUntil: 0
       },
       traps: [],
-      activeLances: []
+      activeLances: [],
+      camera: { x: GRID_W / 2, y: GRID_H / 2 },
+      hoveredFixtureId: null
     };
 
     const EMOJIS = {
@@ -439,12 +451,29 @@
     }
 
     function worldScale(){
-      const s = Math.min(screen.width / GRID_W, screen.height / GRID_H);
-      return { sx: s, sy: s, ox: (screen.width - GRID_W * s) * 0.5, oy: (screen.height - GRID_H * s) * 0.5 };
+      const zoom = state.room === 'run' ? CAMERA_ZOOM_RUN : CAMERA_ZOOM_SAFEHOUSE;
+      const viewW = GRID_W / zoom;
+      const viewH = GRID_H / zoom;
+      const sx = screen.width / viewW;
+      const sy = screen.height / viewH;
+      const halfW = viewW * 0.5;
+      const halfH = viewH * 0.5;
+      const camX = clamp(state.player.x, halfW, GRID_W - halfW);
+      const camY = clamp(state.player.y, halfH, GRID_H - halfH);
+      state.camera.x += (camX - state.camera.x) * 0.14;
+      state.camera.y += (camY - state.camera.y) * 0.14;
+      return {
+        sx,
+        sy,
+        ox: screen.width * 0.5,
+        oy: screen.height * 0.5,
+        camX: state.camera.x,
+        camY: state.camera.y
+      };
     }
 
-    function toScreen(x, y, sx, sy, ox = 0, oy = 0){
-      return { x: ox + x * sx, y: oy + y * sy };
+    function toScreen(x, y, sx, sy, ox = 0, oy = 0, camX = 0, camY = 0){
+      return { x: ox + (x - camX) * sx, y: oy + (y - camY) * sy };
     }
 
     function drawCircle(ctx, x, y, r, color){
@@ -599,15 +628,25 @@
       });
       screen.addEventListener('pointermove', (e)=>{
         if(window.matchMedia?.('(pointer: coarse)').matches) return;
-        if(!state.mouseAimActive) return;
         const rect = screen.getBoundingClientRect();
-        const { sx, sy, ox, oy } = worldScale();
-        const nx = ((e.clientX - rect.left - ox) / sx);
-        const ny = ((e.clientY - rect.top - oy) / sy);
+        const { sx, sy, ox, oy, camX, camY } = worldScale();
+        const nx = camX + (e.clientX - rect.left - ox) / sx;
+        const ny = camY + (e.clientY - rect.top - oy) / sy;
+        if(state.room === 'safehouse'){
+          state.hoveredFixtureId = null;
+          for(const fixture of SAFEHOUSE_FIXTURES){
+            if(Math.hypot(nx - fixture.x, ny - fixture.y) < 0.95){
+              state.hoveredFixtureId = fixture.id;
+              break;
+            }
+          }
+        }
+        if(!state.mouseAimActive) return;
         const aim = normalize(nx - state.player.x, ny - state.player.y);
         state.player.aimX = aim.x;
         state.player.aimY = aim.y;
       });
+      screen.addEventListener('pointerleave', ()=>{ state.hoveredFixtureId = null; });
     }
 
     function resetPlayer(){ state.player.x = GRID_W/2; state.player.y = GRID_H/2; }
@@ -816,7 +855,9 @@
     function rebuildLevelGeometry(){
       const prevX = clampInsideBounds(state.player.x || GRID_W / 2, 0.5, GRID_W);
       const prevY = clampInsideBounds(state.player.y || GRID_H / 2, 0.5, GRID_H);
-      state.walls = generateWalls();
+      const roomKey = `${state.world.roomX},${state.world.roomY}`;
+      const cachedWalls = state.world.cache[roomKey];
+      state.walls = cachedWalls ? cachedWalls.map(row => [...row]) : generateWalls();
       enforceBorderWalls();
       const px = clamp(Math.floor(prevX), 1, GRID_W - 2);
       const py = clamp(Math.floor(prevY), 1, GRID_H - 2);
@@ -830,6 +871,7 @@
       state.movement.vy = 0;
       state.walls[GRID_H - 2][Math.floor(GRID_W / 2)] = 0;
       clearSpawnArea(GRID_W / 2, GRID_H - 2, 2);
+      state.world.cache[roomKey] = state.walls.map(row => [...row]);
     }
 
     function enforceBorderWalls(){
@@ -861,6 +903,10 @@
       state.player.y = clampInsideBounds(state.player.y || GRID_H - 4, 0.32, GRID_H);
       state.walls[1][Math.floor(GRID_W / 2)] = 0;
       state.enemies = []; state.bullets = []; state.gems = []; state.pickups = [];
+      state.fx = []; state.traps = []; state.activeLances = []; state.clones = [];
+      state.hoveredFixtureId = null;
+      state.camera.x = state.player.x;
+      state.camera.y = state.player.y;
       state.doorTouchSec = 0;
       state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 };
       state.fixtureUseTimers = { gunRack: 0, perkMachine: 0, vault: 0 };
@@ -880,7 +926,10 @@
       state.player.shield = state.player.maxShield;
       state.deathNote = '';
       state.world.roomX = 0; state.world.roomY = 0;
+      state.world.cache = {};
       rebuildLevelGeometry();
+      state.camera.x = state.player.x;
+      state.camera.y = state.player.y;
       state.doorTouchSec = 0;
       state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 };
       state.fixtureUseTimers = { gunRack: 0, perkMachine: 0, vault: 0 };
@@ -924,15 +973,24 @@
 
     function getEnemyType(id){ return state.configs.enemyTypes.find(e => e.id === id); }
 
+    function runIntensityTier(){
+      return Math.floor(state.kills / KILLS_PER_INTENSITY_LEVEL);
+    }
+
+    function effectiveCombatTime(){
+      return state.timeSec + state.selectedLevelIndex * 36 + runIntensityTier() * 22;
+    }
+
     function levelProgression(){
-      const level = Math.max(1, state.selectedLevelIndex + 1);
+      const level = Math.max(1, state.selectedLevelIndex + 1 + runIntensityTier());
+      const combatTime = effectiveCombatTime();
       const levelMul = 1 + (level - 1) * 0.32;
-      const timeMul = 1 + Math.min(1.5, state.timeSec / 85);
+      const timeMul = 1 + Math.min(1.5, combatTime / 85);
       return {
-        hp: levelMul * (1 + Math.min(1.3, state.timeSec / 120)),
-        speed: 1 + (level - 1) * 0.08 + Math.min(0.42, state.timeSec / 260),
-        damage: 1 + (level - 1) * 0.12 + Math.min(0.55, state.timeSec / 170),
-        spawn: Math.max(0.2, 1 / (levelMul * timeMul))
+        hp: levelMul * (1 + Math.min(1.3, combatTime / 120)),
+        speed: 1 + (level - 1) * 0.08 + Math.min(0.42, combatTime / 260),
+        damage: 1 + (level - 1) * 0.12 + Math.min(0.55, combatTime / 170),
+        spawn: Math.max(0.16, 1 / (levelMul * timeMul))
       };
     }
 
@@ -945,20 +1003,30 @@
     }
 
     function currentWave(){
-      const t = state.timeSec;
+      const t = effectiveCombatTime();
       return state.configs.waves.find(w => t >= w.startSec && t < w.endSec) || state.configs.waves[state.configs.waves.length-1];
     }
 
-    function spawnEnemy(typeId){
+    function spawnEnemy(typeId, groupAnchor = null){
       const t = getEnemyType(typeId); if(!t) return;
       let x=0,y=0;
+      if(groupAnchor){
+        x = clamp(groupAnchor.x + rand(-1.05, 1.05), 1, GRID_W - 2);
+        y = clamp(groupAnchor.y + rand(-1.05, 1.05), 1, GRID_H - 2);
+      }
       for(let i=0;i<40;i++){
-        const side = Math.floor(Math.random()*4);
-        if(side===0){ x=rand(0,GRID_W); y=1; }
-        if(side===1){ x=GRID_W-2; y=rand(0,GRID_H); }
-        if(side===2){ x=rand(0,GRID_W); y=GRID_H-2; }
-        if(side===3){ x=1; y=rand(0,GRID_H); }
+        if(!groupAnchor){
+          const side = Math.floor(Math.random()*4);
+          if(side===0){ x=rand(0,GRID_W); y=1; }
+          if(side===1){ x=GRID_W-2; y=rand(0,GRID_H); }
+          if(side===2){ x=rand(0,GRID_W); y=GRID_H-2; }
+          if(side===3){ x=1; y=rand(0,GRID_H); }
+        }
         if(!cellBlocked(Math.floor(x), Math.floor(y))) break;
+        if(groupAnchor){
+          x = clamp(groupAnchor.x + rand(-1.5, 1.5), 1, GRID_W - 2);
+          y = clamp(groupAnchor.y + rand(-1.5, 1.5), 1, GRID_H - 2);
+        }
       }
       const prog = levelProgression();
       state.enemies.push({
@@ -1372,12 +1440,16 @@ const radius = 0.3 * (e.size || 1);
         if(dist(e,p) < 0.65 + (e.size - 1) * 0.45){ applyPlayerDamage(e.touchDamage*dt); }
         e.hitFlash = Math.max(0, e.hitFlash - dt);
       }
+      resolveEnemyCrowding(dt);
       for(let i=state.enemies.length-1;i>=0;i--){
         const e = state.enemies[i];
         if(e.hp <= 0){
           spawnParticles('blood', e.x, e.y, e.boss ? 14 : 7);
           spawnParticles('blast', e.x, e.y, e.boss ? 10 : 6);
           state.kills++;
+          if(state.kills % KILLS_PER_INTENSITY_LEVEL === 0){
+            state.deathNote = `Intensity up! Enemy tier ${state.selectedLevelIndex + 1 + runIntensityTier()}`;
+          }
           state.gems.push({x:e.x,y:e.y,v:Math.max(1, Math.round(e.xp * 2))});
           if(e.boss || Math.random() < 0.26){
             const drop = randomWeaponDrop();
@@ -1391,6 +1463,42 @@ const radius = 0.3 * (e.size || 1);
       }
     }
 
+
+
+    function resolveEnemyCrowding(dt){
+      for(let i=0;i<state.enemies.length;i++){
+        const a = state.enemies[i];
+        let centerX = 0;
+        let centerY = 0;
+        let neighbors = 0;
+        for(let j=i+1;j<state.enemies.length;j++){
+          const b = state.enemies[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const distNow = Math.hypot(dx, dy) || 0.0001;
+          const minDist = 0.44 * ((a.size || 1) + (b.size || 1));
+          if(distNow < 2.2){
+            centerX += b.x;
+            centerY += b.y;
+            neighbors++;
+          }
+          if(distNow >= minDist) continue;
+          const push = (minDist - distNow) * 0.5;
+          const nx = dx / distNow;
+          const ny = dy / distNow;
+          a.x = clampInsideBounds(a.x - nx * push, 0.3 * (a.size || 1), GRID_W);
+          a.y = clampInsideBounds(a.y - ny * push, 0.3 * (a.size || 1), GRID_H);
+          b.x = clampInsideBounds(b.x + nx * push, 0.3 * (b.size || 1), GRID_W);
+          b.y = clampInsideBounds(b.y + ny * push, 0.3 * (b.size || 1), GRID_H);
+        }
+        if(neighbors > 2){
+          const tx = centerX / neighbors;
+          const ty = centerY / neighbors;
+          a.x = clampInsideBounds(a.x + (tx - a.x) * dt * 0.5, 0.3 * (a.size || 1), GRID_W);
+          a.y = clampInsideBounds(a.y + (ty - a.y) * dt * 0.5, 0.3 * (a.size || 1), GRID_H);
+        }
+      }
+    }
     function damageWallAt(x, y, dmg){
       const gx = clamp(Math.floor(x), 0, GRID_W - 1);
       const gy = clamp(Math.floor(y), 0, GRID_H - 1);
@@ -1592,7 +1700,12 @@ const radius = 0.3 * (e.size || 1);
 
     function updateSafehouseFixturePads(_dt){
       const interact = currentInteractable();
-      state.interactPrompt = interact ? interact.prompt : '';
+      let prompt = interact ? interact.prompt : '';
+      if(state.room === 'safehouse' && state.hoveredFixtureId){
+        const fixture = SAFEHOUSE_FIXTURES.find(f => f.id === state.hoveredFixtureId);
+        if(fixture) prompt = `${fixture.name}: ${fixture.desc}`;
+      }
+      state.interactPrompt = prompt;
     }
 
     function canTakeUpgrade(up){
@@ -1828,8 +1941,18 @@ const radius = 0.3 * (e.size || 1);
         const swarmWeight = Math.min(220, 30 + state.timeSec * 1.6 + state.kills * 0.28);
         const mix = w.mix.map(m => m.type === 'batling' ? { ...m, weight: m.weight + swarmWeight } : m);
         const spawnType = roll ? 'juggernaut' : pickWeighted(mix);
-        const group = Math.random() < 0.45 ? 1 + Math.floor(Math.random() * 3) : 1;
-        for(let i=0;i<group;i++) spawnEnemy(spawnType);
+        const group = 2 + Math.floor(Math.random() * (Math.random() < 0.35 ? 4 : 3));
+        let anchor = null;
+        for(let i=0;i<group;i++){
+          if(i === 0){
+            const before = state.enemies.length;
+            spawnEnemy(spawnType);
+            const first = state.enemies[state.enemies.length - 1];
+            anchor = state.enemies.length > before ? { x: first.x, y: first.y } : null;
+          } else {
+            spawnEnemy(spawnType, anchor);
+          }
+        }
         const earlyBoost = state.timeSec < 35 ? 0.62 : (state.timeSec < 70 ? 0.78 : 1);
         const killRamp = Math.max(0.28, 1 - Math.min(0.7, state.kills * 0.0032));
         state.nextSpawnAt = now + w.spawnEveryMs * earlyBoost * killRamp * levelProgression().spawn;
@@ -1898,12 +2021,11 @@ function inputLogic(dt){
     function render(){
       resizeScreenCanvas();
       const ctx = screenCtx;
-      const { sx, sy, ox, oy } = worldScale();
+      const { sx, sy, ox, oy, camX, camY } = worldScale();
       ctx.clearRect(0, 0, screen.width, screen.height);
       ctx.fillStyle = '#080b12';
       ctx.fillRect(0, 0, screen.width, screen.height);
       ctx.save();
-      ctx.translate(ox, oy);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
@@ -1915,16 +2037,17 @@ function inputLogic(dt){
           const base = hp >= 900 ? [120, 24, 24] : (hp > 6 ? [95, 120, 176] : (hp > 3 ? [78, 98, 144] : [60, 77, 112]));
           const bump = Math.floor(n * 14);
           ctx.fillStyle = `rgb(${base[0] + bump}, ${base[1] + bump}, ${base[2] + bump})`;
-          ctx.fillRect(x * sx, y * sy, sx, sy);
+          const cellPos = toScreen(x, y, sx, sy, ox, oy, camX, camY);
+          ctx.fillRect(cellPos.x, cellPos.y, sx, sy);
           if((x + y) % 3 === 0){
             ctx.fillStyle = 'rgba(20,30,52,0.35)';
-            ctx.fillRect(x * sx, y * sy, sx * 0.35, sy * 0.35);
+            ctx.fillRect(cellPos.x, cellPos.y, sx * 0.35, sy * 0.35);
           }
         }
       }
 
       for(const g of state.gems){
-        const p = toScreen(g.x, g.y, sx, sy, 0, 0);
+        const p = toScreen(g.x, g.y, sx, sy, ox, oy, camX, camY);
         g.spin = (g.spin || 0) + (g.magnetized ? 0.28 : 0.08);
         ctx.save();
         ctx.translate(p.x, p.y);
@@ -1937,7 +2060,7 @@ function inputLogic(dt){
         const blinkAt = pickup.blinkAt || 1.6;
         const blink = age > blinkAt && Math.floor(state.timeSec * 12) % 2 === 0;
         if(blink) continue;
-        const p = toScreen(pickup.x, pickup.y, sx, sy, 0, 0);
+        const p = toScreen(pickup.x, pickup.y, sx, sy, ox, oy, camX, camY);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         if((pickup.kind || 'weapon') === 'health'){
@@ -1956,7 +2079,7 @@ function inputLogic(dt){
       const p = state.player;
       if(p.garlicLevel>0){
         const r = (1.2 + p.garlicLevel * 0.45) * Math.min(sx, sy);
-        const cp = toScreen(p.x, p.y, sx, sy, 0, 0);
+        const cp = toScreen(p.x, p.y, sx, sy, ox, oy, camX, camY);
         ctx.strokeStyle = 'rgba(212,255,122,0.55)';
         ctx.lineWidth = Math.max(1.5, Math.min(sx, sy) * 0.08);
         ctx.beginPath();
@@ -1969,17 +2092,18 @@ function inputLogic(dt){
         for(let i=0;i<count;i++){
           const a = state.timeSec*2.2 + (Math.PI*2/count)*i;
           const r = 1.8 + p.batsLevel*0.25;
-          const bp = toScreen(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, sx, sy);
+          const bob = Math.sin(state.timeSec * 5.2 + i * 0.8) * 0.2;
+          const bp = toScreen(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r + bob, sx, sy, ox, oy, camX, camY);
           drawCircle(ctx, bp.x, bp.y, Math.max(2, Math.min(sx, sy) * 0.16), '#bda6ff');
         }
       }
 
       for(const b of state.bullets){
-        const bp = toScreen(b.x, b.y, sx, sy);
+        const bp = toScreen(b.x, b.y, sx, sy, ox, oy, camX, camY);
         ctx.fillStyle = '#ffd166'; ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.32)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.bullet, bp.x, bp.y);
       }
       for(const e of state.enemies){
-        const ep = toScreen(e.x, e.y, sx, sy);
+        const ep = toScreen(e.x, e.y, sx, sy, ox, oy, camX, camY);
         const ghostPulse = e.type === 'wraith' ? (1 + Math.sin(state.timeSec * 5 + e.x * 1.4) * 0.14) : 1;
         const radius = (0.22 + (e.size - 1) * 0.12) * ghostPulse * Math.min(sx, sy);
         if(e.type === 'juggernaut' && (e.dashWindup > 0 || e.dashing > 0)){
@@ -1999,15 +2123,15 @@ function inputLogic(dt){
         ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : (e.color || '#ff6f7d'); ctx.font = `${Math.max(10, radius * 2.3)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.enemy[e.type] || '👾', ep.x, ep.y);
       }
       for(const c of state.clones){
-        const cp = toScreen(c.x, c.y, sx, sy, 0, 0);
+        const cp = toScreen(c.x, c.y, sx, sy, ox, oy, camX, camY);
         ctx.fillStyle = '#c1ccff'; ctx.font = `${Math.max(11, Math.min(sx, sy) * 0.4)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.clone, cp.x, cp.y);
       }
       for(const t of state.traps){
-        const tp = toScreen(t.x, t.y, sx, sy);
+        const tp = toScreen(t.x, t.y, sx, sy, ox, oy, camX, camY);
         ctx.fillStyle = '#98f59f'; ctx.font = `${Math.max(10, Math.min(sx, sy) * 0.3)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.trap, tp.x, tp.y);
       }
       for(const l of state.activeLances){
-        const lp = toScreen(l.x, l.y, sx, sy);
+        const lp = toScreen(l.x, l.y, sx, sy, ox, oy, camX, camY);
         ctx.strokeStyle = '#8be8ff';
         ctx.lineWidth = Math.max(1, Math.min(sx, sy) * 0.08);
         ctx.beginPath();
@@ -2016,14 +2140,14 @@ function inputLogic(dt){
         ctx.stroke();
       }
       for(const f of state.fx){
-        const fp = toScreen(f.x, f.y, sx, sy, 0, 0);
+        const fp = toScreen(f.x, f.y, sx, sy, ox, oy, camX, camY);
         ctx.fillStyle = f.color;
         ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.3)}px ui-monospace, monospace`;
         ctx.fillText(f.char || '·', fp.x, fp.y);
       }
 
       const door = doorInfo();
-      const dp = toScreen(door.x + 0.5, door.y + 0.5, sx, sy);
+      const dp = toScreen(door.x + 0.5, door.y + 0.5, sx, sy, ox, oy, camX, camY);
       const dw = sx * 0.42, dh = sy * 0.75;
       ctx.fillStyle = '#9e57ff';
       ctx.fillRect(dp.x - dw / 2, dp.y - dh / 2, dw, dh);
@@ -2032,7 +2156,7 @@ function inputLogic(dt){
 
       if(state.room === 'safehouse'){
         for(const fixture of SAFEHOUSE_FIXTURES){
-          const fp = toScreen(fixture.x, fixture.y, sx, sy, 0, 0);
+          const fp = toScreen(fixture.x, fixture.y, sx, sy, ox, oy, camX, camY);
           const purchased = state.fixtures[fixture.id];
           const progress = state.fixturePadTimers[fixture.id] || 0;
           ctx.fillStyle = purchased ? '#8cffaa' : '#a5a8b6';
@@ -2054,7 +2178,7 @@ function inputLogic(dt){
         }
       }
 
-      const pp = toScreen(p.x, p.y, sx, sy, 0, 0);
+      const pp = toScreen(p.x, p.y, sx, sy, ox, oy, camX, camY);
       const hurtMix = clamp(state.hurtFlash * 3.2, 0, 1); const playerColor = `rgb(${Math.floor(115 + 120 * hurtMix)}, ${Math.floor(240 - 120 * hurtMix)}, ${Math.floor(255 - 140 * hurtMix)})`; ctx.fillStyle = playerColor; ctx.font = `${Math.max(14, Math.min(sx, sy) * 0.6)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.player, pp.x, pp.y);
       if(state.effects.spinUntil > state.timeSec){
         ctx.strokeStyle = '#d4ff7a';
