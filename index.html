@@ -160,6 +160,7 @@
       border-radius: 50%;
       position: relative;
       background: radial-gradient(circle at center, #12192b 0%, #0d1220 70%);
+      touch-action: none;
     }
     .knob {
       width: 44%;
@@ -824,8 +825,8 @@
         knob.style.top = `${28 + dy * 26}%`;
       }
       function clear(){ joy.x=0; joy.y=0; joy.active=false; knob.style.left='28%'; knob.style.top='28%'; }
-      el.addEventListener('pointerdown', e=>{ joy.active=true; update(e.clientX,e.clientY); el.setPointerCapture(e.pointerId); });
-      el.addEventListener('pointermove', e=> joy.active && update(e.clientX,e.clientY));
+      el.addEventListener('pointerdown', e=>{ e.preventDefault(); joy.active=true; update(e.clientX,e.clientY); el.setPointerCapture(e.pointerId); }, { passive: false });
+      el.addEventListener('pointermove', e=> { if (joy.active) { e.preventDefault(); update(e.clientX,e.clientY); } }, { passive: false });
       el.addEventListener('pointerup', clear);
       el.addEventListener('pointercancel', clear);
     }
