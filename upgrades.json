@@ -451,5 +451,505 @@
       "maxHp": 3,
       "cooldownMs": -25
     }
+  },
+  {
+    "id": "shotgunMastery1",
+    "name": "Shotgun Mastery 1",
+    "description": "Focused shotgun tuning tier 1.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery2",
+    "name": "Laser Mastery 2",
+    "description": "Focused laser tuning tier 2.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery3",
+    "name": "Smg Mastery 3",
+    "description": "Focused smg tuning tier 3.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery4",
+    "name": "Sniper Mastery 4",
+    "description": "Focused sniper tuning tier 4.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery5",
+    "name": "Rifle Mastery 5",
+    "description": "Focused rifle tuning tier 5.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery6",
+    "name": "Shotgun Mastery 6",
+    "description": "Focused shotgun tuning tier 6.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery7",
+    "name": "Laser Mastery 7",
+    "description": "Focused laser tuning tier 7.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery8",
+    "name": "Smg Mastery 8",
+    "description": "Focused smg tuning tier 8.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery9",
+    "name": "Sniper Mastery 9",
+    "description": "Focused sniper tuning tier 9.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery10",
+    "name": "Rifle Mastery 10",
+    "description": "Focused rifle tuning tier 10.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery11",
+    "name": "Shotgun Mastery 11",
+    "description": "Focused shotgun tuning tier 11.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery12",
+    "name": "Laser Mastery 12",
+    "description": "Focused laser tuning tier 12.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery13",
+    "name": "Smg Mastery 13",
+    "description": "Focused smg tuning tier 13.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery14",
+    "name": "Sniper Mastery 14",
+    "description": "Focused sniper tuning tier 14.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery15",
+    "name": "Rifle Mastery 15",
+    "description": "Focused rifle tuning tier 15.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery16",
+    "name": "Shotgun Mastery 16",
+    "description": "Focused shotgun tuning tier 16.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery17",
+    "name": "Laser Mastery 17",
+    "description": "Focused laser tuning tier 17.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery18",
+    "name": "Smg Mastery 18",
+    "description": "Focused smg tuning tier 18.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery19",
+    "name": "Sniper Mastery 19",
+    "description": "Focused sniper tuning tier 19.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery20",
+    "name": "Rifle Mastery 20",
+    "description": "Focused rifle tuning tier 20.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery21",
+    "name": "Shotgun Mastery 21",
+    "description": "Focused shotgun tuning tier 21.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery22",
+    "name": "Laser Mastery 22",
+    "description": "Focused laser tuning tier 22.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery23",
+    "name": "Smg Mastery 23",
+    "description": "Focused smg tuning tier 23.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery24",
+    "name": "Sniper Mastery 24",
+    "description": "Focused sniper tuning tier 24.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery25",
+    "name": "Rifle Mastery 25",
+    "description": "Focused rifle tuning tier 25.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery26",
+    "name": "Shotgun Mastery 26",
+    "description": "Focused shotgun tuning tier 26.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery27",
+    "name": "Laser Mastery 27",
+    "description": "Focused laser tuning tier 27.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery28",
+    "name": "Smg Mastery 28",
+    "description": "Focused smg tuning tier 28.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery29",
+    "name": "Sniper Mastery 29",
+    "description": "Focused sniper tuning tier 29.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery30",
+    "name": "Rifle Mastery 30",
+    "description": "Focused rifle tuning tier 30.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery31",
+    "name": "Shotgun Mastery 31",
+    "description": "Focused shotgun tuning tier 31.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery32",
+    "name": "Laser Mastery 32",
+    "description": "Focused laser tuning tier 32.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery33",
+    "name": "Smg Mastery 33",
+    "description": "Focused smg tuning tier 33.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery34",
+    "name": "Sniper Mastery 34",
+    "description": "Focused sniper tuning tier 34.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery35",
+    "name": "Rifle Mastery 35",
+    "description": "Focused rifle tuning tier 35.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery36",
+    "name": "Shotgun Mastery 36",
+    "description": "Focused shotgun tuning tier 36.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery37",
+    "name": "Laser Mastery 37",
+    "description": "Focused laser tuning tier 37.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery38",
+    "name": "Smg Mastery 38",
+    "description": "Focused smg tuning tier 38.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery39",
+    "name": "Sniper Mastery 39",
+    "description": "Focused sniper tuning tier 39.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery40",
+    "name": "Rifle Mastery 40",
+    "description": "Focused rifle tuning tier 40.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery41",
+    "name": "Shotgun Mastery 41",
+    "description": "Focused shotgun tuning tier 41.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery42",
+    "name": "Laser Mastery 42",
+    "description": "Focused laser tuning tier 42.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery43",
+    "name": "Smg Mastery 43",
+    "description": "Focused smg tuning tier 43.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery44",
+    "name": "Sniper Mastery 44",
+    "description": "Focused sniper tuning tier 44.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery45",
+    "name": "Rifle Mastery 45",
+    "description": "Focused rifle tuning tier 45.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
+  },
+  {
+    "id": "shotgunMastery46",
+    "name": "Shotgun Mastery 46",
+    "description": "Focused shotgun tuning tier 46.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "shotgunDamage": 0.4
+    }
+  },
+  {
+    "id": "laserMastery47",
+    "name": "Laser Mastery 47",
+    "description": "Focused laser tuning tier 47.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "laserDamage": 0.32
+    }
+  },
+  {
+    "id": "smgMastery48",
+    "name": "Smg Mastery 48",
+    "description": "Focused smg tuning tier 48.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "smgRate": 0.02
+    }
+  },
+  {
+    "id": "sniperMastery49",
+    "name": "Sniper Mastery 49",
+    "description": "Focused sniper tuning tier 49.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "sniperCrit": 0.015
+    }
+  },
+  {
+    "id": "rifleMastery50",
+    "name": "Rifle Mastery 50",
+    "description": "Focused rifle tuning tier 50.",
+    "theme": "weapon",
+    "maxLevel": 12,
+    "effectsPerLevel": {
+      "rifleDamage": 0.35
+    }
   }
 ]
