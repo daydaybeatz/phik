@@ -450,7 +450,7 @@
       }
     }
 
-    function worldScale(){
+    function worldScale(track = true){
       const zoom = state.room === 'run' ? CAMERA_ZOOM_RUN : CAMERA_ZOOM_SAFEHOUSE;
       const viewW = GRID_W / zoom;
       const viewH = GRID_H / zoom;
@@ -460,15 +460,17 @@
       const halfH = viewH * 0.5;
       const camX = clamp(state.player.x, halfW, GRID_W - halfW);
       const camY = clamp(state.player.y, halfH, GRID_H - halfH);
-      state.camera.x += (camX - state.camera.x) * 0.14;
-      state.camera.y += (camY - state.camera.y) * 0.14;
+      if(track){
+        state.camera.x += (camX - state.camera.x) * 0.14;
+        state.camera.y += (camY - state.camera.y) * 0.14;
+      }
       return {
         sx,
         sy,
         ox: screen.width * 0.5,
         oy: screen.height * 0.5,
-        camX: state.camera.x,
-        camY: state.camera.y
+        camX: track ? state.camera.x : camX,
+        camY: track ? state.camera.y : camY
       };
     }
 
@@ -525,7 +527,7 @@
       state.configs.enemyTypes = await loadJson('./enemy-types.json');
       state.configs.waves = await loadJson('./waves.json');
       state.configs.levels = await loadJson('./levels.json');
-      state.highestUnlockedLevel = clamp(state.highestUnlockedLevel, 1, Math.max(1, state.configs.levels.length));
+      state.highestUnlockedLevel = Math.max(1, state.configs.levels.length);
       state.selectedLevelIndex = clamp(state.selectedLevelIndex, 0, state.highestUnlockedLevel - 1);
       state.levelDef = state.configs.levels[state.selectedLevelIndex] || state.configs.levels[0];
       state.levelStartTime = 0;
@@ -629,7 +631,7 @@
       screen.addEventListener('pointermove', (e)=>{
         if(window.matchMedia?.('(pointer: coarse)').matches) return;
         const rect = screen.getBoundingClientRect();
-        const { sx, sy, ox, oy, camX, camY } = worldScale();
+        const { sx, sy, ox, oy, camX, camY } = worldScale(false);
         const nx = camX + (e.clientX - rect.left - ox) / sx;
         const ny = camY + (e.clientY - rect.top - oy) / sy;
         if(state.room === 'safehouse'){
@@ -852,13 +854,22 @@
       return aerateWalls(pick.build());
     }
 
+    function openRoomExits(){
+      const midX = Math.floor(GRID_W / 2);
+      const midY = Math.floor(GRID_H / 2);
+      clearSpawnArea(midX, 1.2, 1.6);
+      clearSpawnArea(midX, GRID_H - 2.2, 1.6);
+      clearSpawnArea(1.2, midY, 1.6);
+      clearSpawnArea(GRID_W - 2.2, midY, 1.6);
+    }
+
     function rebuildLevelGeometry(){
       const prevX = clampInsideBounds(state.player.x || GRID_W / 2, 0.5, GRID_W);
       const prevY = clampInsideBounds(state.player.y || GRID_H / 2, 0.5, GRID_H);
       const roomKey = `${state.world.roomX},${state.world.roomY}`;
       const cachedWalls = state.world.cache[roomKey];
       state.walls = cachedWalls ? cachedWalls.map(row => [...row]) : generateWalls();
-      enforceBorderWalls();
+      openRoomExits();
       const px = clamp(Math.floor(prevX), 1, GRID_W - 2);
       const py = clamp(Math.floor(prevY), 1, GRID_H - 2);
       const spawn = cellBlocked(px, py) ? randomOpenCell() : { x: prevX, y: prevY };
@@ -982,7 +993,7 @@
     }
 
     function levelProgression(){
-      const level = Math.max(1, state.selectedLevelIndex + 1 + runIntensityTier());
+      const level = currentDifficultyLevel();
       const combatTime = effectiveCombatTime();
       const levelMul = 1 + (level - 1) * 0.32;
       const timeMul = 1 + Math.min(1.5, combatTime / 85);
@@ -1323,7 +1334,12 @@
     }
 
     function clampInsideBounds(v, radius, max){
+      if(state.room === 'run') return clamp(v, radius, max - radius - 0.001);
       return clamp(v, 1 + radius, max - 1 - radius - 0.001);
+    }
+
+    function currentDifficultyLevel(){
+      return Math.max(1, state.selectedLevelIndex + 1 + runIntensityTier());
     }
 
     function directionGlyph(x, y){
@@ -1448,7 +1464,7 @@ const radius = 0.3 * (e.size || 1);
           spawnParticles('blast', e.x, e.y, e.boss ? 10 : 6);
           state.kills++;
           if(state.kills % KILLS_PER_INTENSITY_LEVEL === 0){
-            state.deathNote = `Intensity up! Enemy tier ${state.selectedLevelIndex + 1 + runIntensityTier()}`;
+            state.deathNote = `Intensity up! Enemy tier ${currentDifficultyLevel()}`;
           }
           state.gems.push({x:e.x,y:e.y,v:Math.max(1, Math.round(e.xp * 2))});
           if(e.boss || Math.random() < 0.26){
@@ -2209,7 +2225,8 @@ function inputLogic(dt){
       const shapeTag = state.levelDef?.wallPattern === 'shape' && state.shapeName ? ` · ${state.shapeName}` : '';
       ctx.restore();
       const roomTag = state.room === 'run' ? `${state.levelDef?.name || ''}${shapeTag} · Room ${state.world.roomX},${state.world.roomY}` : `Safehouse · Target ${state.configs.levels[state.selectedLevelIndex]?.name || ''}`;
-      const levelTag = `Lv ${Math.max(1, state.selectedLevelIndex + 1)}/${Math.max(1, state.highestUnlockedLevel)}`;
+      const currentLevel = currentDifficultyLevel();
+      const levelTag = `Difficulty Lv ${currentLevel} (Start ${Math.max(1, state.selectedLevelIndex + 1)})`;
       stats.textContent = `💵${state.money} · Bank 💵${Math.floor(state.bankMoney)} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · ${levelTag} · KOs ${state.kills}`;
       const inSafehouse = state.room === 'safehouse';
       safehouseControls.style.display = inSafehouse ? 'flex' : 'none';
