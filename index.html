@@ -313,7 +313,7 @@
       },
       enemies: [], bullets: [], gems: [], pickups: [], fx: [], clones: [], forceFields: [],
       activeWeapon: 'rifle',
-      selectedStartWeapon: 'rifle',
+      selectedStartWeapon: 'knife',
       configs: { upgrades: [], enemyTypes: [], waves: [], levels: [] },
       levelDef: null,
       nextSpawnAt: 0,
@@ -362,8 +362,8 @@
     };
 
     const EMOJIS = {
-      player: '🧛', bullet: '🔸', gem: '💵', health: '❤️', clone: '🫥', trap: '🕸️',
-      enemy: { batling: '🦇', brute: '🧟', wraith: '👻', juggernaut: '💀', boss: '👹', nullifier: '🛰️', snowman: '⛄' }
+      player: '🥸', bullet: '🔸', gem: '💵', health: '❤️', clone: '🫥', trap: '🕸️',
+      enemy: { bat: '🦇', zombie: '🧟‍♂️', ghost: '👻', juggernaut: '💀', demon: '👹', wizard: '🧙‍♂️', vampire: '🧛‍♂️', snake: '🐍', scorpion: '🦂', snowman: '⛄' }
     };
 
     const screen = document.getElementById('screen');
@@ -402,7 +402,9 @@
       { id: 'rifle', name: 'Rifle', glyph: '🔫', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false },
       { id: 'machineGun', name: 'Machine Gun', glyph: '🪖', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false },
       { id: 'laser', name: 'Laser', glyph: '⚡', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 1, spread: 0, projectiles: 1, ricochet: false },
-      { id: 'shotgun', name: 'Shotgun', glyph: '💥', color: '#ffb347', cooldownMult: 1.45, damageMult: 0.8, speed: 10.4, life: 0.55, pierce: 0, spread: 0.24, projectiles: 4, ricochet: false }
+      { id: 'knife', name: 'Throwing Knife', glyph: '🔪', color: '#ffb347', cooldownMult: 1.2, damageMult: 0.9, speed: 11.2, life: 0.7, pierce: 0, spread: 0.22, projectiles: 2, ricochet: false, spin: true },
+      { id: 'axe', name: 'Throwing Axe', glyph: '🪓', color: '#ff9340', cooldownMult: 1.55, damageMult: 2.4, speed: 9.2, life: 0.62, pierce: 0, spread: 0.08, projectiles: 1, ricochet: false, spin: true, wallDamageMult: 2.8 },
+      { id: 'dagger', name: 'Dagger', glyph: '🗡️', color: '#b8f2ff', cooldownMult: 1.05, damageMult: 1.1, speed: 12.8, life: 0.95, pierce: 3, spread: 0.1, projectiles: 1, ricochet: true, spin: true }
     ];
 
     const SAFEHOUSE_FIXTURES = [
@@ -912,7 +914,7 @@
       state.nextSpawnAt = 0;
       state.kills = 0;
       state.enemies = []; state.bullets = []; state.gems = []; state.pickups = [];
-      state.activeWeapon = state.fixtures.gunRack ? state.selectedStartWeapon : 'rifle';
+      state.activeWeapon = state.fixtures.gunRack ? state.selectedStartWeapon : 'knife';
       state.player.shield = state.player.maxShield;
       state.deathNote = '';
       state.world.roomX = 0; state.world.roomY = 0;
@@ -1040,7 +1042,15 @@
         dashDirY: 0,
         dashing: 0,
         wallHitTicks: 0,
-        forceCooldown: rand(2.2, 4.5)
+        forceCooldown: rand(2.2, 4.5),
+        ranged: !!t.ranged,
+        shotChar: t.shotChar,
+        shotSpeed: t.shotSpeed,
+        castCooldown: t.castCooldown,
+        range: t.range,
+        modulates: !!t.modulates,
+        summoner: !!t.summoner,
+        forceField: !!t.forceField
       });
     }
 
@@ -1146,7 +1156,8 @@
       const weaponSpread = weapon.spread || 0;
       const upgradeSpread = p.stakesLevel >= 3 ? 0.07 : 0;
       const spread = weaponSpread + upgradeSpread;
-      const weaponCount = weapon.id === 'shotgun' ? weapon.projectiles + Math.floor(p.shotgunProjectiles || 0) : weapon.projectiles;
+      const knifeCount = clamp(weapon.projectiles + Math.floor(p.shotgunProjectiles || 0), 2, 5);
+      const weaponCount = weapon.id === 'knife' ? knifeCount : weapon.projectiles;
       const count = Math.max(1, weaponCount + (p.stakesLevel >= 5 ? 1 : 0));
       const fireWeapon = (w, aimOffset = 0) => {
         for(let i=0;i<count;i++){
@@ -1154,22 +1165,24 @@
           const a = Math.atan2(aim.y, aim.x) + t * spread + aimOffset;
           const critChance = (p.critChance || 0) + (w.id === 'sniper' ? (p.sniperCrit || 0) : 0);
           const crit = Math.random() < critChance;
-          const gunBonus = (w.id === 'rifle' ? (p.rifleDamage || 0) : 0) + (w.id === 'shotgun' ? (p.shotgunDamage || 0) : 0) + (w.id === 'laser' ? (p.laserDamage || 0) : 0);
+          const gunBonus = (w.id === 'rifle' ? (p.rifleDamage || 0) : 0) + (w.id === 'knife' ? (p.shotgunDamage || 0) : 0) + (w.id === 'laser' ? (p.laserDamage || 0) : 0);
           const dmgBase = (2 + p.damage + p.stakesLevel * 0.45 + gunBonus) * w.damageMult;
           state.bullets.push({
             x:p.x, y:p.y,
             vx:Math.cos(a)*(w.speed + p.stakesLevel * 0.4), vy:Math.sin(a)*(w.speed + p.stakesLevel * 0.4),
             dmg:crit ? dmgBase * (p.critMult || 1.6) : dmgBase,
             life:w.life,
-            pierce: w.pierce + Math.floor(p.stakesLevel/2) + Math.floor(p.extraPierce || 0),
-            ricochet: p.stakesLevel >= 4 ? 1 : 0,
-            char: w.id === 'laser' ? '=' : (p.stakesLevel >= 4 ? '*' : '.'),
+            pierce: w.id === 'dagger' ? 3 : (w.pierce + Math.floor(p.stakesLevel/2) + Math.floor(p.extraPierce || 0)),
+            ricochet: w.id === 'dagger' ? 3 : (w.ricochet ? 1 : (p.stakesLevel >= 4 ? 1 : 0)),
+            char: w.id === 'laser' ? '=' : w.glyph,
             size: w.id === 'machineGun' ? (1 + (p.machineGunBulletSize || 0)) : 1
+            ,spin: !!w.spin,
+            wallDamageMult: w.wallDamageMult || 1
           });
         }
       };
       fireWeapon(weapon);
-      spawnParticles('spark', p.x + aim.x * 0.5, p.y + aim.y * 0.5, weapon.id === 'shotgun' ? 10 : 6);
+      spawnParticles('spark', p.x + aim.x * 0.5, p.y + aim.y * 0.5, weapon.id === 'knife' ? 10 : 6);
       if(state.effects.dualWieldUntil > state.timeSec){
         const alt = WEAPON_DROPS.find(w => w.id !== weapon.id) || weapon;
         const oscillate = Math.sin(state.timeSec * 10) * 0.28;
@@ -1246,7 +1259,7 @@
     }
 
     function downgradeEnemy(e){
-      const map = { boss: 'juggernaut', juggernaut: 'wraith', wraith: 'brute', brute: 'batling' };
+      const map = { juggernaut: 'ghost', ghost: 'zombie', zombie: 'bat' };
       const next = map[e.type];
       if(!next) return;
       const t = getEnemyType(next);
@@ -1394,27 +1407,21 @@
             state.bullets.push({ x:e.x, y:e.y, vx:n2.x * (e.shotSpeed || 4.2), vy:n2.y * (e.shotSpeed || 4.2), dmg: 4 + e.touchDamage * 0.35, life: 2.2, pierce:0, ricochet:0, char:e.shotChar || '🔥', enemyShot:true });
           }
         }
-        if(e.type === 'batWizard'){
-          e.orbit = (e.orbit || 0) + dt * 1.5;
-          for(let bi=0; bi<3; bi++){
-            const ba = e.orbit + bi * Math.PI * 0.66;
-            const bx = e.x + Math.cos(ba) * 1.2;
-            const by = e.y + Math.sin(ba) * 1.2;
-            if(Math.hypot(p.x - bx, p.y - by) < 0.6) applyPlayerDamage(10 * dt);
-            if(Math.random() < dt * 8) state.fx.push({ x:bx, y:by, vx:Math.cos(ba)*0.4, vy:Math.sin(ba)*0.4, life:0.22, char:'🦇', color:'#baa4ff' });
+        if(e.type === 'vampire'){
+          e.spawnBatAt = Math.max(0, (e.spawnBatAt || 0) - dt);
+          if(e.spawnBatAt <= 0){
+            e.spawnBatAt = 2.6;
+            spawnEnemy('bat', { x: e.x, y: e.y }, { minPlayerDistance: 0.5 });
           }
+          if(Math.random() < dt * 8) state.fx.push({ x:e.x + rand(-0.8,0.8), y:e.y + rand(-0.8,0.8), vx:rand(-0.4,0.4), vy:rand(-0.4,0.4), life:0.22, char:'🦇', color:'#baa4ff' });
         }
-        if(e.type === 'mummy'){
-          e.trail = (e.trail || 0) - dt;
-          if(e.trail <= 0){
-            e.trail = 0.25;
-            state.traps.push({ x:e.x, y:e.y, ttl: 2.8, radius: 0.9, slow: 0.72, dps: 2.8, enemyOwned: true });
-          }
+        if(e.type === 'zombie'){
+          crushWallsAround(e, 0.42 * (e.size || 1), dt, 1.8);
         }
-        if(e.type === 'nullifier'){
+        if(e.type === 'wizard'){
           e.forceCooldown = Math.max(0, (e.forceCooldown || 0) - dt);
           if(e.forceCooldown <= 0){
-            e.forceCooldown = rand(9.5, 13.5);
+            e.forceCooldown = 5;
             state.forceFields.push({ x: e.x, y: e.y, radius: 2.75, ttl: 10, dps: 7.5, hp: 26, maxHp: 26 });
           }
         }
@@ -1460,7 +1467,7 @@ const radius = 0.3 * (e.size || 1);
           state.gems.push({x:e.x,y:e.y,v:Math.max(1, Math.round(e.xp * 2))});
           if(e.boss || Math.random() < 0.26){
             const drop = randomWeaponDrop();
-            state.pickups.push({ x: e.x, y: e.y, kind: 'weapon', weaponId: drop.id, bornAt: state.timeSec, ttl: rand(3, 5), blinkAt: 1.6 });
+            state.pickups.push({ x: e.x, y: e.y, kind: 'weapon', weaponId: drop.id, bornAt: state.timeSec, ttl: rand(3, 5), blinkAt: 1.6, crate:true });
           }
           if(Math.random() < 0.03){
             state.pickups.push({ x: e.x, y: e.y, kind: 'health', heal: 6, bornAt: state.timeSec, ttl: rand(4.5, 7), blinkAt: 3.4 });
@@ -1521,7 +1528,7 @@ const radius = 0.3 * (e.size || 1);
       for(let i=state.bullets.length-1;i>=0;i--){
         const b = state.bullets[i];
         b.x += b.vx*dt; b.y += b.vy*dt; b.life -= dt;
-        const hitWall = b.enemyShot ? false : damageWallAt(b.x, b.y, Math.max(1, b.dmg * (0.9 + (state.player.wallDamageBoost || 0))));
+        const hitWall = b.enemyShot ? false : damageWallAt(b.x, b.y, Math.max(1, b.dmg * (0.9 + (state.player.wallDamageBoost || 0)) * (b.wallDamageMult || 1)));
         if(b.x<0||b.x>=GRID_W||b.y<0||b.y>=GRID_H||hitWall){
           if(b.ricochet>0){ b.ricochet--; b.vx*=-1; b.vy*=-1; }
           else { state.bullets.splice(i,1); continue; }
@@ -1689,8 +1696,9 @@ const radius = 0.3 * (e.size || 1);
         if((pickup.kind || 'weapon') !== 'weapon') continue;
         if(!pickup.touching) continue;
         const weapon = getWeaponDrop(pickup.weaponId);
-        return { prompt: `Press SPACE to pick up ${weapon.name}`, action: () => {
-          state.activeWeapon = pickup.weaponId;
+        return { prompt: 'Press SPACE to open 🎁', action: () => {
+          const roll = randomWeaponDrop();
+          state.activeWeapon = roll.id;
           spawnParticles('spark', pickup.x, pickup.y, 12);
           state.pickups = state.pickups.filter(item => item !== pickup);
         }};
@@ -1888,7 +1896,7 @@ const radius = 0.3 * (e.size || 1);
       if(now >= state.nextSpawnAt){
         const roll = Math.random() < 0.025;
         const swarmWeight = Math.min(220, 30 + state.timeSec * 1.6 + state.kills * 0.28);
-        const mix = w.mix.map(m => m.type === 'batling' ? { ...m, weight: m.weight + swarmWeight } : m);
+        const mix = w.mix.map(m => m.type === 'bat' ? { ...m, weight: m.weight + swarmWeight } : m);
         const spawnType = roll ? 'juggernaut' : pickWeighted(mix);
         const loneHeavy = spawnType === 'juggernaut';
         const group = loneHeavy ? 1 : (2 + Math.floor(Math.random() * (Math.random() < 0.35 ? 4 : 3)));
@@ -1909,7 +1917,7 @@ const radius = 0.3 * (e.size || 1);
         state.nextSpawnAt = now + w.spawnEveryMs * earlyBoost * killRamp * levelProgression().spawn;
       }
       if(state.timeSec >= state.nextBossAt){
-        spawnEnemy('boss');
+        spawnEnemy('juggernaut');
         state.nextBossAt += Math.max(20, state.levelDef.bossIntervalSec * (0.92 - Math.min(0.3, state.selectedLevelIndex * 0.05)));
       }
     }
@@ -2029,7 +2037,10 @@ function inputLogic(dt){
           const weapon = getWeaponDrop(pickup.weaponId);
           ctx.fillStyle = '#b98dff';
           ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.53)}px ui-monospace, monospace`;
-          ctx.fillText(weapon.glyph || '🔫', p.x, p.y);
+          ctx.fillText('🎁', p.x, p.y);
+          ctx.fillStyle = '#cfd4ff';
+          ctx.font = `${Math.max(7, Math.min(sx, sy) * 0.22)}px ui-monospace, monospace`;
+          ctx.fillText('open', p.x, p.y + sy * 0.42);
         }
       }
 
@@ -2057,7 +2068,11 @@ function inputLogic(dt){
 
       for(const b of state.bullets){
         const bp = toScreen(b.x, b.y, sx, sy, ox, oy, camX, camY);
-        ctx.fillStyle = '#ffd166'; ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.32)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.bullet, bp.x, bp.y);
+        const spinChars = ['|','/','—','\\'];
+        const glyph = b.spin ? spinChars[Math.floor((state.timeSec * 24 + b.x * 3) % spinChars.length)] : (b.char || EMOJIS.bullet);
+        ctx.fillStyle = '#ffd166';
+        ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.32)}px ui-monospace, monospace`;
+        ctx.fillText(glyph, bp.x, bp.y);
       }
       for(const field of state.forceFields){
         const fp = toScreen(field.x, field.y, sx, sy, ox, oy, camX, camY);
@@ -2082,7 +2097,7 @@ function inputLogic(dt){
       }
       for(const e of state.enemies){
         const ep = toScreen(e.x, e.y, sx, sy, ox, oy, camX, camY);
-        const ghostPulse = e.type === 'wraith' ? (1 + Math.sin(state.timeSec * 5 + e.x * 1.4) * 0.14) : 1;
+        const ghostPulse = (e.type === 'ghost' || e.type === 'bat') ? (1 + Math.sin(state.timeSec * 5 + e.x * 1.4) * 0.14) : 1;
         const radius = (0.22 + (e.size - 1) * 0.12) * ghostPulse * Math.min(sx, sy);
         if(e.type === 'juggernaut' && (e.dashWindup > 0 || e.dashing > 0)){
           const prep = clamp((0.75 - Math.max(0, e.dashWindup)) / 0.75, 0, 1);
