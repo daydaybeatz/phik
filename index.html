@@ -95,6 +95,9 @@
     .screen-wrap {
       position: relative;
       min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .play-layout {
       display: grid;
@@ -107,13 +110,15 @@
       grid-template-columns: minmax(0, 1fr) minmax(170px, 33%);
     }
     #screen {
-      margin: 0;
+      margin: 0 auto;
       background: #080b12;
       border: 1px solid #1e2a44;
       border-radius: 10px;
       width: 100%;
-      height: 100%;
-      min-height: 0;
+      max-height: 100%;
+      aspect-ratio: 1 / 1;
+      height: auto;
+      min-height: min(100%, 280px);
       display: block;
     }
     .shop-panel {
@@ -236,7 +241,7 @@
           <div id="safehouseControls" class="safehouse-controls">
             <button id="levelPrev" type="button">⬇ Level</button>
             <button id="levelNext" type="button">⬆ Level</button>
-            <button id="shopBtn" type="button">Safehouse Upgrades ▶</button>
+            <button id="shopBtn" type="button">Upgrades ▶</button>
           </div>
         </div>
         <div class="bar"><div id="xpFill" class="fill xp-fill" style="width:0%"></div></div>
@@ -248,7 +253,7 @@
       <div id="playLayout" class="play-layout">
         <canvas id="screen"></canvas>
         <aside id="shopPanel" class="shop-panel">
-          <h3>Safehouse Upgrades</h3>
+          <h3>Upgrades</h3>
           <div id="shopChoices" class="shop-choices"></div>
         </aside>
       </div>
@@ -281,7 +286,7 @@
     const CAMERA_ZOOM_RUN = 2.15;
     const CAMERA_ZOOM_SAFEHOUSE = 1.16;
     const BASE_PLAYER = {
-      hp: 30, maxHp: 30, moveSpeed: 5.4, damage: 1, pickupRadius: 1.8, cooldownMs: 520,
+      hp: 30, maxHp: 30, moveSpeed: 5.4, damage: 1, pickupRadius: 2.4, cooldownMs: 520,
       whipLevel: 0, garlicLevel: 0, stakesLevel: 1, batsLevel: 0
     };
 
@@ -344,6 +349,7 @@
       hotbarBound: false,
       selectedAbilityIndex: 0,
       shopOpen: false,
+      shopOffers: [],
       fixtures: { armorStand: false, gunRack: false, vault: false },
       fixturePadTimers: { armorStand: 0, gunRack: 0, vault: 0 },
       fixtureUseTimers: { gunRack: 0, vault: 0 },
@@ -363,7 +369,7 @@
     };
 
     const EMOJIS = {
-      player: '🥸', bullet: '🔸', gem: '💵', health: '❤️', clone: '🫥', trap: '🕸️',
+      player: '🥸', bullet: '🔸', gem: '💵', health: '❤️', chem: '🧪', clone: '🫥', trap: '🕸️',
       enemy: { bat: '🦇', zombie: '🧟‍♂️', ghost: '👻', juggernaut: '💀', demon: '👹', wizard: '🧙‍♂️', vampire: '🧛‍♂️', snake: '🐍', scorpion: '🦂', snowman: '⛄' }
     };
 
@@ -513,6 +519,8 @@
       state.levelDef = state.configs.levels[state.selectedLevelIndex] || state.configs.levels[0];
       state.levelStartTime = 0;
       state.nextBossAt = state.levelDef.bossIntervalSec;
+      state.selectedLevelIndex = 0;
+      state.levelDef = state.configs.levels[0] || state.levelDef;
       resetPlayer();
       setupSafehouse();
       bindStick('moveStick', 'move');
@@ -645,7 +653,7 @@
         state.selectedLevelIndex = clamp(state.selectedLevelIndex + 1, 0, state.highestUnlockedLevel - 1);
         savePersistentState();
       });
-      document.getElementById('shopBtn').addEventListener('click', ()=>openCrateShop(!state.shopOpen));
+      document.getElementById('shopBtn').addEventListener('click', ()=>openCrateShop());
     }
 
     function cellBlocked(x, y){
@@ -836,12 +844,7 @@
     }
 
     function openRoomExits(){
-      const midX = Math.floor(GRID_W / 2);
-      const midY = Math.floor(GRID_H / 2);
-      clearSpawnArea(midX, 1.2, 1.6);
-      clearSpawnArea(midX, GRID_H - 2.2, 1.6);
-      clearSpawnArea(1.2, midY, 1.6);
-      clearSpawnArea(GRID_W - 2.2, midY, 1.6);
+      return;
     }
 
     function rebuildLevelGeometry(){
@@ -1010,20 +1013,27 @@
         x = clamp(groupAnchor.x + rand(-1.05, 1.05), 1, GRID_W - 2);
         y = clamp(groupAnchor.y + rand(-1.05, 1.05), 1, GRID_H - 2);
       }
-      for(let i=0;i<40;i++){
+      const spawnRadius = 0.3 * (t.size || 1);
+      let foundSpawn = false;
+      for(let i=0;i<60;i++){
         if(!groupAnchor){
           const side = Math.floor(Math.random()*4);
-          if(side===0){ x=rand(0,GRID_W); y=1; }
-          if(side===1){ x=GRID_W-2; y=rand(0,GRID_H); }
-          if(side===2){ x=rand(0,GRID_W); y=GRID_H-2; }
-          if(side===3){ x=1; y=rand(0,GRID_H); }
+          if(side===0){ x=rand(1.2,GRID_W-1.2); y=1.2; }
+          if(side===1){ x=GRID_W-1.2; y=rand(1.2,GRID_H-1.2); }
+          if(side===2){ x=rand(1.2,GRID_W-1.2); y=GRID_H-1.2; }
+          if(side===3){ x=1.2; y=rand(1.2,GRID_H-1.2); }
         }
         const nearPlayer = minPlayerDistance > 0 && Math.hypot(state.player.x - x, state.player.y - y) < minPlayerDistance;
-        if(!cellBlocked(Math.floor(x), Math.floor(y)) && !nearPlayer) break;
+        if(!circleBlocked(x, y, spawnRadius) && !nearPlayer){ foundSpawn = true; break; }
         if(groupAnchor){
-          x = clamp(groupAnchor.x + rand(-1.5, 1.5), 1, GRID_W - 2);
-          y = clamp(groupAnchor.y + rand(-1.5, 1.5), 1, GRID_H - 2);
+          x = clamp(groupAnchor.x + rand(-2, 2), 1.2, GRID_W - 1.2);
+          y = clamp(groupAnchor.y + rand(-2, 2), 1.2, GRID_H - 1.2);
         }
+      }
+      if(!foundSpawn){
+        const open = randomOpenCell();
+        x = open.x;
+        y = open.y;
       }
       const prog = levelProgression();
       state.enemies.push({
@@ -1184,7 +1194,6 @@
         }
       };
       fireWeapon(weapon);
-      spawnParticles('spark', p.x + aim.x * 0.5, p.y + aim.y * 0.5, weapon.id === 'knife' ? 10 : 6);
       if(state.effects.dualWieldUntil > state.timeSec){
         const alt = WEAPON_DROPS.find(w => w.id !== weapon.id) || weapon;
         const oscillate = Math.sin(state.timeSec * 10) * 0.28;
@@ -1333,7 +1342,7 @@
     }
 
     function clampInsideBounds(v, radius, max){
-      if(state.room === 'run') return clamp(v, -0.75, max + 0.75);
+      if(state.room === 'run') return clamp(v, 1 + radius, max - 1 - radius - 0.001);
       return clamp(v, 1 + radius, max - 1 - radius - 0.001);
     }
 
@@ -1362,7 +1371,7 @@
         p.shield -= used;
         dmg -= used;
       }
-      if(dmg > 0){ p.hp -= dmg; state.hurtFlash = Math.min(0.35, state.hurtFlash + 0.22); spawnParticles('damage', p.x, p.y, 8); }
+      if(dmg > 0){ p.hp -= dmg; state.hurtFlash = Math.min(0.35, state.hurtFlash + 0.22); spawnParticles('damage', p.x, p.y, 3); }
     }
 
     function enemyLogic(dt){
@@ -1473,6 +1482,9 @@ const radius = 0.3 * (e.size || 1);
           }
           if(Math.random() < 0.03){
             state.pickups.push({ x: e.x, y: e.y, kind: 'health', heal: 6, bornAt: state.timeSec, ttl: rand(4.5, 7), blinkAt: 3.4 });
+          }
+          if(Math.random() < 0.12){
+            state.pickups.push({ x: e.x, y: e.y, kind: 'chem', bornAt: state.timeSec, ttl: rand(4.5, 7.5), blinkAt: 3.4 });
           }
           state.enemies.splice(i,1);
         }
@@ -1597,11 +1609,18 @@ const radius = 0.3 * (e.size || 1);
           state.pickups.splice(i, 1);
           continue;
         }
-        const touchingPickup = dist(p, pickup) < 0.42;
+        const pickupRange = (pickup.kind || 'weapon') === 'weapon' ? 0.9 : 0.42;
+        const touchingPickup = dist(p, pickup) < pickupRange;
         pickup.touching = touchingPickup;
         if(touchingPickup && pickup.kind === 'health'){
           state.player.hp = clamp(state.player.hp + (pickup.heal || 4), 0, state.player.maxHp);
           spawnParticles('heal', pickup.x, pickup.y, 14);
+          state.pickups.splice(i, 1);
+          continue;
+        }
+        if(touchingPickup && pickup.kind === 'chem'){
+          state.effects.sprintUntil = Math.max(state.effects.sprintUntil, state.timeSec + 7);
+          spawnParticles('heal', pickup.x, pickup.y, 8);
           state.pickups.splice(i, 1);
           continue;
         }
@@ -1632,21 +1651,52 @@ const radius = 0.3 * (e.size || 1);
       return picks;
     }
 
-    function openCrateShop(forceOpen = false){
+    function rerollShopOffer(index){
+      const available = state.configs.upgrades.filter(canTakeUpgrade);
+      if(!available.length){
+        state.shopOffers[index] = null;
+        return;
+      }
+      const pick = available[Math.floor(Math.random() * available.length)];
+      state.shopOffers[index] = pick.id;
+    }
+
+    function openCrateShop(){
       if(state.room !== 'safehouse') return;
-      state.shopOpen = forceOpen ? true : !state.shopOpen;
+      state.shopOpen = !state.shopOpen;
+      if(!state.shopOpen) return;
+      if(!state.shopOffers.length) state.shopOffers = [null, null, null];
+      for(let i=0;i<3;i++) if(!state.shopOffers[i]) rerollShopOffer(i);
+      renderShopChoices();
+    }
+
+    function renderShopChoices(){
       if(!state.shopOpen) return;
       shopChoices.innerHTML = '';
-      for(const fixture of SAFEHOUSE_FIXTURES){
+      for(let i=0;i<3;i++){
+        const offerId = state.shopOffers[i];
+        const up = state.configs.upgrades.find(item => item.id === offerId);
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'choice';
-        const purchased = !!state.fixtures[fixture.id];
-        const status = purchased ? 'Owned' : `$${fixture.cost}`;
-        btn.textContent = `${fixture.name} (${status})`;
-        btn.title = fixture.desc;
-        btn.disabled = purchased && fixture.id !== 'gunRack' && fixture.id !== 'vault';
-        btn.addEventListener('click', ()=>triggerFixture(fixture));
+        if(!up){
+          btn.disabled = true;
+          btn.textContent = 'No upgrade available';
+          shopChoices.appendChild(btn);
+          continue;
+        }
+        const cost = upgradeCost(up);
+        const level = state.upgradeLevels[up.id] || 0;
+        btn.textContent = `${up.name} Lv ${level + 1} · $${cost}`;
+        btn.title = upgradeSummary(up);
+        btn.disabled = state.money < cost || !canTakeUpgrade(up);
+        btn.addEventListener('click', ()=>{
+          if(state.money < cost || !canTakeUpgrade(up)) return;
+          state.money -= cost;
+          applyUpgrade(up);
+          rerollShopOffer(i);
+          renderShopChoices();
+        });
         shopChoices.appendChild(btn);
       }
     }
@@ -1684,7 +1734,7 @@ const radius = 0.3 * (e.size || 1);
       const door = doorInfo();
       const doorTouching = Math.hypot(p.x - (door.x + 0.5), p.y - (door.y + 0.5)) < 1.1;
       if(doorTouching){
-        return { prompt: `Press SPACE to enter ${door.target === 'run' ? 'run' : 'safehouse'}`, action: () => {
+        return { prompt: `Press SPACE to enter ${door.target === 'run' ? 'door' : 'portal'}`, action: () => {
           if(state.room === 'run'){
             state.highestUnlockedLevel = Math.max(state.highestUnlockedLevel, state.selectedLevelIndex + 1);
             savePersistentState();
@@ -1698,7 +1748,7 @@ const radius = 0.3 * (e.size || 1);
         if((pickup.kind || 'weapon') !== 'weapon') continue;
         if(!pickup.touching) continue;
         const weapon = getWeaponDrop(pickup.weaponId);
-        return { prompt: 'Press SPACE to open 🎁', action: () => {
+        return { prompt: `Press SPACE to open 🎁 (${weapon.glyph} ${weapon.name})`, action: () => {
           const roll = randomWeaponDrop();
           state.activeWeapon = roll.id;
           spawnParticles('spark', pickup.x, pickup.y, 12);
@@ -1872,11 +1922,7 @@ const radius = 0.3 * (e.size || 1);
 
 
     function roomDoor(){
-      const roomKey = `${state.world.roomX},${state.world.roomY}`;
-      if(!state.world.doors[roomKey]){
-        state.world.doors[roomKey] = { x: Math.floor(rand(2, GRID_W - 2)), y: Math.floor(rand(2, GRID_H - 2)) };
-      }
-      return state.world.doors[roomKey];
+      return { x: GRID_W - 3, y: 2 };
     }
 
     function doorInfo(){
@@ -1925,23 +1971,7 @@ const radius = 0.3 * (e.size || 1);
     }
     
     function tryRoomShift(){
-      const p = state.player;
-      const margin = 0.55;
-      let shifted = false;
-      let shiftDx = 0;
-      let shiftDy = 0;
-      if(p.x <= -margin){ state.world.roomX--; p.x = GRID_W - 1.25; shifted = true; shiftDx = GRID_W; }
-      else if(p.x >= GRID_W + margin){ state.world.roomX++; p.x = 1.25; shifted = true; shiftDx = -GRID_W; }
-      if(p.y <= -margin){ state.world.roomY--; p.y = GRID_H - 1.25; shifted = true; shiftDy = GRID_H; }
-      else if(p.y >= GRID_H + margin){ state.world.roomY++; p.y = 1.25; shifted = true; shiftDy = -GRID_H; }
-      if(shifted){
-        rebuildLevelGeometry();
-        for(const e of state.enemies){
-          if(Math.hypot(e.x - p.x, e.y - p.y) > 16) continue;
-          e.x = clampInsideBounds(e.x + shiftDx, 0.3 * (e.size || 1), GRID_W);
-          e.y = clampInsideBounds(e.y + shiftDy, 0.3 * (e.size || 1), GRID_H);
-        }
-      }
+      return;
     }
 function inputLogic(dt){
       const p = state.player;
@@ -2035,14 +2065,22 @@ function inputLogic(dt){
           ctx.fillStyle = '#ff8fd7';
           ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.56 * pulse)}px ui-monospace, monospace`;
           ctx.fillText(EMOJIS.health, p.x, p.y);
+        } else if(pickup.kind === 'chem'){
+          ctx.fillStyle = '#89f6ff';
+          ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.54)}px ui-monospace, monospace`;
+          ctx.fillText(EMOJIS.chem, p.x, p.y);
+          ctx.fillStyle = '#c6f9ff';
+          ctx.font = `${Math.max(7, Math.min(sx, sy) * 0.22)}px ui-monospace, monospace`;
+          ctx.fillText('speed +7s', p.x, p.y + sy * 0.42);
         } else {
           const weapon = getWeaponDrop(pickup.weaponId);
           ctx.fillStyle = '#b98dff';
           ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.53)}px ui-monospace, monospace`;
           ctx.fillText('🎁', p.x, p.y);
           ctx.fillStyle = '#cfd4ff';
-          ctx.font = `${Math.max(7, Math.min(sx, sy) * 0.22)}px ui-monospace, monospace`;
-          ctx.fillText('open', p.x, p.y + sy * 0.42);
+          ctx.font = `${Math.max(7, Math.min(sx, sy) * 0.2)}px ui-monospace, monospace`;
+          ctx.fillText(`${weapon.glyph} ${weapon.name}`, p.x, p.y + sy * 0.28);
+          ctx.fillText('open', p.x, p.y + sy * 0.48);
         }
       }
 
@@ -2070,8 +2108,7 @@ function inputLogic(dt){
 
       for(const b of state.bullets){
         const bp = toScreen(b.x, b.y, sx, sy, ox, oy, camX, camY);
-        const spinChars = ['|','/','—','\\'];
-        const glyph = b.spin ? spinChars[Math.floor((state.timeSec * 24 + b.x * 3) % spinChars.length)] : (b.char || EMOJIS.bullet);
+        const glyph = b.char || EMOJIS.bullet;
         ctx.fillStyle = '#ffd166';
         ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.32)}px ui-monospace, monospace`;
         ctx.fillText(glyph, bp.x, bp.y);
@@ -2143,14 +2180,16 @@ function inputLogic(dt){
 
       const door = doorInfo();
       const dp = toScreen(door.x + 0.5, door.y + 0.5, sx, sy, ox, oy, camX, camY);
-      const dw = sx * 0.42, dh = sy * 0.75;
-      ctx.fillStyle = '#9e57ff';
-      ctx.fillRect(dp.x - dw / 2, dp.y - dh / 2, dw, dh);
-      ctx.fillStyle = '#5d2ea3';
-      ctx.fillRect(dp.x - dw * 0.24, dp.y - dh * 0.28, dw * 0.48, dh * 0.56);
-      ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.6)}px ui-monospace, monospace`;
+      const doorGlyph = door.target === 'safehouse' ? '🌀' : '🚪';
+      const spin = door.target === 'safehouse' ? Math.sin(state.timeSec * 5.5) * 0.35 : 0;
+      const bob = door.target === 'safehouse' ? Math.sin(state.timeSec * 4.8) * sy * 0.08 : 0;
+      ctx.save();
+      ctx.translate(dp.x, dp.y + bob);
+      ctx.rotate(spin);
+      ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.72)}px ui-monospace, monospace`;
       ctx.fillStyle = '#ffffff';
-      ctx.fillText('🚪', dp.x, dp.y);
+      ctx.fillText(doorGlyph, 0, 0);
+      ctx.restore();
 
       if(state.room === 'safehouse'){
         for(const fixture of SAFEHOUSE_FIXTURES){
@@ -2211,7 +2250,7 @@ function inputLogic(dt){
       stats.textContent = `💵${state.money} · Bank 💵${Math.floor(state.bankMoney)} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · ${levelTag} · KOs ${state.kills}`;
       const inSafehouse = state.room === 'safehouse';
       safehouseControls.style.display = inSafehouse ? 'flex' : 'none';
-      shopBtn.textContent = state.shopOpen ? 'Safehouse Upgrades ◀' : 'Safehouse Upgrades ▶';
+      shopBtn.textContent = state.shopOpen ? 'Upgrades ◀' : 'Upgrades ▶';
       playLayout.classList.toggle('shop-open', inSafehouse && state.shopOpen);
       shopPanel.style.display = inSafehouse && state.shopOpen ? 'block' : 'none';
       deathNote.textContent = state.interactPrompt || state.deathNote;
