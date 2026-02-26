@@ -114,5 +114,17 @@
     "xp": 10,
     "color": "#8890a8",
     "wallDamage": 2.4
+  },
+  {
+    "id": "nullifier",
+    "char": "\ud83e\uddff",
+    "name": "Nullifier Nodecaller",
+    "hp": 120,
+    "speed": 0.62,
+    "touchDamage": 13,
+    "xp": 9,
+    "color": "#8ad7ff",
+    "wallDamage": 0.8,
+    "forceField": true
   }
 ]

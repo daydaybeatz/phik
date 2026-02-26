@@ -270,7 +270,7 @@
   <script>
     const GRID_W = 34, GRID_H = 30;
     const KILLS_PER_INTENSITY_LEVEL = 35;
-    const CAMERA_ZOOM_RUN = 1.45;
+    const CAMERA_ZOOM_RUN = 1.62;
     const CAMERA_ZOOM_SAFEHOUSE = 1.16;
     const BASE_PLAYER = {
       hp: 30, maxHp: 30, moveSpeed: 5.4, damage: 1, pickupRadius: 1.8, cooldownMs: 520,
@@ -304,7 +304,7 @@
         stakesLevel: BASE_PLAYER.stakesLevel,
         batsLevel: BASE_PLAYER.batsLevel,
       },
-      enemies: [], bullets: [], gems: [], pickups: [], fx: [], clones: [],
+      enemies: [], bullets: [], gems: [], pickups: [], fx: [], clones: [], forceFields: [],
       activeWeapon: 'rifle',
       selectedStartWeapon: 'rifle',
       configs: { upgrades: [], enemyTypes: [], waves: [], levels: [] },
@@ -356,7 +356,7 @@
 
     const EMOJIS = {
       player: '🧛', bullet: '🔸', gem: '💵', health: '❤️', clone: '🫥', trap: '🕸️',
-      enemy: { batling: '🦇', brute: '🧟', wraith: '👻', juggernaut: '💀', boss: '👹' }
+      enemy: { batling: '🦇', brute: '🧟', wraith: '👻', juggernaut: '💀', boss: '👹', nullifier: '🛰️' }
     };
 
     const screen = document.getElementById('screen');
@@ -913,7 +913,7 @@
       state.player.x = clampInsideBounds(state.player.x || GRID_W / 2, 0.32, GRID_W);
       state.player.y = clampInsideBounds(state.player.y || GRID_H - 4, 0.32, GRID_H);
       state.walls[1][Math.floor(GRID_W / 2)] = 0;
-      state.enemies = []; state.bullets = []; state.gems = []; state.pickups = [];
+      state.enemies = []; state.bullets = []; state.gems = []; state.pickups = []; state.forceFields = [];
       state.fx = []; state.traps = []; state.activeLances = []; state.clones = [];
       state.hoveredFixtureId = null;
       state.camera.x = state.player.x;
@@ -1018,8 +1018,9 @@
       return state.configs.waves.find(w => t >= w.startSec && t < w.endSec) || state.configs.waves[state.configs.waves.length-1];
     }
 
-    function spawnEnemy(typeId, groupAnchor = null){
+    function spawnEnemy(typeId, groupAnchor = null, opts = {}){
       const t = getEnemyType(typeId); if(!t) return;
+      const minPlayerDistance = opts.minPlayerDistance || 0;
       let x=0,y=0;
       if(groupAnchor){
         x = clamp(groupAnchor.x + rand(-1.05, 1.05), 1, GRID_W - 2);
@@ -1033,7 +1034,8 @@
           if(side===2){ x=rand(0,GRID_W); y=GRID_H-2; }
           if(side===3){ x=1; y=rand(0,GRID_H); }
         }
-        if(!cellBlocked(Math.floor(x), Math.floor(y))) break;
+        const nearPlayer = minPlayerDistance > 0 && Math.hypot(state.player.x - x, state.player.y - y) < minPlayerDistance;
+        if(!cellBlocked(Math.floor(x), Math.floor(y)) && !nearPlayer) break;
         if(groupAnchor){
           x = clamp(groupAnchor.x + rand(-1.5, 1.5), 1, GRID_W - 2);
           y = clamp(groupAnchor.y + rand(-1.5, 1.5), 1, GRID_H - 2);
@@ -1057,7 +1059,8 @@
         dashDirX: 0,
         dashDirY: 0,
         dashing: 0,
-        wallHitTicks: 0
+        wallHitTicks: 0,
+        forceCooldown: rand(2.2, 4.5)
       });
     }
 
@@ -1427,6 +1430,13 @@
             state.traps.push({ x:e.x, y:e.y, ttl: 2.8, radius: 0.9, slow: 0.72, dps: 2.8, enemyOwned: true });
           }
         }
+        if(e.type === 'nullifier'){
+          e.forceCooldown = Math.max(0, (e.forceCooldown || 0) - dt);
+          if(e.forceCooldown <= 0){
+            e.forceCooldown = rand(9.5, 13.5);
+            state.forceFields.push({ x: e.x, y: e.y, radius: 2.75, ttl: 10, dps: 7.5, hp: 26, maxHp: 26 });
+          }
+        }
 const radius = 0.3 * (e.size || 1);
         const dashBreaking = e.type === 'juggernaut' && e.dashing > 0;
         const beforeX = e.x;
@@ -1544,7 +1554,36 @@ const radius = 0.3 * (e.size || 1);
             if(b.pierce > 0){ b.pierce--; } else { used = true; break; }
           }
         }
+        if(!used){
+          for(let fi=state.forceFields.length-1;fi>=0;fi--){
+            const f = state.forceFields[fi];
+            if(Math.hypot(f.x - b.x, f.y - b.y) >= 0.7) continue;
+            f.hp -= b.dmg;
+            spawnParticles('spark', b.x, b.y, 4);
+            if(f.hp <= 0){
+              spawnParticles('blast', f.x, f.y, 10);
+              state.forceFields.splice(fi, 1);
+            }
+            used = true;
+            break;
+          }
+        }
         if(used || b.life <= 0) state.bullets.splice(i,1);
+      }
+    }
+
+    function forceFieldLogic(dt){
+      const p = state.player;
+      for(let i=state.forceFields.length-1;i>=0;i--){
+        const f = state.forceFields[i];
+        f.ttl -= dt;
+        if(f.ttl <= 0){
+          state.forceFields.splice(i, 1);
+          continue;
+        }
+        if(Math.hypot(p.x - f.x, p.y - f.y) <= f.radius){
+          applyPlayerDamage(f.dps * dt);
+        }
       }
     }
 
@@ -1957,16 +1996,18 @@ const radius = 0.3 * (e.size || 1);
         const swarmWeight = Math.min(220, 30 + state.timeSec * 1.6 + state.kills * 0.28);
         const mix = w.mix.map(m => m.type === 'batling' ? { ...m, weight: m.weight + swarmWeight } : m);
         const spawnType = roll ? 'juggernaut' : pickWeighted(mix);
-        const group = 2 + Math.floor(Math.random() * (Math.random() < 0.35 ? 4 : 3));
+        const loneHeavy = spawnType === 'juggernaut';
+        const group = loneHeavy ? 1 : (2 + Math.floor(Math.random() * (Math.random() < 0.35 ? 4 : 3)));
+        const spawnOpts = loneHeavy ? { minPlayerDistance: 9.5 } : {};
         let anchor = null;
         for(let i=0;i<group;i++){
           if(i === 0){
             const before = state.enemies.length;
-            spawnEnemy(spawnType);
+            spawnEnemy(spawnType, null, spawnOpts);
             const first = state.enemies[state.enemies.length - 1];
             anchor = state.enemies.length > before ? { x: first.x, y: first.y } : null;
           } else {
-            spawnEnemy(spawnType, anchor);
+            spawnEnemy(spawnType, anchor, spawnOpts);
           }
         }
         const earlyBoost = state.timeSec < 35 ? 0.62 : (state.timeSec < 70 ? 0.78 : 1);
@@ -1981,15 +2022,21 @@ const radius = 0.3 * (e.size || 1);
     
     function tryRoomShift(){
       const p = state.player;
-      const margin = 1.15;
+      const margin = 0.38;
       let shifted = false;
-      if(p.x <= margin){ state.world.roomX--; p.x = GRID_W - 2.3; shifted = true; }
-      else if(p.x >= GRID_W - margin){ state.world.roomX++; p.x = 2.3; shifted = true; }
-      if(p.y <= margin){ state.world.roomY--; p.y = GRID_H - 2.3; shifted = true; }
-      else if(p.y >= GRID_H - margin){ state.world.roomY++; p.y = 2.3; shifted = true; }
+      let shiftDx = 0;
+      let shiftDy = 0;
+      if(p.x <= margin){ state.world.roomX--; p.x = GRID_W - 1.25; shifted = true; shiftDx = GRID_W; }
+      else if(p.x >= GRID_W - margin){ state.world.roomX++; p.x = 1.25; shifted = true; shiftDx = -GRID_W; }
+      if(p.y <= margin){ state.world.roomY--; p.y = GRID_H - 1.25; shifted = true; shiftDy = GRID_H; }
+      else if(p.y >= GRID_H - margin){ state.world.roomY++; p.y = 1.25; shifted = true; shiftDy = -GRID_H; }
       if(shifted){
         rebuildLevelGeometry();
-        state.enemies = state.enemies.filter(e => dist(e,p) < 12);
+        for(const e of state.enemies){
+          if(Math.hypot(e.x - p.x, e.y - p.y) > 16) continue;
+          e.x = clampInsideBounds(e.x + shiftDx, 0.3 * (e.size || 1), GRID_W);
+          e.y = clampInsideBounds(e.y + shiftDy, 0.3 * (e.size || 1), GRID_H);
+        }
       }
     }
 function inputLogic(dt){
@@ -2117,6 +2164,27 @@ function inputLogic(dt){
       for(const b of state.bullets){
         const bp = toScreen(b.x, b.y, sx, sy, ox, oy, camX, camY);
         ctx.fillStyle = '#ffd166'; ctx.font = `${Math.max(9, Math.min(sx, sy) * 0.32)}px ui-monospace, monospace`; ctx.fillText(EMOJIS.bullet, bp.x, bp.y);
+      }
+      for(const field of state.forceFields){
+        const fp = toScreen(field.x, field.y, sx, sy, ox, oy, camX, camY);
+        const r = field.radius * Math.min(sx, sy);
+        ctx.fillStyle = 'rgba(110, 180, 255, 0.15)';
+        ctx.beginPath();
+        ctx.arc(fp.x, fp.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(130, 210, 255, 0.5)';
+        ctx.lineWidth = Math.max(1, Math.min(sx, sy) * 0.07);
+        ctx.beginPath();
+        ctx.arc(fp.x, fp.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        const nodeRatio = clamp((field.hp || 0) / (field.maxHp || 1), 0, 1);
+        ctx.fillStyle = '#8ce4ff';
+        ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.52)}px ui-monospace, monospace`;
+        ctx.fillText('🧿', fp.x, fp.y);
+        ctx.fillStyle = '#18212f';
+        ctx.fillRect(fp.x - sx * 0.45, fp.y + sy * 0.35, sx * 0.9, Math.max(3, sy * 0.08));
+        ctx.fillStyle = '#6de3ff';
+        ctx.fillRect(fp.x - sx * 0.45, fp.y + sy * 0.35, sx * 0.9 * nodeRatio, Math.max(3, sy * 0.08));
       }
       for(const e of state.enemies){
         const ep = toScreen(e.x, e.y, sx, sy, ox, oy, camX, camY);
@@ -2255,6 +2323,7 @@ function inputLogic(dt){
         abilityEffectsLogic(dt);
         bulletLogic(dt);
         enemyLogic(dt);
+        forceFieldLogic(dt);
         fxLogic(dt);
         state.hurtFlash = Math.max(0, state.hurtFlash - dt * 1.8);
         pickupGems(dt);

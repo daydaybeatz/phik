@@ -44,6 +44,10 @@
       {
         "type": "batWizard",
         "weight": 10
+      },
+      {
+        "type": "nullifier",
+        "weight": 6
       }
     ]
   },
@@ -72,6 +76,10 @@
       {
         "type": "fireDemon",
         "weight": 18
+      },
+      {
+        "type": "nullifier",
+        "weight": 14
       }
     ]
   }
