@@ -5,9 +5,9 @@
     "endSec": 60,
     "spawnEveryMs": 980,
     "mix": [
-      {"type": "batling", "weight": 70},
-      {"type": "brute", "weight": 32},
-      {"type": "imp", "weight": 18},
+      {"type": "bat", "weight": 65},
+      {"type": "snake", "weight": 28},
+      {"type": "scorpion", "weight": 24},
       {"type": "snowman", "weight": 8}
     ]
   },
@@ -17,12 +17,12 @@
     "endSec": 120,
     "spawnEveryMs": 760,
     "mix": [
-      {"type": "batling", "weight": 45},
-      {"type": "brute", "weight": 46},
-      {"type": "wraith", "weight": 8},
-      {"type": "fireDemon", "weight": 14},
-      {"type": "batWizard", "weight": 8},
-      {"type": "nullifier", "weight": 6},
+      {"type": "bat", "weight": 46},
+      {"type": "zombie", "weight": 42},
+      {"type": "ghost", "weight": 12},
+      {"type": "demon", "weight": 15},
+      {"type": "vampire", "weight": 10},
+      {"type": "wizard", "weight": 7},
       {"type": "snowman", "weight": 12}
     ]
   },
@@ -32,13 +32,13 @@
     "endSec": 240,
     "spawnEveryMs": 620,
     "mix": [
-      {"type": "brute", "weight": 58},
-      {"type": "wraith", "weight": 18},
-      {"type": "mummy", "weight": 20},
-      {"type": "sentinel", "weight": 12},
-      {"type": "fireDemon", "weight": 14},
-      {"type": "nullifier", "weight": 12},
-      {"type": "snowman", "weight": 18}
+      {"type": "zombie", "weight": 56},
+      {"type": "ghost", "weight": 16},
+      {"type": "demon", "weight": 16},
+      {"type": "vampire", "weight": 16},
+      {"type": "wizard", "weight": 12},
+      {"type": "juggernaut", "weight": 9},
+      {"type": "snowman", "weight": 15}
     ]
   }
 ]
