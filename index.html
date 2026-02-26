@@ -277,6 +277,7 @@
   <script>
     const GRID_W = 34, GRID_H = 30;
     const KILLS_PER_INTENSITY_LEVEL = 35;
+    const MAX_ACTIVE_ENEMIES = 85;
     const CAMERA_ZOOM_RUN = 2.15;
     const CAMERA_ZOOM_SAFEHOUSE = 1.16;
     const BASE_PLAYER = {
@@ -399,10 +400,10 @@
 
 
     const WEAPON_DROPS = [
-      { id: 'rifle', name: 'Rifle', glyph: '🔫', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false },
-      { id: 'machineGun', name: 'Machine Gun', glyph: '🪖', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false },
-      { id: 'laser', name: 'Laser', glyph: '⚡', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 1, spread: 0, projectiles: 1, ricochet: false },
-      { id: 'knife', name: 'Throwing Knife', glyph: '🔪', color: '#ffb347', cooldownMult: 1.2, damageMult: 0.9, speed: 11.2, life: 0.7, pierce: 0, spread: 0.22, projectiles: 2, ricochet: false, spin: true },
+      { id: 'rifle', name: 'Wrench', glyph: '🔧', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false },
+      { id: 'machineGun', name: 'Blade', glyph: '🗡️', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false },
+      { id: 'laser', name: 'Axe', glyph: '🪓', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 1, spread: 0, projectiles: 1, ricochet: false },
+      { id: 'knife', name: 'Kitchen Knives', glyph: '🔪', color: '#ffb347', cooldownMult: 1.2, damageMult: 0.9, speed: 11.2, life: 0.7, pierce: 0, spread: 0.22, projectiles: 2, ricochet: false, spin: true },
       { id: 'axe', name: 'Throwing Axe', glyph: '🪓', color: '#ff9340', cooldownMult: 1.55, damageMult: 2.4, speed: 9.2, life: 0.62, pierce: 0, spread: 0.08, projectiles: 1, ricochet: false, spin: true, wallDamageMult: 2.8 },
       { id: 'dagger', name: 'Dagger', glyph: '🗡️', color: '#b8f2ff', cooldownMult: 1.05, damageMult: 1.1, speed: 12.8, life: 0.95, pierce: 3, spread: 0.1, projectiles: 1, ricochet: true, spin: true }
     ];
@@ -636,12 +637,12 @@
     function bindSafehouseControls(){
       document.getElementById('levelPrev').addEventListener('click', ()=>{
         if(state.room !== 'safehouse') return;
-        state.selectedLevelIndex = clamp(state.selectedLevelIndex + 1, 0, state.highestUnlockedLevel - 1);
+        state.selectedLevelIndex = clamp(state.selectedLevelIndex - 1, 0, state.highestUnlockedLevel - 1);
         savePersistentState();
       });
       document.getElementById('levelNext').addEventListener('click', ()=>{
         if(state.room !== 'safehouse') return;
-        state.selectedLevelIndex = clamp(state.selectedLevelIndex - 1, 0, state.highestUnlockedLevel - 1);
+        state.selectedLevelIndex = clamp(state.selectedLevelIndex + 1, 0, state.highestUnlockedLevel - 1);
         savePersistentState();
       });
       document.getElementById('shopBtn').addEventListener('click', ()=>openCrateShop(!state.shopOpen));
@@ -1002,6 +1003,7 @@
 
     function spawnEnemy(typeId, groupAnchor = null, opts = {}){
       const t = getEnemyType(typeId); if(!t) return;
+      if(!t.boss && state.enemies.length >= MAX_ACTIVE_ENEMIES) return;
       const minPlayerDistance = opts.minPlayerDistance || 0;
       let x=0,y=0;
       if(groupAnchor){
@@ -1174,7 +1176,7 @@
             life:w.life,
             pierce: w.id === 'dagger' ? 3 : (w.pierce + Math.floor(p.stakesLevel/2) + Math.floor(p.extraPierce || 0)),
             ricochet: w.id === 'dagger' ? 3 : (w.ricochet ? 1 : (p.stakesLevel >= 4 ? 1 : 0)),
-            char: w.id === 'laser' ? '=' : w.glyph,
+            char: w.glyph,
             size: w.id === 'machineGun' ? (1 + (p.machineGunBulletSize || 0)) : 1
             ,spin: !!w.spin,
             wallDamageMult: w.wallDamageMult || 1
