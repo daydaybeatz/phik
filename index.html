@@ -30,6 +30,13 @@
       touch-action: manipulation;
       overscroll-behavior: none;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    button, .stick, .knob, canvas, .hotkey-slot {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
     .app {
       height: 100svh;
@@ -227,9 +234,9 @@
         <div class="door-row">
           <span>Door</span>
           <div id="safehouseControls" class="safehouse-controls">
-            <button id="levelPrev" type="button">⬆ Level</button>
-            <button id="levelNext" type="button">⬇ Level</button>
-            <button id="shopBtn" type="button">Crate Shop ▶</button>
+            <button id="levelPrev" type="button">⬇ Level</button>
+            <button id="levelNext" type="button">⬆ Level</button>
+            <button id="shopBtn" type="button">Safehouse Upgrades ▶</button>
           </div>
         </div>
         <div class="bar"><div id="xpFill" class="fill xp-fill" style="width:0%"></div></div>
@@ -241,7 +248,7 @@
       <div id="playLayout" class="play-layout">
         <canvas id="screen"></canvas>
         <aside id="shopPanel" class="shop-panel">
-          <h3>Crate Shop</h3>
+          <h3>Safehouse Upgrades</h3>
           <div id="shopChoices" class="shop-choices"></div>
         </aside>
       </div>
@@ -270,7 +277,7 @@
   <script>
     const GRID_W = 34, GRID_H = 30;
     const KILLS_PER_INTENSITY_LEVEL = 35;
-    const CAMERA_ZOOM_RUN = 1.62;
+    const CAMERA_ZOOM_RUN = 2.15;
     const CAMERA_ZOOM_SAFEHOUSE = 1.16;
     const BASE_PLAYER = {
       hp: 30, maxHp: 30, moveSpeed: 5.4, damage: 1, pickupRadius: 1.8, cooldownMs: 520,
@@ -328,17 +335,17 @@
       mouseAimActive: false,
       hurtFlash: 0,
       abilitySlots: [],
-      abilityOrder: ['teleportStep', 'sentinelClone', 'graveWall', 'sprintBurst', 'novaBlast', 'bladeWhirl', 'dashRampage', 'glueTrap', 'downgradeHex', 'dualWield', 'voidLance', 'meteorCall', 'timeBubble'],
-      world: { roomX: 0, roomY: 0, cache: {} },
+      abilityOrder: ['disabledAbility'],
+      world: { roomX: 0, roomY: 0, cache: {}, doors: {} },
       phaseWalkUntil: 0,
       entityScale: 1,
       upgradeLevels: {},
       hotbarBound: false,
       selectedAbilityIndex: 0,
       shopOpen: false,
-      fixtures: { armorStand: false, gunRack: false, perkMachine: false, vault: false },
-      fixturePadTimers: { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 },
-      fixtureUseTimers: { gunRack: 0, perkMachine: 0, vault: 0 },
+      fixtures: { armorStand: false, gunRack: false, vault: false },
+      fixturePadTimers: { armorStand: 0, gunRack: 0, vault: 0 },
+      fixtureUseTimers: { gunRack: 0, vault: 0 },
       bankMoney: 0,
       deathNote: '',
       effects: {
@@ -356,7 +363,7 @@
 
     const EMOJIS = {
       player: '🧛', bullet: '🔸', gem: '💵', health: '❤️', clone: '🫥', trap: '🕸️',
-      enemy: { batling: '🦇', brute: '🧟', wraith: '👻', juggernaut: '💀', boss: '👹', nullifier: '🛰️' }
+      enemy: { batling: '🦇', brute: '🧟', wraith: '👻', juggernaut: '💀', boss: '👹', nullifier: '🛰️', snowman: '⛄' }
     };
 
     const screen = document.getElementById('screen');
@@ -394,49 +401,21 @@
     const WEAPON_DROPS = [
       { id: 'rifle', name: 'Rifle', glyph: '🔫', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false },
       { id: 'machineGun', name: 'Machine Gun', glyph: '🪖', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false },
-      { id: 'laser', name: 'Laser', glyph: '⚡', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 999, spread: 0, projectiles: 1, ricochet: false },
+      { id: 'laser', name: 'Laser', glyph: '⚡', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 1, spread: 0, projectiles: 1, ricochet: false },
       { id: 'shotgun', name: 'Shotgun', glyph: '💥', color: '#ffb347', cooldownMult: 1.45, damageMult: 0.8, speed: 10.4, life: 0.55, pierce: 0, spread: 0.24, projectiles: 4, ricochet: false }
     ];
 
     const SAFEHOUSE_FIXTURES = [
-      { id: 'armorStand', symbol: '🛡️', name: 'Armor Stand', desc: 'Permanent +16 shield each run', cost: 500, x: 8.5, y: 8.5 },
-      { id: 'gunRack', symbol: '🔫', name: 'Gun Rack', desc: 'Permanent starting weapon choice', cost: 500, x: GRID_W / 2, y: 8.5 },
-      { id: 'perkMachine', symbol: '🧪', name: 'Perk Machine', desc: 'Unlocks map pad perk rolls', cost: 500, x: GRID_W - 8.5, y: 8.5 },
-      { id: 'vault', symbol: '🏦', name: 'Vault', desc: 'Bank all/withdraw all between runs', cost: 500, x: GRID_W / 2, y: 5.5 },
-      { id: 'bloodFountain', symbol: '⛲', name: 'Blood Fountain', desc: 'Heal pulse between runs', cost: 500, x: 6.5, y: 13 },
-      { id: 'moonTotem', symbol: '🌙', name: 'Moon Totem', desc: 'Night luck increases drops', cost: 500, x: 11.5, y: 13 },
-      { id: 'batRoost', symbol: '🦇', name: 'Bat Roost', desc: 'Extra bat at run start', cost: 500, x: 16.5, y: 13 },
-      { id: 'forgeAnvil', symbol: '⚒️', name: 'Forge Anvil', desc: 'Boost wall damage', cost: 500, x: 21.5, y: 13 },
-      { id: 'cryptMap', symbol: '🗺️', name: 'Crypt Cartograph', desc: 'Smoother room chaining', cost: 500, x: 26.5, y: 13 },
-      { id: 'emberLantern', symbol: '🏮', name: 'Ember Lantern', desc: 'Fire particles on crit', cost: 500, x: 10, y: 17 },
-      { id: 'boneBell', symbol: '🔔', name: 'Bone Bell', desc: 'Summon louder swarms', cost: 500, x: 15, y: 17 },
-      { id: 'stormPillar', symbol: '🗼', name: 'Storm Pillar', desc: 'Spark chain chance', cost: 500, x: 20, y: 17 },
-      { id: 'acidVat', symbol: '🧫', name: 'Acid Vat', desc: 'Corrosive resistance', cost: 500, x: 25, y: 17 },
-      { id: 'relicCase', symbol: '📦', name: 'Relic Case', desc: 'More shop options', cost: 500, x: 8.5, y: 21 },
-      { id: 'skullBanner', symbol: '🏴', name: 'Skull Banner', desc: 'Faster enemy packs', cost: 500, x: 13.5, y: 21 },
-      { id: 'oracleMirror', symbol: '🪞', name: 'Oracle Mirror', desc: 'Sharper auto-aim', cost: 500, x: 18.5, y: 21 },
-      { id: 'graveClock', symbol: '🕰️', name: 'Grave Clock', desc: 'Ability recharge bonus', cost: 500, x: 23.5, y: 21 },
-      { id: 'chaliceRack', symbol: '🏺', name: 'Chalice Rack', desc: 'Extra max HP', cost: 500, x: 28.5, y: 21 },
-      { id: 'catacombGate', symbol: '🚪', name: 'Catacomb Gate', desc: 'Room transitions glow', cost: 500, x: GRID_W / 2, y: 24 }
+      { id: 'armorStand', symbol: '🛡️', name: 'Armor Rack', desc: '+16 starting shield each run', cost: 100, x: 8.5, y: 8.5 },
+      { id: 'gunRack', symbol: '🔫', name: 'Gun Rack', desc: 'Choose your starting weapon', cost: 100, x: GRID_W - 8.5, y: 8.5 },
+      { id: 'vault', symbol: '🏦', name: 'Bank', desc: 'Store money between runs', cost: 100, x: GRID_W / 2, y: 5.5 }
     ];
 
     const AUTO_AIM_ENABLED = true;
     const AUTO_FIRE_ENABLED = true;
 
     const ABILITY_META = {
-      teleportStep: { id: 'teleportStep', key: '1', name: 'Mist Step', desc: 'Teleport in the direction you are moving.', baseCooldown: 9500, maxLevel: 5, baseCharges: 1 },
-      sentinelClone: { id: 'sentinelClone', key: '2', name: 'Pale Doppel', desc: 'Place a static clone that shoots nearby enemies.', baseCooldown: 13000, maxLevel: 5, baseCharges: 1 },
-      graveWall: { id: 'graveWall', key: '3', name: 'Bone Rampart', desc: 'Build a wall trail where you walk for 5s.', baseCooldown: 15000, maxLevel: 5, baseCharges: 1 },
-      sprintBurst: { id: 'sprintBurst', key: '4', name: 'Wolf Sprint', desc: 'Sprint for 6 seconds and phase through crowds.', baseCooldown: 20000, maxLevel: 5, baseCharges: 1 },
-      novaBlast: { id: 'novaBlast', key: '5', name: 'Cataclysm Nova', desc: 'Explode outward for huge area damage.', baseCooldown: 14000, maxLevel: 5, baseCharges: 1 },
-      bladeWhirl: { id: 'bladeWhirl', key: '6', name: 'Blade Cyclone', desc: 'Spin in place and shred everything nearby.', baseCooldown: 12000, maxLevel: 5, baseCharges: 1 },
-      dashRampage: { id: 'dashRampage', key: '7', name: 'Dash Rampage', desc: 'Chain violent dashes through enemy lines.', baseCooldown: 12500, maxLevel: 5, baseCharges: 1 },
-      glueTrap: { id: 'glueTrap', key: '8', name: 'Glue Mire', desc: 'Throw sticky traps that slow and hurt enemies.', baseCooldown: 9000, maxLevel: 5, baseCharges: 2 },
-      downgradeHex: { id: 'downgradeHex', key: '9', name: 'Regression Hex', desc: 'Downgrade nearby enemy classes by one tier.', baseCooldown: 17000, maxLevel: 5, baseCharges: 1 },
-      dualWield: { id: 'dualWield', key: '0', name: 'Twin Relics', desc: 'Fire two weapons at once for 7 seconds.', baseCooldown: 18000, maxLevel: 5, baseCharges: 1 },
-      voidLance: { id: 'voidLance', key: 'Q', name: 'Void Lance', desc: 'Summon piercing lances around your aim line.', baseCooldown: 11000, maxLevel: 5, baseCharges: 1 },
-      meteorCall: { id: 'meteorCall', key: 'E', name: 'Meteor Psalm', desc: 'Call meteors to strike random enemy packs.', baseCooldown: 14500, maxLevel: 5, baseCharges: 1 },
-      timeBubble: { id: 'timeBubble', key: 'R', name: 'Chrono Bubble', desc: 'Slow all enemies and hasten your fire rate.', baseCooldown: 16000, maxLevel: 5, baseCharges: 1 }
+      disabledAbility: { id: 'disabledAbility', key: '1', name: 'Ability Slot', desc: 'Abilities are disabled for now.', baseCooldown: 9500, maxLevel: 1, baseCharges: 0 }
     };
 
     function resizeScreenCanvas(){
@@ -506,8 +485,7 @@
         const save = JSON.parse(raw);
         state.fixtures.armorStand = !!save.fixtures?.armorStand;
         state.fixtures.gunRack = !!save.fixtures?.gunRack;
-        state.fixtures.perkMachine = !!save.fixtures?.perkMachine;
-        state.fixtures.vault = !!save.fixtures?.vault;
+                state.fixtures.vault = !!save.fixtures?.vault;
         state.bankMoney = Math.max(0, save.bankMoney || 0);
         state.highestUnlockedLevel = Math.max(1, save.highestUnlockedLevel || 1);
         state.selectedLevelIndex = clamp((save.selectedLevelIndex || 0), 0, state.highestUnlockedLevel - 1);
@@ -656,12 +634,12 @@
     function bindSafehouseControls(){
       document.getElementById('levelPrev').addEventListener('click', ()=>{
         if(state.room !== 'safehouse') return;
-        state.selectedLevelIndex = clamp(state.selectedLevelIndex - 1, 0, state.highestUnlockedLevel - 1);
+        state.selectedLevelIndex = clamp(state.selectedLevelIndex + 1, 0, state.highestUnlockedLevel - 1);
         savePersistentState();
       });
       document.getElementById('levelNext').addEventListener('click', ()=>{
         if(state.room !== 'safehouse') return;
-        state.selectedLevelIndex = clamp(state.selectedLevelIndex + 1, 0, state.highestUnlockedLevel - 1);
+        state.selectedLevelIndex = clamp(state.selectedLevelIndex - 1, 0, state.highestUnlockedLevel - 1);
         savePersistentState();
       });
       document.getElementById('shopBtn').addEventListener('click', ()=>openCrateShop(!state.shopOpen));
@@ -682,7 +660,7 @@
     }
 
     function buildMaze(){
-      const walls = Array.from({length: GRID_H}, (_, y) => Array.from({length: GRID_W}, (_, x) => x % 2 === 0 || y % 2 === 0 ? 7 : 0));
+      const walls = Array.from({length: GRID_H}, (_, y) => Array.from({length: GRID_W}, (_, x) => x % 2 === 0 || y % 2 === 0 ? 12 : 0));
       const visited = Array.from({length: GRID_H}, () => Array(GRID_W).fill(false));
       const stack = [{x: 1, y: 1}];
       visited[1][1] = true;
@@ -704,7 +682,7 @@
     }
 
     function emptyWallGrid(){ return Array.from({length: GRID_H}, () => Array(GRID_W).fill(0)); }
-    function paintCell(walls, x, y, hp = 7){ if(x>=1&&y>=1&&x<GRID_W-1&&y<GRID_H-1) walls[y][x] = hp; }
+    function paintCell(walls, x, y, hp = 12){ if(x>=1&&y>=1&&x<GRID_W-1&&y<GRID_H-1) walls[y][x] = hp; }
 
     function aerateWalls(walls){
       // Keep maps traversable by punching lots of organic gaps through dense structures.
@@ -880,8 +858,9 @@
       state.nextFlowUpdate = 0;
       state.movement.vx = 0;
       state.movement.vy = 0;
-      state.walls[GRID_H - 2][Math.floor(GRID_W / 2)] = 0;
-      clearSpawnArea(GRID_W / 2, GRID_H - 2, 2);
+      const door = roomDoor();
+      state.walls[door.y][door.x] = 0;
+      clearSpawnArea(door.x + 0.5, door.y + 0.5, 1.4);
       state.world.cache[roomKey] = state.walls.map(row => [...row]);
     }
 
@@ -919,8 +898,8 @@
       state.camera.x = state.player.x;
       state.camera.y = state.player.y;
       state.doorTouchSec = 0;
-      state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 };
-      state.fixtureUseTimers = { gunRack: 0, perkMachine: 0, vault: 0 };
+      state.fixturePadTimers = { armorStand: 0, gunRack: 0, vault: 0 };
+      state.fixtureUseTimers = { gunRack: 0, vault: 0 };
     }
 
     function startRun(){
@@ -938,12 +917,13 @@
       state.deathNote = '';
       state.world.roomX = 0; state.world.roomY = 0;
       state.world.cache = {};
+      state.world.doors = {};
       rebuildLevelGeometry();
       state.camera.x = state.player.x;
       state.camera.y = state.player.y;
       state.doorTouchSec = 0;
-      state.fixturePadTimers = { armorStand: 0, gunRack: 0, perkMachine: 0, vault: 0 };
-      state.fixtureUseTimers = { gunRack: 0, perkMachine: 0, vault: 0 };
+      state.fixturePadTimers = { armorStand: 0, gunRack: 0, vault: 0 };
+      state.fixtureUseTimers = { gunRack: 0, vault: 0 };
     }
 
     function updateFlowField(){
@@ -1166,7 +1146,7 @@
       const weaponSpread = weapon.spread || 0;
       const upgradeSpread = p.stakesLevel >= 3 ? 0.07 : 0;
       const spread = weaponSpread + upgradeSpread;
-      const weaponCount = weapon.id === 'shotgun' ? (Math.random() < 0.5 ? 3 : 4) : weapon.projectiles;
+      const weaponCount = weapon.id === 'shotgun' ? weapon.projectiles + Math.floor(p.shotgunProjectiles || 0) : weapon.projectiles;
       const count = Math.max(1, weaponCount + (p.stakesLevel >= 5 ? 1 : 0));
       const fireWeapon = (w, aimOffset = 0) => {
         for(let i=0;i<count;i++){
@@ -1181,9 +1161,10 @@
             vx:Math.cos(a)*(w.speed + p.stakesLevel * 0.4), vy:Math.sin(a)*(w.speed + p.stakesLevel * 0.4),
             dmg:crit ? dmgBase * (p.critMult || 1.6) : dmgBase,
             life:w.life,
-            pierce: w.pierce + Math.floor(p.stakesLevel/2),
+            pierce: w.pierce + Math.floor(p.stakesLevel/2) + Math.floor(p.extraPierce || 0),
             ricochet: p.stakesLevel >= 4 ? 1 : 0,
-            char: w.id === 'laser' ? '=' : (p.stakesLevel >= 4 ? '*' : '.')
+            char: w.id === 'laser' ? '=' : (p.stakesLevel >= 4 ? '*' : '.'),
+            size: w.id === 'machineGun' ? (1 + (p.machineGunBulletSize || 0)) : 1
           });
         }
       };
@@ -1337,7 +1318,7 @@
     }
 
     function clampInsideBounds(v, radius, max){
-      if(state.room === 'run') return clamp(v, radius, max - radius - 0.001);
+      if(state.room === 'run') return clamp(v, -0.75, max + 0.75);
       return clamp(v, 1 + radius, max - 1 - radius - 0.001);
     }
 
@@ -1405,12 +1386,12 @@
         }
 
         
-        if(e.type === 'fireDemon'){
+        if(e.ranged){
           e.cast = Math.max(0, (e.cast || 0) - dt);
-          if(e.cast <= 0 && dist(e,p) < 11){
-            e.cast = 2.8;
+          if(e.cast <= 0 && dist(e,p) < (e.range || 11)){
+            e.cast = e.castCooldown || 2.8;
             const n2 = normalize(p.x - e.x, p.y - e.y);
-            state.bullets.push({ x:e.x, y:e.y, vx:n2.x * 4.2, vy:n2.y * 4.2, dmg: 4 + e.touchDamage * 0.35, life: 2.2, pierce:0, ricochet:0, char:'🔥', enemyShot:true });
+            state.bullets.push({ x:e.x, y:e.y, vx:n2.x * (e.shotSpeed || 4.2), vy:n2.y * (e.shotSpeed || 4.2), dmg: 4 + e.touchDamage * 0.35, life: 2.2, pierce:0, ricochet:0, char:e.shotChar || '🔥', enemyShot:true });
           }
         }
         if(e.type === 'batWizard'){
@@ -1540,7 +1521,7 @@ const radius = 0.3 * (e.size || 1);
       for(let i=state.bullets.length-1;i>=0;i--){
         const b = state.bullets[i];
         b.x += b.vx*dt; b.y += b.vy*dt; b.life -= dt;
-        const hitWall = b.enemyShot ? false : damageWallAt(b.x, b.y, Math.max(1, b.dmg * 0.9));
+        const hitWall = b.enemyShot ? false : damageWallAt(b.x, b.y, Math.max(1, b.dmg * (0.9 + (state.player.wallDamageBoost || 0))));
         if(b.x<0||b.x>=GRID_W||b.y<0||b.y>=GRID_H||hitWall){
           if(b.ricochet>0){ b.ricochet--; b.vx*=-1; b.vy*=-1; }
           else { state.bullets.splice(i,1); continue; }
@@ -1549,7 +1530,8 @@ const radius = 0.3 * (e.size || 1);
         let used = false;
         for(const e of state.enemies){
           if(Math.hypot(e.x-b.x,e.y-b.y) < 0.55){
-            e.hp -= b.dmg; e.hitFlash=0.07; spawnParticles('spark', b.x, b.y, 3);
+            const bonus = e.type === 'juggernaut' ? (state.player.juggernautDamage || 0) : 0;
+            e.hp -= b.dmg * (1 + bonus); e.hitFlash=0.07; spawnParticles('spark', b.x, b.y, 3);
             if(state.player.lifeSteal){ state.player.hp = clamp(state.player.hp + b.dmg * state.player.lifeSteal, 0, state.player.maxHp); }
             if(b.pierce > 0){ b.pierce--; } else { used = true; break; }
           }
@@ -1645,34 +1627,21 @@ const radius = 0.3 * (e.size || 1);
       if(state.room !== 'safehouse') return;
       state.shopOpen = forceOpen ? true : !state.shopOpen;
       if(!state.shopOpen) return;
-      const available = state.configs.upgrades.filter(canTakeUpgrade);
       shopChoices.innerHTML = '';
-
-      if(!available.length){
-        shopChoices.innerHTML += '<div class="choice full-row">Everything is maxed out.</div>';
-      }
-      for(const up of available){
-        const cost = upgradeCost(up);
+      for(const fixture of SAFEHOUSE_FIXTURES){
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'choice';
-        btn.style.borderLeftColor = upgradeColor(up);
-        btn.style.color = upgradeColor(up);
-        btn.textContent = `${up.name} ($${cost})`;
-        btn.title = upgradeSummary(up);
-        btn.disabled = state.money < cost;
-        const pick = (event) => {
-          event.preventDefault();
-          if(state.money < cost) return;
-          state.money -= cost;
-          applyUpgrade(up);
-          openCrateShop(true);
-        };
-        btn.addEventListener('pointerdown', pick, { passive: false });
-        btn.addEventListener('click', pick);
+        const purchased = !!state.fixtures[fixture.id];
+        const status = purchased ? 'Owned' : `$${fixture.cost}`;
+        btn.textContent = `${fixture.name} (${status})`;
+        btn.title = fixture.desc;
+        btn.disabled = purchased && fixture.id !== 'gunRack' && fixture.id !== 'vault';
+        btn.addEventListener('click', ()=>triggerFixture(fixture));
         shopChoices.appendChild(btn);
       }
     }
+
 
     function triggerFixture(fixture){
       if(!state.fixtures[fixture.id]){
@@ -1688,13 +1657,6 @@ const radius = 0.3 * (e.size || 1);
         const next = WEAPON_DROPS[(idx + 1) % WEAPON_DROPS.length];
         state.selectedStartWeapon = next.id;
         savePersistentState();
-      }
-      if(fixture.id === 'perkMachine'){
-        const available = state.configs.upgrades.filter(canTakeUpgrade);
-        if(state.money >= 10 && available.length){
-          state.money -= 10;
-          applyUpgrade(available[Math.floor(Math.random() * available.length)]);
-        }
       }
       if(fixture.id === 'vault'){
         if(state.money > 0){
@@ -1738,10 +1700,9 @@ const radius = 0.3 * (e.size || 1);
           const touching = Math.hypot(p.x - fixture.x, p.y - fixture.y) < 1.2;
           if(!touching) continue;
           if(!state.fixtures[fixture.id]){
-            return { prompt: `Press SPACE to buy ${fixture.name} ($${fixture.cost})`, action: () => triggerFixture(fixture) };
+            return { prompt: `Press SPACE to buy ${fixture.name} ($${fixture.cost}) — ${fixture.desc}`, action: () => triggerFixture(fixture) };
           }
           if(fixture.id === 'gunRack') return { prompt: `Press SPACE to switch start weapon (${getWeaponDrop(state.selectedStartWeapon).name})`, action: () => triggerFixture(fixture) };
-          if(fixture.id === 'perkMachine') return { prompt: 'Press SPACE to roll perk ($10)', action: () => triggerFixture(fixture) };
           if(fixture.id === 'vault') return { prompt: 'Press SPACE to bank/withdraw money', action: () => triggerFixture(fixture) };
         }
       }
@@ -1758,7 +1719,7 @@ const radius = 0.3 * (e.size || 1);
       let prompt = interact ? interact.prompt : '';
       if(state.room === 'safehouse' && state.hoveredFixtureId){
         const fixture = SAFEHOUSE_FIXTURES.find(f => f.id === state.hoveredFixtureId);
-        if(fixture) prompt = `${fixture.name}: ${fixture.desc}`;
+        if(fixture) prompt = `${fixture.name} ($${fixture.cost}): ${fixture.desc}`;
       }
       state.interactPrompt = prompt;
     }
@@ -1821,6 +1782,12 @@ const radius = 0.3 * (e.size || 1);
       if(fx.laserDamage) p.laserDamage = (p.laserDamage || 0) + fx.laserDamage;
       if(fx.smgRate) p.smgRate = (p.smgRate || 0) + fx.smgRate;
       if(fx.sniperCrit) p.sniperCrit = (p.sniperCrit || 0) + fx.sniperCrit;
+      if(fx.batCount) p.batsLevel += fx.batCount;
+      if(fx.pierce) p.extraPierce = (p.extraPierce || 0) + fx.pierce;
+      if(fx.shotgunProjectiles) p.shotgunProjectiles = (p.shotgunProjectiles || 0) + fx.shotgunProjectiles;
+      if(fx.machineGunBulletSize) p.machineGunBulletSize = (p.machineGunBulletSize || 0) + fx.machineGunBulletSize;
+      if(fx.juggernautDamage) p.juggernautDamage = (p.juggernautDamage || 0) + fx.juggernautDamage;
+      if(fx.wallDamageBoost) p.wallDamageBoost = (p.wallDamageBoost || 0) + fx.wallDamageBoost;
       p.hp = clamp(p.hp,0,p.maxHp);
       p.shield = clamp(p.shield || 0,0,p.maxShield || 0);
     }
@@ -1874,95 +1841,11 @@ const radius = 0.3 * (e.size || 1);
         : `You died. Lost $${lostMoney}.`;
     }
 
-    function activateAbilitySlot(index){
-      const slot = state.abilitySlots[index];
-      if(!slot || slot.level <= 0 || slot.charges <= 0) return;
-      const now = performance.now();
-      if(now < slot.nextReadyAt) return;
-      const used = useAbility(slot);
-      if(!used) return;
-      slot.charges--;
-      slot.nextReadyAt = now + slot.cooldownMs;
+    function activateAbilitySlot(_index){
+      return;
     }
 
-    function useAbility(slot){
-      const p = state.player;
-      const moveVec = normalize(state.movement.vx || p.aimX, state.movement.vy || p.aimY);
-      if(slot.id === 'teleportStep'){
-        const range = 2.7 + slot.level * 0.9;
-        for(let step=1; step<=10; step++){
-          const tx = clamp(p.x + moveVec.x * range * (step / 10), 0, GRID_W - 0.001);
-          const ty = clamp(p.y + moveVec.y * range * (step / 10), 0, GRID_H - 0.001);
-          if(!circleBlocked(tx, ty, 0.28)){ p.x = tx; p.y = ty; }
-        }
-        spawnParticles('blast', p.x, p.y, 14 + slot.level * 2);
-        return true;
-      }
-      if(slot.id === 'sentinelClone'){
-        state.clones.push({ x: p.x, y: p.y, ttl: 6 + slot.level * 2, dps: 14 + slot.level * 6, range: 6 + slot.level, fireRate: 0, projectileSpeed: 11 + slot.level * 1.2 });
-        return true;
-      }
-      if(slot.id === 'graveWall'){
-        p.wallTrailUntil = state.timeSec + 5;
-        p.wallTrailPower = 6 + slot.level * 1.2;
-        return true;
-      }
-      if(slot.id === 'sprintBurst'){
-        state.effects.sprintUntil = Math.max(state.effects.sprintUntil, state.timeSec + 6 + slot.level * 0.5);
-        return true;
-      }
-      if(slot.id === 'novaBlast'){
-        const radius = 3.6 + slot.level * 0.65;
-        const dmg = 18 + slot.level * 11;
-        for(const e of state.enemies){ if(dist(p, e) < radius){ e.hp -= dmg; e.hitFlash = 0.2; } }
-        spawnParticles('blast', p.x, p.y, 26 + slot.level * 6);
-        return true;
-      }
-      if(slot.id === 'bladeWhirl'){
-        state.effects.spinUntil = Math.max(state.effects.spinUntil, state.timeSec + 4 + slot.level * 0.5);
-        return true;
-      }
-      if(slot.id === 'dashRampage'){
-        state.effects.rampageUntil = Math.max(state.effects.rampageUntil, state.timeSec + 2.3 + slot.level * 0.45);
-        return true;
-      }
-      if(slot.id === 'glueTrap'){
-        state.traps.push({ x: p.x + moveVec.x * 1.1, y: p.y + moveVec.y * 1.1, ttl: 4.4 + slot.level * 0.6, radius: 1.4 + slot.level * 0.2, slow: Math.max(0.2, 0.58 - slot.level * 0.05), dps: 4 + slot.level * 1.8 });
-        return true;
-      }
-      if(slot.id === 'downgradeHex'){
-        const radius = 4.2 + slot.level * 0.6;
-        for(const e of state.enemies){ if(dist(p, e) < radius) downgradeEnemy(e); }
-        return true;
-      }
-      if(slot.id === 'dualWield'){
-        state.effects.dualWieldUntil = Math.max(state.effects.dualWieldUntil, state.timeSec + 7 + slot.level * 0.6);
-        return true;
-      }
-      if(slot.id === 'voidLance'){
-        const aim = normalize(p.aimX, p.aimY);
-        for(let i=1;i<=3 + Math.floor(slot.level/2);i++){
-          state.activeLances.push({ x: p.x + aim.x * i * 1.4, y: p.y + aim.y * i * 1.4, ttl: 2 + slot.level * 0.3, dps: 12 + slot.level * 4 });
-        }
-        return true;
-      }
-      if(slot.id === 'meteorCall'){
-        const strikes = 3 + Math.floor(slot.level / 2);
-        for(let i=0;i<strikes;i++){
-          const e = state.enemies[Math.floor(Math.random() * state.enemies.length)];
-          if(!e) continue;
-          const mx = e.x + rand(-0.7, 0.7), my = e.y + rand(-0.7, 0.7);
-          for(const target of state.enemies){ if(Math.hypot(target.x - mx, target.y - my) < 1.4){ target.hp -= 20 + slot.level * 8; target.hitFlash = 0.3; } }
-          spawnParticles('blast', mx, my, 15);
-        }
-        return true;
-      }
-      if(slot.id === 'timeBubble'){
-        state.effects.timeBubbleUntil = Math.max(state.effects.timeBubbleUntil, state.timeSec + 4.5 + slot.level * 0.6);
-        return true;
-      }
-      return false;
-    }
+    function useAbility(_slot){ return false; }
 
 
     function upgradeSummary(up){
@@ -1978,8 +1861,19 @@ const radius = 0.3 * (e.size || 1);
     }
 
 
+    function roomDoor(){
+      const roomKey = `${state.world.roomX},${state.world.roomY}`;
+      if(!state.world.doors[roomKey]){
+        state.world.doors[roomKey] = { x: Math.floor(rand(2, GRID_W - 2)), y: Math.floor(rand(2, GRID_H - 2)) };
+      }
+      return state.world.doors[roomKey];
+    }
+
     function doorInfo(){
-      if(state.room === 'run') return { x: Math.floor(GRID_W / 2), y: GRID_H - 2, target: 'safehouse' };
+      if(state.room === 'run'){
+        const door = roomDoor();
+        return { x: door.x, y: door.y, target: 'safehouse' };
+      }
       return { x: Math.floor(GRID_W / 2), y: 1, target: 'run' };
     }
 
@@ -2022,14 +1916,14 @@ const radius = 0.3 * (e.size || 1);
     
     function tryRoomShift(){
       const p = state.player;
-      const margin = 0.38;
+      const margin = 0.55;
       let shifted = false;
       let shiftDx = 0;
       let shiftDy = 0;
-      if(p.x <= margin){ state.world.roomX--; p.x = GRID_W - 1.25; shifted = true; shiftDx = GRID_W; }
-      else if(p.x >= GRID_W - margin){ state.world.roomX++; p.x = 1.25; shifted = true; shiftDx = -GRID_W; }
-      if(p.y <= margin){ state.world.roomY--; p.y = GRID_H - 1.25; shifted = true; shiftDy = GRID_H; }
-      else if(p.y >= GRID_H - margin){ state.world.roomY++; p.y = 1.25; shifted = true; shiftDy = -GRID_H; }
+      if(p.x <= -margin){ state.world.roomX--; p.x = GRID_W - 1.25; shifted = true; shiftDx = GRID_W; }
+      else if(p.x >= GRID_W + margin){ state.world.roomX++; p.x = 1.25; shifted = true; shiftDx = -GRID_W; }
+      if(p.y <= -margin){ state.world.roomY--; p.y = GRID_H - 1.25; shifted = true; shiftDy = GRID_H; }
+      else if(p.y >= GRID_H + margin){ state.world.roomY++; p.y = 1.25; shifted = true; shiftDy = -GRID_H; }
       if(shifted){
         rebuildLevelGeometry();
         for(const e of state.enemies){
@@ -2237,6 +2131,9 @@ function inputLogic(dt){
       ctx.fillRect(dp.x - dw / 2, dp.y - dh / 2, dw, dh);
       ctx.fillStyle = '#5d2ea3';
       ctx.fillRect(dp.x - dw * 0.24, dp.y - dh * 0.28, dw * 0.48, dh * 0.56);
+      ctx.font = `${Math.max(12, Math.min(sx, sy) * 0.6)}px ui-monospace, monospace`;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('🚪', dp.x, dp.y);
 
       if(state.room === 'safehouse'){
         for(const fixture of SAFEHOUSE_FIXTURES){
@@ -2276,7 +2173,7 @@ function inputLogic(dt){
       if(selected){
         if(selected.level <= 0){
           abilitySlotBtn.className = 'hotkey-slot empty';
-          abilitySlotBtn.innerHTML = `${ABILITY_META[selected.id].name}<br>Locked<br>${ABILITY_META[selected.id].desc}`;
+          abilitySlotBtn.innerHTML = `${ABILITY_META[selected.id].name}<br>Offline<br>${ABILITY_META[selected.id].desc}`;
         } else {
           const ready = performance.now() >= selected.nextReadyAt;
           const remains = ready ? 'Ready' : `${((selected.nextReadyAt - performance.now()) / 1000).toFixed(1)}s`;
@@ -2290,15 +2187,14 @@ function inputLogic(dt){
       const bonusHp = Math.max(0, p.maxHp - BASE_PLAYER.maxHp);
       extraHpFill.style.width = `${(bonusHp / Math.max(1, p.maxHp)) * 100}%`;
       xpFill.style.width = `${(state.doorTouchSec / 2) * 100}%`;
-      const shapeTag = state.levelDef?.wallPattern === 'shape' && state.shapeName ? ` · ${state.shapeName}` : '';
-      ctx.restore();
-      const roomTag = state.room === 'run' ? `${state.levelDef?.name || ''}${shapeTag} · Room ${state.world.roomX},${state.world.roomY}` : `Safehouse · Target ${state.configs.levels[state.selectedLevelIndex]?.name || ''}`;
+      const speedTag = state.effects.sprintUntil > state.timeSec ? ' · Sprint' : '';
+      const roomTag = state.room === 'run' ? `${state.levelDef?.name || ''}` : `Safehouse · ${state.configs.levels[state.selectedLevelIndex]?.name || ''}`;
       const currentLevel = currentDifficultyLevel();
-      const levelTag = `Difficulty Lv ${currentLevel} (Start ${Math.max(1, state.selectedLevelIndex + 1)})`;
+      const levelTag = `Difficulty Lv ${currentLevel}`;
       stats.textContent = `💵${state.money} · Bank 💵${Math.floor(state.bankMoney)} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · ${levelTag} · KOs ${state.kills}`;
       const inSafehouse = state.room === 'safehouse';
       safehouseControls.style.display = inSafehouse ? 'flex' : 'none';
-      shopBtn.textContent = state.shopOpen ? 'Crate Shop ◀' : 'Crate Shop ▶';
+      shopBtn.textContent = state.shopOpen ? 'Safehouse Upgrades ◀' : 'Safehouse Upgrades ▶';
       playLayout.classList.toggle('shop-open', inSafehouse && state.shopOpen);
       shopPanel.style.display = inSafehouse && state.shopOpen ? 'block' : 'none';
       deathNote.textContent = state.interactPrompt || state.deathNote;
