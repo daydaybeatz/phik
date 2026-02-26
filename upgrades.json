@@ -22,8 +22,8 @@
   },
   {
     "id": "laserPierce",
-    "name": "Laser Piercing",
-    "description": "+1 laser piercing.",
+    "name": "Axe Piercing",
+    "description": "+1 axe piercing.",
     "theme": "weapon",
     "maxLevel": 6,
     "effectsPerLevel": {
@@ -42,8 +42,8 @@
   },
   {
     "id": "fireRate",
-    "name": "Faster Rifle",
-    "description": "Rifle and general fire rate is faster.",
+    "name": "Faster Wrench",
+    "description": "Wrench and general fire rate is faster.",
     "theme": "weapon",
     "maxLevel": 8,
     "effectsPerLevel": {
@@ -62,8 +62,8 @@
   },
   {
     "id": "machineGunSize",
-    "name": "Machine Gun Bullet Size",
-    "description": "Machine gun bullets are bigger.",
+    "name": "Blade Size",
+    "description": "Blade projectiles are bigger.",
     "theme": "weapon",
     "maxLevel": 6,
     "effectsPerLevel": {
