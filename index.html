@@ -53,17 +53,11 @@
       align-items: center;
       font-size: 15px;
     }
-    .door-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-top: 4px;
-    }
     .safehouse-controls {
       display: none;
       gap: 6px;
       align-items: center;
+      margin-top: 6px;
     }
     .safehouse-controls button { padding: 6px 8px; }
     .bar {
@@ -236,15 +230,11 @@
           <div id="extraHpFill" class="fill xp-fill" style="width:0%;opacity:0.6"></div>
         </div>
         <div id="deathNote" class="death-note"></div>
-        <div class="door-row">
-          <span>Door</span>
-          <div id="safehouseControls" class="safehouse-controls">
-            <button id="levelPrev" type="button">⬇ Level</button>
-            <button id="levelNext" type="button">⬆ Level</button>
-            <button id="shopBtn" type="button">Upgrades ▶</button>
-          </div>
+        <div id="safehouseControls" class="safehouse-controls">
+          <button id="levelPrev" type="button">⬇ Level</button>
+          <button id="levelNext" type="button">⬆ Level</button>
+          <button id="shopBtn" type="button">Upgrades ▶</button>
         </div>
-        <div class="bar"><div id="xpFill" class="fill xp-fill" style="width:0%"></div></div>
       </div>
       <div id="stats">$0 · 00:00 · KOs 0</div>
     </div>
@@ -286,7 +276,7 @@
     const CAMERA_ZOOM_RUN = 2.15;
     const CAMERA_ZOOM_SAFEHOUSE = 1.16;
     const BASE_PLAYER = {
-      hp: 30, maxHp: 30, moveSpeed: 5.4, damage: 1, pickupRadius: 2.4, cooldownMs: 520,
+      hp: 30, maxHp: 30, moveSpeed: 5.05, damage: 1, pickupRadius: 2.4, cooldownMs: 520,
       whipLevel: 0, garlicLevel: 0, stakesLevel: 1, batsLevel: 0
     };
 
@@ -350,7 +340,7 @@
       selectedAbilityIndex: 0,
       shopOpen: false,
       shopOffers: [],
-      fixtures: { armorStand: false, gunRack: false, vault: false },
+      fixtures: { armorStand: false, gunRack: false, vault: false, wardrobe: false },
       fixturePadTimers: { armorStand: 0, gunRack: 0, vault: 0 },
       fixtureUseTimers: { gunRack: 0, vault: 0 },
       bankMoney: 0,
@@ -368,8 +358,10 @@
       hoveredFixtureId: null
     };
 
+    const PLAYER_EMOJIS = ['🥸','😎','🤠','😈','🤖','🦸','🧙','🧛','🧟','👾','🐱','🐸','🐵','🦊','🐼','🐨','🐙','🦖','🦄','🐧'];
+
     const EMOJIS = {
-      player: '🥸', bullet: '🔸', gem: '💵', health: '🍗', chem: '🧪', clone: '🫥', trap: '🕸️',
+      player: PLAYER_EMOJIS[0], bullet: '🔸', gem: '💵', health: '🍗', chem: '🧪', clone: '🫥', trap: '🕸️',
       enemy: { bat: '🦇', zombie: '🧟‍♂️', ghost: '👻', juggernaut: '💀', demon: '👹', wizard: '🧙‍♂️', vampire: '🧛‍♂️', snake: '🐍', scorpion: '🦂', snowman: '⛄' }
     };
 
@@ -380,7 +372,6 @@
     const shieldFill = document.getElementById('shieldFill');
     const hpFill = document.getElementById('hpFill');
     const extraHpFill = document.getElementById('extraHpFill');
-    const xpFill = document.getElementById('xpFill');
     const stats = document.getElementById('stats');
     const deathNote = document.getElementById('deathNote');
     const overlay = document.getElementById('upgradeOverlay');
@@ -406,9 +397,9 @@
 
 
     const WEAPON_DROPS = [
-      { id: 'rifle', name: 'Wrench', glyph: '🔧', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false },
-      { id: 'machineGun', name: 'Blade', glyph: '🗡️', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false },
-      { id: 'laser', name: 'Axe', glyph: '🪓', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 1, spread: 0, projectiles: 1, ricochet: false },
+      { id: 'rifle', name: 'Wrench', glyph: '🔧', color: '#ffd166', cooldownMult: 1, damageMult: 1, speed: 11, life: 0.9, pierce: 0, spread: 0, projectiles: 1, ricochet: false, spin: true },
+      { id: 'machineGun', name: 'Blade', glyph: '🗡️', color: '#9ae7ff', cooldownMult: 0.5, damageMult: 0.65, speed: 12, life: 0.8, pierce: 0, spread: 0.04, projectiles: 1, ricochet: false, spin: true },
+      { id: 'laser', name: 'Axe', glyph: '🪓', color: '#ff7aff', cooldownMult: 2.1, damageMult: 3.8, speed: 14.5, life: 1.1, pierce: 1, spread: 0, projectiles: 1, ricochet: false, spin: true },
       { id: 'knife', name: 'Kitchen Knives', glyph: '🔪', color: '#ffb347', cooldownMult: 1.2, damageMult: 0.9, speed: 11.2, life: 0.7, pierce: 0, spread: 0.22, projectiles: 2, ricochet: false, spin: true },
       { id: 'axe', name: 'Throwing Axe', glyph: '🪓', color: '#ff9340', cooldownMult: 1.55, damageMult: 2.4, speed: 9.2, life: 0.62, pierce: 0, spread: 0.08, projectiles: 1, ricochet: false, spin: true, wallDamageMult: 2.8 },
       { id: 'dagger', name: 'Dagger', glyph: '🗡️', color: '#b8f2ff', cooldownMult: 1.05, damageMult: 1.1, speed: 12.8, life: 0.95, pierce: 3, spread: 0.1, projectiles: 1, ricochet: true, spin: true }
@@ -417,7 +408,8 @@
     const SAFEHOUSE_FIXTURES = [
       { id: 'armorStand', symbol: '🛡️', name: 'Armor Rack', desc: '+16 starting shield each run', cost: 100, x: 8.5, y: 8.5 },
       { id: 'gunRack', symbol: '🔫', name: 'Gun Rack', desc: 'Choose your starting weapon', cost: 100, x: GRID_W - 8.5, y: 8.5 },
-      { id: 'vault', symbol: '🏦', name: 'Bank', desc: 'Store money between runs', cost: 100, x: GRID_W / 2, y: 5.5 }
+      { id: 'vault', symbol: '🏦', name: 'Bank', desc: 'Store money between runs', cost: 100, x: GRID_W / 2, y: 5.5 },
+      { id: 'wardrobe', symbol: '🧥', name: 'Wardrobe', desc: 'Swap your player emoji (20 options)', cost: 100, x: GRID_W / 2, y: GRID_H - 5.5 }
     ];
 
     const AUTO_AIM_ENABLED = true;
@@ -494,7 +486,10 @@
         const save = JSON.parse(raw);
         state.fixtures.armorStand = !!save.fixtures?.armorStand;
         state.fixtures.gunRack = !!save.fixtures?.gunRack;
-                state.fixtures.vault = !!save.fixtures?.vault;
+        state.fixtures.vault = !!save.fixtures?.vault;
+        state.fixtures.wardrobe = !!save.fixtures?.wardrobe;
+        const emojiIndex = Number.isFinite(save.playerEmojiIndex) ? Math.floor(save.playerEmojiIndex) : 0;
+        EMOJIS.player = PLAYER_EMOJIS[clamp(emojiIndex, 0, PLAYER_EMOJIS.length - 1)];
         state.bankMoney = Math.max(0, save.bankMoney || 0);
         state.highestUnlockedLevel = Math.max(1, save.highestUnlockedLevel || 1);
         state.selectedLevelIndex = clamp((save.selectedLevelIndex || 0), 0, state.highestUnlockedLevel - 1);
@@ -503,7 +498,14 @@
     }
 
     function savePersistentState(){
-      const payload = { fixtures: state.fixtures, selectedStartWeapon: state.selectedStartWeapon, bankMoney: state.bankMoney, highestUnlockedLevel: state.highestUnlockedLevel, selectedLevelIndex: state.selectedLevelIndex };
+      const payload = {
+        fixtures: state.fixtures,
+        selectedStartWeapon: state.selectedStartWeapon,
+        bankMoney: state.bankMoney,
+        highestUnlockedLevel: state.highestUnlockedLevel,
+        selectedLevelIndex: state.selectedLevelIndex,
+        playerEmojiIndex: PLAYER_EMOJIS.indexOf(EMOJIS.player)
+      };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     }
 
@@ -994,8 +996,9 @@
       const combatTime = effectiveCombatTime();
       const levelMul = 1 + (level - 1) * 0.32;
       const timeMul = 1 + Math.min(1.5, combatTime / 85);
+      const earlyHpEase = 0.88 + Math.min(0.12, combatTime / 500);
       return {
-        hp: levelMul * (1 + Math.min(1.3, combatTime / 120)),
+        hp: levelMul * earlyHpEase * (1 + Math.min(1.3, combatTime / 120)),
         speed: 1 + (level - 1) * 0.08 + Math.min(0.42, combatTime / 260),
         damage: 1 + (level - 1) * 0.12 + Math.min(0.55, combatTime / 170),
         spawn: Math.max(0.2, 1 / (levelMul * timeMul))
@@ -1745,6 +1748,12 @@ const radius = 0.3 * (e.size || 1);
         }
         savePersistentState();
       }
+      if(fixture.id === 'wardrobe'){
+        const idx = PLAYER_EMOJIS.indexOf(EMOJIS.player);
+        const nextIndex = (idx + 1 + PLAYER_EMOJIS.length) % PLAYER_EMOJIS.length;
+        EMOJIS.player = PLAYER_EMOJIS[nextIndex];
+        savePersistentState();
+      }
     }
 
     function currentInteractable(){
@@ -1782,6 +1791,7 @@ const radius = 0.3 * (e.size || 1);
           }
           if(fixture.id === 'gunRack') return { prompt: `Press SPACE to switch start weapon (${getWeaponDrop(state.selectedStartWeapon).name})`, action: () => triggerFixture(fixture) };
           if(fixture.id === 'vault') return { prompt: 'Press SPACE to bank/withdraw money', action: () => triggerFixture(fixture) };
+          if(fixture.id === 'wardrobe') return { prompt: `Press SPACE to change emoji (${EMOJIS.player})`, action: () => triggerFixture(fixture) };
         }
       }
       return null;
@@ -2273,9 +2283,7 @@ function inputLogic(dt){
       hpFill.style.width = `${(p.hp / Math.max(1, p.maxHp)) * 100}%`;
       const bonusHp = Math.max(0, p.maxHp - BASE_PLAYER.maxHp);
       extraHpFill.style.width = `${(bonusHp / Math.max(1, p.maxHp)) * 100}%`;
-      xpFill.style.width = `${(state.doorTouchSec / 2) * 100}%`;
-      const speedTag = state.effects.sprintUntil > state.timeSec ? ' · Sprint' : '';
-      const roomTag = state.room === 'run' ? `${state.levelDef?.name || ''}` : `Safehouse · ${state.configs.levels[state.selectedLevelIndex]?.name || ''}`;
+      const roomTag = state.room === 'run' ? 'Run' : 'Safehouse';
       const currentLevel = currentDifficultyLevel();
       const levelTag = `Difficulty Lv ${currentLevel}`;
       stats.textContent = `💵${state.money} · Bank 💵${Math.floor(state.bankMoney)} · ${fmtTime(state.timeSec)} · ${roomTag} · ${getWeaponDrop(state.activeWeapon).name} · ${levelTag} · KOs ${state.kills}`;
