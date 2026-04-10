@@ -1,4 +1,4 @@
-# Two-Joystick ASCII Survivors (Standalone HTML)
+
 
 ```html
 <!doctype html>
