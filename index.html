@@ -330,38 +330,25 @@ body,html{
   flex-direction:column;
   gap:8px;
 }
-.file-menu{
-  position:relative;
-}
 .file-menu-panel{
-  position:absolute;
-  left:8px;
-  top:calc(var(--filebar-h) - 4px);
-  z-index:1000;
-  width:min(92vw,360px);
-  max-height:70dvh;
-  overflow:auto;
-  padding:10px;
-  border:1px solid var(--line);
-  border-radius:14px;
-  background:rgba(18,24,38,.98);
-  box-shadow:0 12px 28px rgba(0,0,0,.45);
-  display:none;
-}
-.file-menu-panel.open{
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   gap:10px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  max-width:100%;
+  white-space:nowrap;
 }
 .file-group{
   display:flex;
   flex-direction:column;
   gap:8px;
-  padding-bottom:8px;
-  border-bottom:1px solid rgba(120,160,255,.15);
+  min-width:max-content;
+  padding-right:10px;
+  border-right:1px solid rgba(120,160,255,.15);
 }
 .file-group:last-child{
-  border-bottom:none;
+  border-right:none;
 }
 .file-inline{
   display:flex;
@@ -408,9 +395,7 @@ body,html{
 <div class="app">
   
 <div class="topbar">
-  <div class="file-menu">
-    <button id="fileMenuBtn" class="file-menu-btn" type="button" aria-expanded="false" aria-controls="fileMenuPanel">File</button>
-    <div id="fileMenuPanel" class="file-menu-panel" aria-hidden="true">
+    <div id="fileMenuPanel" class="file-menu-panel" aria-hidden="false">
       <div class="file-group">
         <strong>Project</strong>
         <div class="file-inline">
@@ -458,7 +443,6 @@ body,html{
       </div>
 
     </div>
-  </div>
 
   <div class="canvas-status" id="canvasStatus">Canvas</div>
 
@@ -563,6 +547,12 @@ body,html{
   
 <div class="right-toolbar" id="rightToolbar">
   <div class="rtool-stack">
+    <button class="rtool-btn" id="toolbarPrevPage" type="button">Prev</button>
+    <button class="rtool-btn" id="toolbarNextPage" type="button">Next</button>
+    <button class="rtool-btn" id="toolbarAddPage" type="button">Add</button>
+    <button class="rtool-btn" id="toolbarDeletePage" type="button">Delete</button>
+    <button class="rtool-btn" id="toolbarUndo" type="button">Undo</button>
+    <button class="rtool-btn" id="toolbarRedo" type="button">Redo</button>
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
     <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
     <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
@@ -1340,12 +1330,16 @@ render();
     const mapButtons = [
       ['mobileUndo',['undoBtn']],
       ['mobileRedo',['redoBtn']],
+      ['toolbarUndo',['undoBtn']],
+      ['toolbarRedo',['redoBtn']],
       ['mobileSaveProject',['saveProjectBtn']],
       ['mobileLoadProject',['loadProjectBtn']],
       ['mobileExportViewer',['exportViewerBtn']],
       ['mobileExportPNG',['exportImageBtn']],
       ['mobileAddPage',['addPageBtn']],
-      ['mobileDeletePage',['deletePageBtn']]
+      ['mobileDeletePage',['deletePageBtn']],
+      ['toolbarAddPage',['addPageBtn']],
+      ['toolbarDeletePage',['deletePageBtn']]
     ];
     mapButtons.forEach(([compactId, targets])=>{
       const compact = document.getElementById(compactId);
@@ -1353,6 +1347,8 @@ render();
     });
     const prevPageBtn = document.getElementById('mobilePrevPage');
     const nextPageBtn = document.getElementById('mobileNextPage');
+    const toolbarPrevPageBtn = document.getElementById('toolbarPrevPage');
+    const toolbarNextPageBtn = document.getElementById('toolbarNextPage');
     if(prevPageBtn){
       prevPageBtn.onclick = ()=>{
         state.project.currentPage = (state.project.currentPage - 1 + state.project.pages.length) % state.project.pages.length;
@@ -1366,6 +1362,12 @@ render();
         state.selectedId = null;
         render();
       };
+    }
+    if(toolbarPrevPageBtn){
+      toolbarPrevPageBtn.onclick = ()=> prevPageBtn ? prevPageBtn.click() : null;
+    }
+    if(toolbarNextPageBtn){
+      toolbarNextPageBtn.onclick = ()=> nextPageBtn ? nextPageBtn.click() : null;
     }
 
     const toolMap = [
