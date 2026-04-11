@@ -273,7 +273,8 @@ body,html{
   align-items:center;
   gap:8px;
   padding:8px 10px;
-  overflow:auto;
+  overflow-x:auto;
+  overflow-y:hidden;
   white-space:nowrap;
 }
 .sidebar{
@@ -308,7 +309,8 @@ body,html{
   padding:8px 6px;
   border-left:1px solid var(--line);
   background:rgba(10,16,30,.92);
-  overflow:auto;
+  overflow-y:auto;
+  overflow-x:hidden;
 }
 .rtool-btn,.rtool-chip,.file-menu-btn,.file-menu-panel button,.file-menu-panel label{
   appearance:none;
@@ -384,6 +386,10 @@ body,html{
   margin-right:0 !important;
   padding-right:0 !important;
 }
+.topbar > .group,
+.topbar > .desktop-only-legacy{
+  display:none !important;
+}
 .desktop-only-legacy{
   display:none !important;
 }
@@ -451,19 +457,7 @@ body,html{
         </div>
       </div>
 
-      <div class="file-group">
-        <strong>Canvas View</strong>
-        <div class="file-inline">
-          <button id="mobileHideRibbon" type="button">Canvas Focus</button>
-          <button id="mobileShowRibbon" type="button">Show Ribbon</button>
-        </div>
-      </div>
     </div>
-  </div>
-
-  <div class="group">
-    <button id="canvasFocusBtn" type="button">Canvas Focus</button>
-    <button id="showRibbonBtn" type="button">Show Ribbon</button>
   </div>
 
   <div class="canvas-status" id="canvasStatus">Canvas</div>
@@ -567,6 +561,8 @@ body,html{
   
 <div class="right-toolbar" id="rightToolbar">
   <div class="rtool-stack">
+    <button class="rtool-btn" id="canvasFocusCompact" type="button">Canvas Focus</button>
+    <button class="rtool-btn" id="showRibbonCompact" type="button">Show Ribbon</button>
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
@@ -688,6 +684,17 @@ body,html{
       const b = document.createElement('button');
       b.textContent = label;
       b.dataset.tool = id;
+      const compactIdMap = {
+        select: 'toolSelect',
+        pen: 'toolPen',
+        text: 'toolText',
+        bubble: 'toolBubble',
+        rect: 'toolRect',
+        rectfill: 'toolRectFill',
+        circle: 'toolCirc',
+        circlefill: 'toolCircFill'
+      };
+      b.id = compactIdMap[id] || `tool-${id}`;
       if(id===state.tool) b.classList.add('active');
       b.onclick = () => {
         state.tool = id;
@@ -1384,14 +1391,14 @@ render();
 
   function phikSyncCompactToolState(){
     const activeIds = {
-      toolSelectCompact:['selectTool','toolSelect'],
-      toolPenCompact:['penTool','toolPen'],
-      toolTextCompact:['textTool','toolText'],
-      toolBubbleCompact:['bubbleTool','toolBubble'],
-      toolRectCompact:['rectTool','toolRect'],
-      toolRectFillCompact:['rectFillTool','toolRectFill'],
-      toolCircCompact:['circTool','toolCirc'],
-      toolCircFillCompact:['circFillTool','toolCircFill']
+      toolSelectCompact:['toolSelect'],
+      toolPenCompact:['toolPen'],
+      toolTextCompact:['toolText'],
+      toolBubbleCompact:['toolBubble'],
+      toolRectCompact:['toolRect'],
+      toolRectFillCompact:['toolRectFill'],
+      toolCircCompact:['toolCirc'],
+      toolCircFillCompact:['toolCircFill']
     };
     for(const [compactId, targets] of Object.entries(activeIds)){
       const btn = document.getElementById(compactId);
@@ -1446,31 +1453,45 @@ render();
     }
 
     const mapButtons = [
-      ['mobileUndo',['undoBtn','undo']],
-      ['mobileRedo',['redoBtn','redo']],
-      ['mobileSaveProject',['saveProjectBtn','saveProject']],
-      ['mobileLoadProject',['loadProjectBtn','loadProject']],
-      ['mobileExportViewer',['exportViewerBtn','exportViewerHtmlBtn','exportViewer']],
-      ['mobileExportPNG',['exportPngBtn','exportCurrentPagePngBtn','exportPNG']],
-      ['mobilePrevPage',['prevPageBtn','pagePrevBtn']],
-      ['mobileNextPage',['nextPageBtn','pageNextBtn']],
-      ['mobileAddPage',['addPageBtn','newPageBtn']],
-      ['mobileDeletePage',['deletePageBtn','removePageBtn']]
+      ['mobileUndo',['undoBtn']],
+      ['mobileRedo',['redoBtn']],
+      ['mobileSaveProject',['saveProjectBtn']],
+      ['mobileLoadProject',['loadProjectBtn']],
+      ['mobileExportViewer',['exportViewerBtn']],
+      ['mobileExportPNG',['exportImageBtn']],
+      ['mobileAddPage',['addPageBtn']],
+      ['mobileDeletePage',['deletePageBtn']]
     ];
     mapButtons.forEach(([compactId, targets])=>{
       const compact = document.getElementById(compactId);
       if(compact) compact.onclick = ()=>phikClick(targets);
     });
+    const prevPageBtn = document.getElementById('mobilePrevPage');
+    const nextPageBtn = document.getElementById('mobileNextPage');
+    if(prevPageBtn){
+      prevPageBtn.onclick = ()=>{
+        state.project.currentPage = (state.project.currentPage - 1 + state.project.pages.length) % state.project.pages.length;
+        state.selectedId = null;
+        render();
+      };
+    }
+    if(nextPageBtn){
+      nextPageBtn.onclick = ()=>{
+        state.project.currentPage = (state.project.currentPage + 1) % state.project.pages.length;
+        state.selectedId = null;
+        render();
+      };
+    }
 
     const toolMap = [
-      ['toolSelectCompact',['selectTool','toolSelect']],
-      ['toolPenCompact',['penTool','toolPen']],
-      ['toolTextCompact',['textTool','toolText']],
-      ['toolBubbleCompact',['bubbleTool','toolBubble']],
-      ['toolRectCompact',['rectTool','toolRect']],
-      ['toolRectFillCompact',['rectFillTool','toolRectFill']],
-      ['toolCircCompact',['circTool','toolCirc']],
-      ['toolCircFillCompact',['circFillTool','toolCircFill']]
+      ['toolSelectCompact',['toolSelect']],
+      ['toolPenCompact',['toolPen']],
+      ['toolTextCompact',['toolText']],
+      ['toolBubbleCompact',['toolBubble']],
+      ['toolRectCompact',['toolRect']],
+      ['toolRectFillCompact',['toolRectFill']],
+      ['toolCircCompact',['toolCirc']],
+      ['toolCircFillCompact',['toolCircFill']]
     ];
     toolMap.forEach(([compactId, targets])=>{
       const compact = document.getElementById(compactId);
@@ -1495,7 +1516,7 @@ render();
 
     bindMirror('strokeColorCompact',['strokeColor','stroke']);
     bindMirror('fillColorCompact',['fillColor','fill']);
-    bindMirror('brushSizeCompact',['sizeSlider','brushSize','penSize']);
+    bindMirror('brushSizeCompact',['toolSize']);
     bindMirror('fontSizeCompact',['fontSize','fontSizeInput']);
     bindMirror('mobileProjectTitle',['projectTitle']);
     bindMirror('mobileProjectWidth',['projectWidth','canvasWidth']);
@@ -1504,7 +1525,7 @@ render();
     bindMirror('bgColorCompact',['pageBackgroundColor','pageBgColor','backgroundColor']);
 
     const applyProject = document.getElementById('mobileApplyProjectSize');
-    if(applyProject) applyProject.onclick = ()=>phikClick(['applyProjectSizeBtn','applyProjectBtn','applyCanvasSize']);
+    if(applyProject) applyProject.onclick = ()=>phikClick(['applyResolutionBtn']);
 
     const applyBg = document.getElementById('mobileApplyPageBg');
     if(applyBg) applyBg.onclick = ()=>{
@@ -1514,15 +1535,11 @@ render();
       }
     };
 
-    const canvasFocusBtn = document.getElementById('canvasFocusBtn');
-    const showRibbonBtn = document.getElementById('showRibbonBtn');
-    const mobileHideRibbon = document.getElementById('mobileHideRibbon');
-    const mobileShowRibbon = document.getElementById('mobileShowRibbon');
+    const canvasFocusBtn = document.getElementById('canvasFocusCompact');
+    const showRibbonBtn = document.getElementById('showRibbonCompact');
 
     if(canvasFocusBtn) canvasFocusBtn.onclick = ()=>phikSetCanvasFocusMode(true);
     if(showRibbonBtn) showRibbonBtn.onclick = ()=>phikSetCanvasFocusMode(false);
-    if(mobileHideRibbon) mobileHideRibbon.onclick = ()=>phikSetCanvasFocusMode(true);
-    if(mobileShowRibbon) mobileShowRibbon.onclick = ()=>phikSetCanvasFocusMode(false);
 
     const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.1).toFixed(2)); phikApplyZoom(); };
     const zoomOut = ()=>{ phikZoom = Math.max(0.2, +(phikZoom - 0.1).toFixed(2)); phikApplyZoom(); };
