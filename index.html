@@ -409,7 +409,7 @@ body,html{
   
 <div class="topbar">
   <div class="file-menu">
-    <button id="fileMenuBtn" class="file-menu-btn" type="button">File</button>
+    <button id="fileMenuBtn" class="file-menu-btn" type="button" aria-expanded="false" aria-controls="fileMenuPanel">File</button>
     <div id="fileMenuPanel" class="file-menu-panel" aria-hidden="true">
       <div class="file-group">
         <strong>Project</strong>
@@ -501,8 +501,8 @@ body,html{
         <label>Title <input id="projectTitle" type="text" value="PHIK Project"></label>
       </div>
       <div class="row">
-        <label>Width <input id="projectWidth" type="number" min="64" max="4096" value="900" style="width:90px"></label>
-        <label>Height <input id="projectHeight" type="number" min="64" max="4096" value="1200" style="width:90px"></label>
+        <label>Width <input id="projectWidth" type="number" min="64" max="4096" value="1200" style="width:90px"></label>
+        <label>Height <input id="projectHeight" type="number" min="64" max="4096" value="900" style="width:90px"></label>
         <button id="applyResolutionBtn">Apply</button>
       </div>
       <div class="hint">Resize changes every page in the project. Imported images, text, drawings, and shapes stay in place at their stored coordinates.</div>
@@ -649,8 +649,8 @@ body,html{
     selectedId: null,
     project: {
       title: 'PHIK Project',
-      width: 900,
-      height: 1200,
+      width: 1200,
+      height: 900,
       pages: [makePage(1)],
       currentPage: 0
     },
@@ -1086,8 +1086,8 @@ body,html{
   els.redoBtn.onclick = redo;
   els.applyResolutionBtn.onclick = () => {
     pushHistory();
-    state.project.width = Math.max(64, +els.projectWidth.value || 900);
-    state.project.height = Math.max(64, +els.projectHeight.value || 1200);
+    state.project.width = Math.max(64, +els.projectWidth.value || 1200);
+    state.project.height = Math.max(64, +els.projectHeight.value || 900);
     state.project.title = els.projectTitle.value || 'PHIK Project';
     render();
   };
@@ -1421,7 +1421,8 @@ render();
 
 
   // ===== PHIK mobile UI bridge =====
-  let phikZoom = 1;
+  const DEFAULT_ZOOM = 0.8;
+  let phikZoom = DEFAULT_ZOOM;
 
   function phikFind(ids){
     for(const id of ids){
@@ -1491,8 +1492,9 @@ render();
         const open = !filePanel.classList.contains('open');
         filePanel.classList.toggle('open', open);
         filePanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+        fileBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
       };
-      fileBtn.addEventListener('pointerdown', toggleMenu);
+      fileBtn.addEventListener('click', toggleMenu);
       fileBtn.addEventListener('keydown', (evt)=>{
         if(evt.key === 'Enter' || evt.key === ' '){
           toggleMenu(evt);
@@ -1502,12 +1504,14 @@ render();
         if(!filePanel.contains(e.target) && !fileBtn.contains(e.target)){
           filePanel.classList.remove('open');
           filePanel.setAttribute('aria-hidden','true');
+          fileBtn.setAttribute('aria-expanded','false');
         }
       });
       document.addEventListener('keydown', (e)=>{
         if(e.key === 'Escape'){
           filePanel.classList.remove('open');
           filePanel.setAttribute('aria-hidden','true');
+          fileBtn.setAttribute('aria-expanded','false');
         }
       });
     }
