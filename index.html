@@ -273,9 +273,9 @@ body,html{
   align-items:center;
   gap:8px;
   padding:8px 10px;
-  overflow-x:auto;
+  overflow-x:hidden;
   overflow-y:visible;
-  white-space:nowrap;
+  white-space:normal;
 }
 .sidebar{
   display:none !important;
@@ -334,16 +334,18 @@ body,html{
   display:flex;
   flex-direction:row;
   gap:10px;
-  overflow-x:auto;
-  overflow-y:hidden;
+  overflow:visible;
   max-width:100%;
-  white-space:nowrap;
+  white-space:normal;
+  flex-wrap:nowrap;
+  align-items:center;
 }
 .file-group{
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
+  align-items:center;
   gap:8px;
-  min-width:max-content;
+  min-width:0;
   padding-right:10px;
   border-right:1px solid rgba(120,160,255,.15);
 }
@@ -353,7 +355,7 @@ body,html{
 .file-inline{
   display:flex;
   gap:8px;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
   align-items:center;
 }
 .file-inline input,.file-inline select{
@@ -414,12 +416,6 @@ body,html{
       <div class="file-group">
         <strong>Pages</strong>
         <div class="file-inline">
-          <button id="mobilePrevPage" type="button">Prev</button>
-          <button id="mobileNextPage" type="button">Next</button>
-          <button id="mobileAddPage" type="button">Add</button>
-          <button id="mobileDeletePage" type="button">Delete</button>
-        </div>
-        <div class="file-inline">
           <label>BG</label>
           <input id="mobilePageBg" type="color" value="#ffffff">
           <button id="mobileApplyPageBg" type="button">Apply BG</button>
@@ -428,10 +424,6 @@ body,html{
 
       <div class="file-group">
         <strong>File</strong>
-        <div class="file-inline">
-          <button id="mobileUndo" type="button">Undo</button>
-          <button id="mobileRedo" type="button">Redo</button>
-        </div>
         <div class="file-inline">
           <button id="mobileSaveProject" type="button">Save Project</button>
           <button id="mobileLoadProject" type="button">Load Project</button>
@@ -1328,16 +1320,12 @@ render();
     }
 
     const mapButtons = [
-      ['mobileUndo',['undoBtn']],
-      ['mobileRedo',['redoBtn']],
       ['toolbarUndo',['undoBtn']],
       ['toolbarRedo',['redoBtn']],
       ['mobileSaveProject',['saveProjectBtn']],
       ['mobileLoadProject',['loadProjectBtn']],
       ['mobileExportViewer',['exportViewerBtn']],
       ['mobileExportPNG',['exportImageBtn']],
-      ['mobileAddPage',['addPageBtn']],
-      ['mobileDeletePage',['deletePageBtn']],
       ['toolbarAddPage',['addPageBtn']],
       ['toolbarDeletePage',['deletePageBtn']]
     ];
@@ -1345,10 +1333,8 @@ render();
       const compact = document.getElementById(compactId);
       if(compact) compact.onclick = ()=>phikClick(targets);
     });
-    const prevPageBtn = document.getElementById('mobilePrevPage');
-    const nextPageBtn = document.getElementById('mobileNextPage');
-    const toolbarPrevPageBtn = document.getElementById('toolbarPrevPage');
-    const toolbarNextPageBtn = document.getElementById('toolbarNextPage');
+    const prevPageBtn = document.getElementById('toolbarPrevPage');
+    const nextPageBtn = document.getElementById('toolbarNextPage');
     if(prevPageBtn){
       prevPageBtn.onclick = ()=>{
         state.project.currentPage = (state.project.currentPage - 1 + state.project.pages.length) % state.project.pages.length;
@@ -1362,12 +1348,6 @@ render();
         state.selectedId = null;
         render();
       };
-    }
-    if(toolbarPrevPageBtn){
-      toolbarPrevPageBtn.onclick = ()=> prevPageBtn ? prevPageBtn.click() : null;
-    }
-    if(toolbarNextPageBtn){
-      toolbarNextPageBtn.onclick = ()=> nextPageBtn ? nextPageBtn.click() : null;
     }
 
     const toolMap = [
