@@ -1,0 +1,1594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHIK</title>
+<style>
+  :root{
+    --bg:#101216;
+    --panel:#1b1f27;
+    --panel2:#232936;
+    --ink:#f3f5f8;
+    --muted:#9aa4b2;
+    --accent:#70d6ff;
+    --accent2:#ffb86c;
+    --danger:#ff6b6b;
+    --line:#374151;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  button,input,select,label{font:inherit}
+  .app{display:grid;grid-template-columns:320px 1fr;grid-template-rows:auto 1fr;height:100%}
+  .topbar{grid-column:1/3;display:flex;flex-wrap:wrap;gap:8px;padding:10px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .topbar .group{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-right:10px;margin-right:4px;border-right:1px solid var(--line)}
+  .topbar .group:last-child{border-right:none}
+  .sidebar{overflow:auto;padding:12px;border-right:1px solid var(--line);background:var(--panel)}
+  .canvas-wrap{position:relative;overflow:auto;background:#0b0d11}
+  .canvas-stage{min-width:100%;min-height:100%;display:grid;place-items:center;padding:24px}
+  .canvas-shell{position:relative;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  canvas{display:block;background:#fff;image-rendering:auto;touch-action:none}
+  .overlay{position:absolute;left:0;top:0;pointer-events:none}
+  .section{margin-bottom:14px;padding:10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px}
+  .section h3{margin:0 0 10px;font-size:14px;color:var(--accent)}
+  .row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+  .row > *{min-width:0}
+  .row label{font-size:12px;color:var(--muted)}
+  button{background:#2b3242;color:var(--ink);border:1px solid #434d61;border-radius:8px;padding:7px 10px;cursor:pointer}
+  button.active{outline:2px solid var(--accent)}
+  button.danger{background:#4c2525;border-color:#7c3232}
+  button:hover{filter:brightness(1.08)}
+  input[type="number"],input[type="text"],select,textarea{background:#11161f;color:var(--ink);border:1px solid #485366;border-radius:8px;padding:7px 8px}
+  input[type="color"]{width:40px;height:34px;padding:2px;border-radius:8px;border:1px solid #485366;background:#11161f}
+  input[type="range"]{width:140px}
+  textarea{width:100%;min-height:70px;resize:vertical}
+  .pages{display:flex;flex-direction:column;gap:8px}
+  .page-item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:8px;background:#151a22}
+  .page-item.active{outline:2px solid var(--accent)}
+  .hint{font-size:12px;color:var(--muted);line-height:1.35}
+  .small{font-size:12px;color:var(--muted)}
+  .footer-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+  .app.toolbar-hidden{grid-template-rows:0 1fr}
+  .app.toolbar-hidden .topbar{display:none}
+  .app.sidebar-hidden{grid-template-columns:0 1fr}
+  .app.sidebar-hidden .sidebar{display:none}
+  .app.canvas-fullscreen{grid-template-columns:1fr;grid-template-rows:1fr}
+  .app.canvas-fullscreen .topbar,
+  .app.canvas-fullscreen .sidebar{display:none}
+  .app.canvas-fullscreen .canvas-stage{padding:0}
+  .app.canvas-fullscreen .canvas-wrap{overflow:auto}
+  .app.canvas-fullscreen .canvas-shell{box-shadow:none}
+  .panel-controls{
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    padding-right:10px;margin-right:4px;border-right:1px solid var(--line)
+  }
+  .floating-restore{
+    position:fixed;left:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap;
+    z-index:60;max-width:min(92vw,420px)
+  }
+  .floating-restore button[hidden]{display:none}
+
+
+/* mobile quick actions */
+#mobileQuickActions{
+  position:fixed;
+  right:12px;
+  bottom:12px;
+  display:flex;
+  gap:8px;
+  z-index:60;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  max-width:min(92vw,420px);
+}
+.quickBtn{
+  appearance:none;
+  border:1px solid rgba(120,160,255,.45);
+  background:rgba(40,48,72,.92);
+  color:#eef3ff;
+  border-radius:12px;
+  padding:10px 12px;
+  font:600 14px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+}
+.quickBtn:active{ transform:translateY(1px); }
+@media (min-width: 901px){
+  #mobileQuickActions{ display:none; }
+}
+
+
+/* responsive/mobile layout */
+html,body{
+  width:100%;
+  overflow:hidden;
+}
+.app{
+  width:100vw;
+  height:100dvh;
+  max-width:100vw;
+  max-height:100dvh;
+}
+.topbar{
+  max-width:100%;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.sidebar{
+  min-width:0;
+}
+.canvas-wrap{
+  min-width:0;
+  min-height:0;
+  width:100%;
+  height:100%;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.canvas-stage{
+  width:100%;
+  min-width:0;
+  min-height:100%;
+  padding:16px;
+}
+.canvas-shell{
+  max-width:none;
+}
+@media (max-width: 900px){
+  .app{
+    grid-template-columns:1fr;
+    grid-template-rows:auto auto 1fr;
+  }
+  .topbar{
+    grid-column:1;
+    grid-row:1;
+    padding:8px;
+    gap:6px;
+  }
+  .topbar .group,
+  .panel-controls{
+    border-right:none !important;
+    margin-right:0 !important;
+    padding-right:0 !important;
+    width:100%;
+  }
+  .sidebar{
+    grid-column:1;
+    grid-row:2;
+    border-right:none;
+    border-bottom:1px solid var(--line);
+    max-height:38dvh;
+    padding:10px;
+  }
+  .canvas-wrap{
+    grid-column:1;
+    grid-row:3;
+  }
+  .section{
+    padding:8px;
+    margin-bottom:10px;
+  }
+  .row{
+    gap:6px;
+  }
+  .row label{
+    width:auto;
+  }
+  input[type="range"]{
+    width:120px;
+    max-width:42vw;
+  }
+  input[type="number"],input[type="text"],select,textarea{
+    max-width:100%;
+  }
+  textarea{
+    min-height:84px;
+  }
+  .canvas-stage{
+    align-items:start;
+    justify-items:start;
+    padding:10px;
+  }
+  .canvas-shell{
+    margin:0 auto;
+  }
+  #mobileQuickActions{
+    display:flex;
+  }
+  .floating-restore{
+    left:10px;
+    bottom:68px;
+  }
+}
+@media (max-width: 900px){
+  .app.toolbar-hidden{
+    grid-template-rows:0 auto 1fr;
+  }
+  .app.toolbar-hidden .topbar{
+    display:none;
+  }
+  .app.sidebar-hidden{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr;
+  }
+  .app.sidebar-hidden .sidebar{
+    display:none;
+  }
+  .app.sidebar-hidden .canvas-wrap{
+    grid-row:2;
+  }
+  .app.toolbar-hidden.sidebar-hidden{
+    grid-template-rows:1fr;
+  }
+  .app.toolbar-hidden.sidebar-hidden .canvas-wrap{
+    grid-row:1;
+  }
+  .app.canvas-fullscreen{
+    grid-template-columns:1fr !important;
+    grid-template-rows:1fr !important;
+  }
+  .app.canvas-fullscreen .topbar,
+  .app.canvas-fullscreen .sidebar{
+    display:none !important;
+  }
+  .app.canvas-fullscreen .canvas-wrap{
+    grid-column:1;
+    grid-row:1;
+  }
+  .app.canvas-fullscreen .canvas-stage{
+    padding:0;
+    min-height:100%;
+    place-items:start center;
+  }
+}
+/* keep quick actions available on all sizes if user wants */
+#mobileQuickActions{
+  position:fixed;
+  right:12px;
+  bottom:12px;
+  z-index:1000;
+}
+
+
+
+/* ===== PHIK mobile refactor ===== */
+:root{
+  --filebar-h: 54px;
+  --righttools-w: 72px;
+}
+body,html{
+  overflow:hidden;
+}
+.app{
+  width:100vw;
+  height:100dvh;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) var(--righttools-w);
+  grid-template-rows:var(--filebar-h) minmax(0,1fr);
+}
+.topbar{
+  grid-column:1 / span 2;
+  grid-row:1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  overflow:auto;
+  white-space:nowrap;
+}
+.sidebar{
+  display:none !important;
+}
+.canvas-wrap{
+  grid-column:1;
+  grid-row:2;
+  min-width:0;
+  min-height:0;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.canvas-stage{
+  min-height:100%;
+  width:100%;
+  padding:10px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+}
+.canvas-shell{
+  margin:0;
+  max-width:none;
+}
+.right-toolbar{
+  grid-column:2;
+  grid-row:2;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:8px 6px;
+  border-left:1px solid var(--line);
+  background:rgba(10,16,30,.92);
+  overflow:auto;
+}
+.rtool-btn,.rtool-chip,.file-menu-btn,.file-menu-panel button,.file-menu-panel label{
+  appearance:none;
+  border:1px solid rgba(120,160,255,.35);
+  background:rgba(40,48,72,.92);
+  color:#eef3ff;
+  border-radius:12px;
+  padding:10px 10px;
+  font:600 13px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  text-align:center;
+}
+.rtool-btn.active,.rtool-chip.active{
+  outline:2px solid rgba(110,180,255,.9);
+}
+.rtool-stack{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.file-menu{
+  position:relative;
+}
+.file-menu-panel{
+  position:absolute;
+  left:8px;
+  top:calc(var(--filebar-h) - 4px);
+  z-index:1000;
+  width:min(92vw,360px);
+  max-height:70dvh;
+  overflow:auto;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(18,24,38,.98);
+  box-shadow:0 12px 28px rgba(0,0,0,.45);
+  display:none;
+}
+.file-menu-panel.open{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.file-group{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding-bottom:8px;
+  border-bottom:1px solid rgba(120,160,255,.15);
+}
+.file-group:last-child{
+  border-bottom:none;
+}
+.file-inline{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.file-inline input,.file-inline select{
+  min-width:0;
+  flex:1 1 110px;
+}
+.canvas-status{
+  color:#aab6cf;
+  font-size:12px;
+  margin-left:auto;
+}
+.topbar .group{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  border-right:none !important;
+  margin-right:0 !important;
+  padding-right:0 !important;
+}
+.desktop-only-legacy{
+  display:none !important;
+}
+@media (max-width: 900px){
+  .topbar{
+    padding:8px 8px;
+  }
+  .topbar .row,
+  .topbar .group{
+    flex-wrap:nowrap;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  
+<div class="topbar">
+  <div class="file-menu">
+    <button id="fileMenuBtn" class="file-menu-btn" type="button">File</button>
+    <div id="fileMenuPanel" class="file-menu-panel" aria-hidden="true">
+      <div class="file-group">
+        <strong>Project</strong>
+        <div class="file-inline">
+          <label>Title</label>
+          <input id="mobileProjectTitle" type="text" placeholder="PHIK Project">
+        </div>
+        <div class="file-inline">
+          <label>W</label>
+          <input id="mobileProjectWidth" type="number" min="64" step="1">
+          <label>H</label>
+          <input id="mobileProjectHeight" type="number" min="64" step="1">
+          <button id="mobileApplyProjectSize" type="button">Apply</button>
+        </div>
+      </div>
+
+      <div class="file-group">
+        <strong>Pages</strong>
+        <div class="file-inline">
+          <button id="mobilePrevPage" type="button">Prev</button>
+          <button id="mobileNextPage" type="button">Next</button>
+          <button id="mobileAddPage" type="button">Add</button>
+          <button id="mobileDeletePage" type="button">Delete</button>
+        </div>
+        <div class="file-inline">
+          <label>BG</label>
+          <input id="mobilePageBg" type="color" value="#ffffff">
+          <button id="mobileApplyPageBg" type="button">Apply BG</button>
+        </div>
+      </div>
+
+      <div class="file-group">
+        <strong>File</strong>
+        <div class="file-inline">
+          <button id="mobileUndo" type="button">Undo</button>
+          <button id="mobileRedo" type="button">Redo</button>
+        </div>
+        <div class="file-inline">
+          <button id="mobileSaveProject" type="button">Save Project</button>
+          <button id="mobileLoadProject" type="button">Load Project</button>
+        </div>
+        <div class="file-inline">
+          <button id="mobileExportViewer" type="button">Export Viewer HTML</button>
+          <button id="mobileExportPNG" type="button">Export PNG</button>
+        </div>
+      </div>
+
+      <div class="file-group">
+        <strong>Canvas View</strong>
+        <div class="file-inline">
+          <button id="mobileHideRibbon" type="button">Canvas Focus</button>
+          <button id="mobileShowRibbon" type="button">Show Ribbon</button>
+        </div>
+        <div class="file-inline">
+          <button id="zoomOutBtn" type="button">-</button>
+          <button id="zoomResetBtn" type="button">100%</button>
+          <button id="zoomInBtn" type="button">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="group">
+    <button id="canvasFocusBtn" type="button">Canvas Focus</button>
+    <button id="showRibbonBtn" type="button">Show Ribbon</button>
+  </div>
+
+  <div class="group">
+    <button id="zoomOutTopBtn" type="button">-</button>
+    <button id="zoomResetTopBtn" type="button">100%</button>
+    <button id="zoomInTopBtn" type="button">+</button>
+  </div>
+
+  <div class="canvas-status" id="canvasStatus">Canvas</div>
+
+  <div class="desktop-only-legacy">
+
+<div class="group" id="toolButtons">
+  </div>
+</div>
+
+    <div class="group">
+      <label>Stroke <input id="strokeColor" type="color" value="#111111"></label>
+      <label>Fill <input id="fillColor" type="color" value="#ffffff"></label>
+      <label>Size <input id="toolSize" type="range" min="1" max="80" value="4"></label>
+      <span class="small" id="toolSizeReadout">4</span>
+    </div>
+    <div class="group">
+      <label>Font <select id="fontFamily">
+        <option>Arial</option><option>Georgia</option><option>Verdana</option><option>Tahoma</option>
+        <option>Times New Roman</option><option>Courier New</option><option>Comic Sans MS</option><option>Impact</option>
+      </select></label>
+      <label>Font Size <input id="fontSize" type="number" min="8" max="300" value="32" style="width:80px"></label>
+      <label>Bubble Pointer <input id="bubbleAngle" type="range" min="0" max="359" value="225"></label>
+      <span class="small" id="bubbleAngleReadout">225°</span>
+    </div>
+    <div class="group footer-actions">
+      <button id="undoBtn">Undo</button>
+      <button id="redoBtn">Redo</button>
+      <button id="saveProjectBtn">Save Project</button>
+      <button id="loadProjectBtn">Load Project</button>
+      <input id="loadProjectInput" type="file" accept="application/json,.json" hidden>
+      <button id="exportViewerBtn">Export Viewer HTML</button>
+      <button id="exportImageBtn">Export Current Page PNG</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="section">
+      <h3>Project</h3>
+      <div class="row">
+        <label>Title <input id="projectTitle" type="text" value="PHIK Project"></label>
+      </div>
+      <div class="row">
+        <label>Width <input id="projectWidth" type="number" min="64" max="4096" value="900" style="width:90px"></label>
+        <label>Height <input id="projectHeight" type="number" min="64" max="4096" value="1200" style="width:90px"></label>
+        <button id="applyResolutionBtn">Apply</button>
+      </div>
+      <div class="hint">Resize changes every page in the project. Imported images, text, drawings, and shapes stay in place at their stored coordinates.</div>
+    </div>
+
+    <div class="section">
+      <h3>Selected Object</h3>
+      <div class="row"><label>X <input id="selX" type="number" style="width:80px"></label>
+      <label>Y <input id="selY" type="number" style="width:80px"></label></div>
+      <div class="row"><label>W <input id="selW" type="number" style="width:80px"></label>
+      <label>H <input id="selH" type="number" style="width:80px"></label></div>
+      <div class="row">
+        <button id="applySelectionBtn">Apply</button>
+        <button id="deleteSelectionBtn" class="danger">Delete</button>
+      </div>
+      <div class="hint">Use Select to move or resize. Drag the bottom-right handle to resize. Text, bubbles, shapes, and images can all be edited this way.</div>
+    </div>
+
+    <div class="section">
+      <h3>Text Entry</h3>
+      <textarea id="textInput" placeholder="Type text for the text tool here."></textarea>
+      <div class="hint">Choose Text, then click the page to place it. Use Select afterward to move or resize.</div>
+    </div>
+
+    <div class="section">
+      <h3>Pages</h3>
+      <div class="row">
+        <button id="addPageBtn">Add Page</button>
+        <button id="deletePageBtn" class="danger">Delete Current</button>
+      </div>
+      <div class="pages" id="pagesList"></div>
+    </div>
+
+    <div class="section">
+      <h3>Image Import</h3>
+      <div class="row">
+        <button id="importImageBtn">Import Image</button>
+        <input id="imageInput" type="file" accept="image/*" hidden>
+      </div>
+      <div class="hint">Imported images become movable page objects. Use Select to drag and resize them.</div>
+    </div>
+
+    <div class="section">
+      <h3>How it works</h3>
+      <div class="hint">
+        Pen draws strokes.<br>
+        Rect and Circle drag out outlines.<br>
+        Fill variants create filled shapes.<br>
+        Speech Bubble places a rounded bubble with a rotatable pointer.<br>
+        Text places editable text using the sidebar contents.<br>
+        Select lets you move and resize objects.<br>
+      </div>
+    </div>
+  </div>
+
+  
+<div class="right-toolbar" id="rightToolbar">
+  <div class="rtool-stack">
+    <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
+    <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
+    <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
+    <button class="rtool-btn" id="toolBubbleCompact" type="button">Bubble</button>
+    <button class="rtool-btn" id="toolRectCompact" type="button">Rect</button>
+    <button class="rtool-btn" id="toolRectFillCompact" type="button">RFill</button>
+    <button class="rtool-btn" id="toolCircCompact" type="button">Circ</button>
+    <button class="rtool-btn" id="toolCircFillCompact" type="button">CFill</button>
+    <label class="rtool-chip">Stroke<input id="strokeColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+    <label class="rtool-chip">Fill<input id="fillColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+    <label class="rtool-chip">BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+    <label class="rtool-chip">Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    <label class="rtool-chip">Font<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+  </div>
+</div>
+
+<div class="canvas-wrap">
+    <div class="canvas-stage">
+      <div class="canvas-shell" id="canvasShell">
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const tools = [
+    ['select','Select'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
+    ['circle','Circ'],['circlefill','Circ Fill'],['bubble','Speech Bubble'],['text','Text']
+  ];
+
+  const els = {
+    canvas: document.getElementById('canvas'),
+    canvasShell: document.getElementById('canvasShell'),
+    toolButtons: document.getElementById('toolButtons'),
+    strokeColor: document.getElementById('strokeColor'),
+    fillColor: document.getElementById('fillColor'),
+    toolSize: document.getElementById('toolSize'),
+    toolSizeReadout: document.getElementById('toolSizeReadout'),
+    fontFamily: document.getElementById('fontFamily'),
+    fontSize: document.getElementById('fontSize'),
+    bubbleAngle: document.getElementById('bubbleAngle'),
+    bubbleAngleReadout: document.getElementById('bubbleAngleReadout'),
+    undoBtn: document.getElementById('undoBtn'),
+    redoBtn: document.getElementById('redoBtn'),
+    saveProjectBtn: document.getElementById('saveProjectBtn'),
+    loadProjectBtn: document.getElementById('loadProjectBtn'),
+    loadProjectInput: document.getElementById('loadProjectInput'),
+    exportViewerBtn: document.getElementById('exportViewerBtn'),
+    exportImageBtn: document.getElementById('exportImageBtn'),
+    projectTitle: document.getElementById('projectTitle'),
+    projectWidth: document.getElementById('projectWidth'),
+    projectHeight: document.getElementById('projectHeight'),
+    applyResolutionBtn: document.getElementById('applyResolutionBtn'),
+    textInput: document.getElementById('textInput'),
+    addPageBtn: document.getElementById('addPageBtn'),
+    deletePageBtn: document.getElementById('deletePageBtn'),
+    pagesList: document.getElementById('pagesList'),
+    importImageBtn: document.getElementById('importImageBtn'),
+    imageInput: document.getElementById('imageInput'),
+    selX: document.getElementById('selX'),
+    selY: document.getElementById('selY'),
+    selW: document.getElementById('selW'),
+    selH: document.getElementById('selH'),
+    applySelectionBtn: document.getElementById('applySelectionBtn'),
+    deleteSelectionBtn: document.getElementById('deleteSelectionBtn')
+  };
+
+  const ctx = els.canvas.getContext('2d');
+  const state = {
+    tool: 'select',
+    drag: null,
+    selectedId: null,
+    project: {
+      title: 'PHIK Project',
+      width: 900,
+      height: 1200,
+      pages: [makePage(1)],
+      currentPage: 0
+    },
+    history: [],
+    future: [],
+    imageCache: new Map()
+  };
+
+  function makePage(index){
+    return { id: uid(), name: `Page ${index}`, objects: [] };
+  }
+  function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+  function currentPage(){ return state.project.pages[state.project.currentPage]; }
+  function clone(data){ return JSON.parse(JSON.stringify(data)); }
+  function pushHistory(){ state.history.push(clone(state.project)); if(state.history.length>100) state.history.shift(); state.future.length=0; }
+  function undo(){ if(!state.history.length) return; state.future.push(clone(state.project)); state.project = state.history.pop(); state.selectedId = null; syncProjectUi(); render(); }
+  function redo(){ if(!state.future.length) return; state.history.push(clone(state.project)); state.project = state.future.pop(); state.selectedId = null; syncProjectUi(); render(); }
+  function download(name, content, type='text/plain'){
+    const blob = new Blob([content], {type});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  }
+
+  function getPointer(evt){
+    const rect = els.canvas.getBoundingClientRect();
+    return { x:(evt.clientX-rect.left)*(els.canvas.width/rect.width), y:(evt.clientY-rect.top)*(els.canvas.height/rect.height) };
+  }
+
+  function buildToolButtons(){
+    tools.forEach(([id,label]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.dataset.tool = id;
+      if(id===state.tool) b.classList.add('active');
+      b.onclick = () => {
+        state.tool = id;
+        [...els.toolButtons.children].forEach(x=>x.classList.toggle('active', x.dataset.tool===id));
+      };
+      els.toolButtons.appendChild(b);
+    });
+  }
+
+  function wrapTextLines(text, maxWidth, font){
+    ctx.save();
+    ctx.font = font;
+    const words = String(text).split(/\s+/);
+    const lines = [];
+    let line = '';
+    for(const word of words){
+      const test = line ? line + ' ' + word : word;
+      if(ctx.measureText(test).width <= maxWidth || !line){
+        line = test;
+      } else {
+        lines.push(line);
+        line = word;
+      }
+    }
+    if(line) lines.push(line);
+    ctx.restore();
+    return lines;
+  }
+
+  function drawRoundedRect(x,y,w,h,r){
+    const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+  }
+
+  function objectBounds(obj){
+    if(obj.type==='stroke'){
+      const xs = obj.points.map(p=>p.x), ys = obj.points.map(p=>p.y);
+      const minX = Math.min(...xs)-obj.size/2, minY = Math.min(...ys)-obj.size/2;
+      const maxX = Math.max(...xs)+obj.size/2, maxY = Math.max(...ys)+obj.size/2;
+      return {x:minX,y:minY,w:maxX-minX,h:maxY-minY};
+    }
+    if(obj.type==='circle'||obj.type==='circlefill') return {x:obj.x,y:obj.y,w:obj.w,h:obj.h};
+    return {x:obj.x,y:obj.y,w:obj.w||0,h:obj.h||0};
+  }
+
+  function hitTestObject(obj, p){
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+  }
+
+  function findObjectAtPoint(p){
+    const objs = currentPage().objects;
+    for(let i=objs.length-1; i>=0; i--){ if(hitTestObject(objs[i], p)) return objs[i]; }
+    return null;
+  }
+
+  function updateSelectionUi(){
+    const obj = currentPage().objects.find(o=>o.id===state.selectedId);
+    const b = obj ? objectBounds(obj) : {x:'',y:'',w:'',h:''};
+    els.selX.value = b.x === '' ? '' : Math.round(b.x);
+    els.selY.value = b.y === '' ? '' : Math.round(b.y);
+    els.selW.value = b.w === '' ? '' : Math.round(b.w);
+    els.selH.value = b.h === '' ? '' : Math.round(b.h);
+  }
+
+  function applySelectionFields(){
+    const obj = currentPage().objects.find(o=>o.id===state.selectedId);
+    if(!obj) return;
+    pushHistory();
+    const x = +els.selX.value || 0, y = +els.selY.value || 0, w = +els.selW.value || 1, h = +els.selH.value || 1;
+    if(obj.type==='stroke'){
+      const b = objectBounds(obj);
+      const sx = w / Math.max(1, b.w), sy = h / Math.max(1, b.h);
+      obj.points = obj.points.map(pt => ({ x: x + (pt.x - b.x) * sx, y: y + (pt.y - b.y) * sy }));
+      obj.size = Math.max(1, obj.size * ((sx + sy) * 0.5));
+    } else {
+      obj.x = x; obj.y = y; obj.w = w; obj.h = h;
+    }
+    render();
+  }
+
+  function drawObject(obj){
+    ctx.save();
+    if(obj.type==='stroke'){
+      ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size;
+      ctx.beginPath();
+      obj.points.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
+      ctx.stroke();
+    } else if(obj.type==='rect'){
+      ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth || 2; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
+    } else if(obj.type==='rectfill'){
+      ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h);
+      ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth || 1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
+    } else if(obj.type==='circle' || obj.type==='circlefill'){
+      ctx.beginPath();
+      ctx.ellipse(obj.x + obj.w/2, obj.y + obj.h/2, Math.abs(obj.w/2), Math.abs(obj.h/2), 0, 0, Math.PI*2);
+      if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); }
+      ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth || 2; ctx.stroke();
+    } else if(obj.type==='text'){
+      const font = `${obj.fontSize}px ${obj.fontFamily}`;
+      ctx.font = font; ctx.fillStyle = obj.color; ctx.textBaseline='top';
+      const lines = wrapTextLines(obj.text, obj.w || 99999, font);
+      const lineHeight = obj.fontSize * 1.2;
+      lines.forEach((line,i)=> ctx.fillText(line, obj.x, obj.y + i*lineHeight));
+    } else if(obj.type==='bubble'){
+      drawRoundedRect(obj.x,obj.y,obj.w,obj.h,18);
+      ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=2; ctx.stroke();
+      const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+      const ang = obj.pointerAngle * Math.PI / 180;
+      const px = cx + Math.cos(ang) * (Math.max(obj.w,obj.h) * 0.42);
+      const py = cy + Math.sin(ang) * (Math.max(obj.w,obj.h) * 0.42);
+      const edgeAng = ang;
+      const leftA = edgeAng - 0.28, rightA = edgeAng + 0.28;
+      const sx1 = cx + Math.cos(leftA) * (obj.w*0.32);
+      const sy1 = cy + Math.sin(leftA) * (obj.h*0.32);
+      const sx2 = cx + Math.cos(rightA) * (obj.w*0.32);
+      const sy2 = cy + Math.sin(rightA) * (obj.h*0.32);
+      ctx.beginPath();
+      ctx.moveTo(sx1,sy1); ctx.lineTo(px,py); ctx.lineTo(sx2,sy2); ctx.closePath();
+      ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke();
+      const font = `${obj.fontSize}px ${obj.fontFamily}`;
+      ctx.font = font; ctx.fillStyle = obj.textColor; ctx.textBaseline='top';
+      const pad = 18;
+      const lines = wrapTextLines(obj.text, Math.max(10, obj.w - pad*2), font);
+      const lineHeight = obj.fontSize * 1.2;
+      lines.forEach((line,i)=> ctx.fillText(line, obj.x + pad, obj.y + pad + i*lineHeight));
+    } else if(obj.type==='image'){
+      let img = state.imageCache.get(obj.src);
+      if(!img){
+        img = new Image();
+        img.src = obj.src;
+        img.onload = () => render();
+        state.imageCache.set(obj.src, img);
+      }
+      if(img.complete) ctx.drawImage(img, obj.x, obj.y, obj.w, obj.h);
+      else { ctx.fillStyle='#ddd'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle='#666'; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
+    }
+    ctx.restore();
+  }
+
+  function render(){
+    els.canvas.width = state.project.width;
+    els.canvas.height = state.project.height;
+    els.canvas.style.width = state.project.width + 'px';
+    els.canvas.style.height = state.project.height + 'px';
+    els.canvasShell.style.width = state.project.width + 'px';
+    els.canvasShell.style.height = state.project.height + 'px';
+    ctx.clearRect(0,0,els.canvas.width,els.canvas.height);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,els.canvas.width,els.canvas.height);
+    currentPage().objects.forEach(drawObject);
+
+    const obj = currentPage().objects.find(o=>o.id===state.selectedId);
+    if(obj){
+      const b = objectBounds(obj);
+      ctx.save();
+      ctx.strokeStyle = '#70d6ff'; ctx.lineWidth = 1; ctx.setLineDash([6,4]);
+      ctx.strokeRect(b.x,b.y,b.w,b.h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#70d6ff';
+      ctx.fillRect(b.x+b.w-8,b.y+b.h-8,16,16);
+      if(obj.type==='bubble'){
+        const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+        const ang = obj.pointerAngle * Math.PI / 180;
+        const kx = cx + Math.cos(ang) * (Math.max(obj.w,obj.h) * 0.52);
+        const ky = cy + Math.sin(ang) * (Math.max(obj.w,obj.h) * 0.52);
+        ctx.fillStyle='#ffb86c'; ctx.beginPath(); ctx.arc(kx,ky,8,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    }
+    renderPagesList();
+    updateSelectionUi();
+  }
+
+  function renderPagesList(){
+    els.pagesList.innerHTML = '';
+    state.project.pages.forEach((page, i) => {
+      const item = document.createElement('div');
+      item.className = 'page-item' + (i===state.project.currentPage ? ' active' : '');
+      const left = document.createElement('button');
+      left.textContent = page.name;
+      left.style.flex='1';
+      left.onclick = () => { state.project.currentPage = i; state.selectedId = null; render(); };
+      const right = document.createElement('span');
+      right.className = 'small';
+      right.textContent = `${page.objects.length} objs`;
+      item.append(left,right);
+      els.pagesList.appendChild(item);
+    });
+  }
+
+  function syncProjectUi(){
+    els.projectTitle.value = state.project.title;
+    els.projectWidth.value = state.project.width;
+    els.projectHeight.value = state.project.height;
+  }
+
+  function normalizeRect(a,b){
+    return { x:Math.min(a.x,b.x), y:Math.min(a.y,b.y), w:Math.abs(b.x-a.x), h:Math.abs(b.y-a.y) };
+  }
+
+  function selectObject(id){ state.selectedId = id; updateSelectionUi(); render(); }
+
+  function onPointerDown(evt){
+    const p = getPointer(evt);
+    const page = currentPage();
+
+    if(state.tool === 'pen'){
+      pushHistory();
+      const obj = { id:uid(), type:'stroke', color:els.strokeColor.value, size:+els.toolSize.value, points:[p] };
+      page.objects.push(obj);
+      state.drag = { mode:'drawing-stroke', obj };
+      state.selectedId = obj.id;
+      render();
+      return;
+    }
+
+    if(['rect','rectfill','circle','circlefill'].includes(state.tool)){
+      pushHistory();
+      const type = state.tool;
+      const obj = { id:uid(), type, x:p.x, y:p.y, w:1, h:1, color:els.strokeColor.value, fill:els.fillColor.value, lineWidth:Math.max(1, +els.toolSize.value) };
+      page.objects.push(obj);
+      state.drag = { mode:'shape', start:p, obj };
+      state.selectedId = obj.id;
+      render();
+      return;
+    }
+
+    if(state.tool === 'text'){
+      pushHistory();
+      const size = Math.max(8, +els.fontSize.value || 32);
+      const obj = { id:uid(), type:'text', x:p.x, y:p.y, w:280, h:size*2, text:els.textInput.value || 'Text', color:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size };
+      page.objects.push(obj);
+      state.selectedId = obj.id;
+      render();
+      return;
+    }
+
+    if(state.tool === 'bubble'){
+      pushHistory();
+      const size = Math.max(12, +els.fontSize.value || 28);
+      const obj = { id:uid(), type:'bubble', x:p.x, y:p.y, w:260, h:150, text:els.textInput.value || 'Speech bubble', color:els.strokeColor.value, fill:els.fillColor.value, textColor:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size, pointerAngle:+els.bubbleAngle.value };
+      page.objects.push(obj);
+      state.selectedId = obj.id;
+      render();
+      return;
+    }
+
+    if(state.tool === 'select'){
+      const obj = findObjectAtPoint(p);
+      if(!obj){ state.selectedId = null; render(); return; }
+      state.selectedId = obj.id;
+      const b = objectBounds(obj);
+      const handle = p.x >= b.x+b.w-16 && p.y >= b.y+b.h-16;
+      if(obj.type==='bubble'){
+        const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+        const ang = obj.pointerAngle * Math.PI / 180;
+        const kx = cx + Math.cos(ang) * (Math.max(obj.w,obj.h) * 0.52);
+        const ky = cy + Math.sin(ang) * (Math.max(obj.w,obj.h) * 0.52);
+        const d = Math.hypot(p.x-kx,p.y-ky);
+        if(d < 14){
+          pushHistory();
+          state.drag = { mode:'bubble-angle', obj };
+          render();
+          return;
+        }
+      }
+      pushHistory();
+      state.drag = { mode: handle ? 'resize' : 'move', obj, start:p, origin:clone(objectBounds(obj)), raw:clone(obj) };
+      render();
+    }
+  }
+
+  function onPointerMove(evt){
+    if(!state.drag) return;
+    const p = getPointer(evt);
+    const d = state.drag;
+
+    if(d.mode === 'drawing-stroke'){
+      d.obj.points.push(p);
+    } else if(d.mode === 'shape'){
+      const r = normalizeRect(d.start, p);
+      Object.assign(d.obj, r);
+    } else if(d.mode === 'move'){
+      const dx = p.x - d.start.x, dy = p.y - d.start.y;
+      if(d.obj.type==='stroke'){
+        d.obj.points = d.raw.points.map(pt => ({x:pt.x+dx, y:pt.y+dy}));
+      } else {
+        d.obj.x = d.raw.x + dx; d.obj.y = d.raw.y + dy;
+      }
+    } else if(d.mode === 'resize'){
+      const dx = p.x - d.start.x, dy = p.y - d.start.y;
+      if(d.obj.type==='stroke'){
+        const b = d.origin;
+        const nw = Math.max(4, b.w + dx), nh = Math.max(4, b.h + dy);
+        const sx = nw / Math.max(1,b.w), sy = nh / Math.max(1,b.h);
+        d.obj.points = d.raw.points.map(pt => ({ x: b.x + (pt.x - b.x) * sx, y: b.y + (pt.y - b.y) * sy }));
+        d.obj.size = Math.max(1, d.raw.size * ((sx+sy)/2));
+      } else {
+        d.obj.w = Math.max(4, d.raw.w + dx); d.obj.h = Math.max(4, d.raw.h + dy);
+      }
+    } else if(d.mode === 'bubble-angle'){
+      const cx = d.obj.x + d.obj.w/2, cy = d.obj.y + d.obj.h/2;
+      const ang = Math.atan2(p.y - cy, p.x - cx) * 180 / Math.PI;
+      d.obj.pointerAngle = (ang + 360) % 360;
+      els.bubbleAngle.value = Math.round(d.obj.pointerAngle);
+      els.bubbleAngleReadout.textContent = `${Math.round(d.obj.pointerAngle)}°`;
+    }
+    render();
+  }
+
+  function onPointerUp(){ state.drag = null; }
+
+  els.canvas.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+
+  els.toolSize.oninput = () => els.toolSizeReadout.textContent = els.toolSize.value;
+  els.bubbleAngle.oninput = () => {
+    els.bubbleAngleReadout.textContent = `${els.bubbleAngle.value}°`;
+    const obj = currentPage().objects.find(o=>o.id===state.selectedId && o.type==='bubble');
+    if(obj){ pushHistory(); obj.pointerAngle = +els.bubbleAngle.value; render(); }
+  };
+
+  els.undoBtn.onclick = undo;
+  els.redoBtn.onclick = redo;
+  els.applyResolutionBtn.onclick = () => {
+    pushHistory();
+    state.project.width = Math.max(64, +els.projectWidth.value || 900);
+    state.project.height = Math.max(64, +els.projectHeight.value || 1200);
+    state.project.title = els.projectTitle.value || 'PHIK Project';
+    render();
+  };
+
+  els.applySelectionBtn.onclick = applySelectionFields;
+  els.deleteSelectionBtn.onclick = () => {
+    const page = currentPage();
+    const idx = page.objects.findIndex(o=>o.id===state.selectedId);
+    if(idx<0) return;
+    pushHistory();
+    page.objects.splice(idx,1); state.selectedId = null; render();
+  };
+
+  els.addPageBtn.onclick = () => { pushHistory(); state.project.pages.push(makePage(state.project.pages.length+1)); state.project.currentPage = state.project.pages.length-1; render(); };
+  els.deletePageBtn.onclick = () => {
+    if(state.project.pages.length===1) return alert('Project needs at least one page.');
+    pushHistory();
+    state.project.pages.splice(state.project.currentPage,1);
+    state.project.currentPage = Math.max(0, state.project.currentPage-1);
+    state.selectedId = null;
+    render();
+  };
+
+  els.importImageBtn.onclick = () => els.imageInput.click();
+  els.imageInput.onchange = async (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        pushHistory();
+        const maxW = state.project.width * 0.6, maxH = state.project.height * 0.6;
+        const scale = Math.min(maxW/img.width, maxH/img.height, 1);
+        const w = img.width*scale, h = img.height*scale;
+        const obj = { id:uid(), type:'image', x:40, y:40, w, h, src:reader.result, name:file.name };
+        currentPage().objects.push(obj);
+        state.selectedId = obj.id;
+        state.imageCache.set(obj.src, img);
+        render();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  els.saveProjectBtn.onclick = () => {
+    state.project.title = els.projectTitle.value || state.project.title;
+    const data = JSON.stringify({ app:'PHIK', version:1, project:state.project }, null, 2);
+    download((state.project.title || 'phik-project').replace(/[^a-z0-9-_]+/gi,'_') + '.json', data, 'application/json');
+  };
+
+  els.loadProjectBtn.onclick = () => els.loadProjectInput.click();
+  els.loadProjectInput.onchange = (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if(!data.project || !Array.isArray(data.project.pages)) throw new Error('Invalid project file');
+        pushHistory();
+        state.project = data.project;
+        state.selectedId = null;
+        syncProjectUi();
+        render();
+      } catch(err){ alert('Could not load project: ' + err.message); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  els.exportImageBtn.onclick = () => {
+    render();
+    els.canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (currentPage().name || 'page').replace(/[^a-z0-9-_]+/gi,'_') + '.png';
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+    });
+  };
+
+  function buildViewerHtml(project){
+    const serialized = JSON.stringify(project).replace(/<\//g,'<\\/');
+    return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${(project.title || 'PHIK Viewer').replace(/[&<>]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]))}</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#111722;color:#f5f7fb;display:flex;flex-direction:column;min-height:100vh}
+.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px;background:#1b2434;border-bottom:1px solid #334155}
+button{padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#263247;color:#fff;cursor:pointer}
+.stage{flex:1;display:grid;place-items:center;padding:20px;overflow:auto}
+canvas{background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.small{color:#cbd5e1;font-size:14px}
+
+/* mobile quick actions */
+#mobileQuickActions{
+  position:fixed;
+  right:12px;
+  bottom:12px;
+  display:flex;
+  gap:8px;
+  z-index:60;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  max-width:min(92vw,420px);
+}
+.quickBtn{
+  appearance:none;
+  border:1px solid rgba(120,160,255,.45);
+  background:rgba(40,48,72,.92);
+  color:#eef3ff;
+  border-radius:12px;
+  padding:10px 12px;
+  font:600 14px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+}
+.quickBtn:active{ transform:translateY(1px); }
+@media (min-width: 901px){
+  #mobileQuickActions{ display:none; }
+}
+
+
+/* responsive/mobile layout */
+html,body{
+  width:100%;
+  overflow:hidden;
+}
+.app{
+  width:100vw;
+  height:100dvh;
+  max-width:100vw;
+  max-height:100dvh;
+}
+.topbar{
+  max-width:100%;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.sidebar{
+  min-width:0;
+}
+.canvas-wrap{
+  min-width:0;
+  min-height:0;
+  width:100%;
+  height:100%;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.canvas-stage{
+  width:100%;
+  min-width:0;
+  min-height:100%;
+  padding:16px;
+}
+.canvas-shell{
+  max-width:none;
+}
+@media (max-width: 900px){
+  .app{
+    grid-template-columns:1fr;
+    grid-template-rows:auto auto 1fr;
+  }
+  .topbar{
+    grid-column:1;
+    grid-row:1;
+    padding:8px;
+    gap:6px;
+  }
+  .topbar .group,
+  .panel-controls{
+    border-right:none !important;
+    margin-right:0 !important;
+    padding-right:0 !important;
+    width:100%;
+  }
+  .sidebar{
+    grid-column:1;
+    grid-row:2;
+    border-right:none;
+    border-bottom:1px solid var(--line);
+    max-height:38dvh;
+    padding:10px;
+  }
+  .canvas-wrap{
+    grid-column:1;
+    grid-row:3;
+  }
+  .section{
+    padding:8px;
+    margin-bottom:10px;
+  }
+  .row{
+    gap:6px;
+  }
+  .row label{
+    width:auto;
+  }
+  input[type="range"]{
+    width:120px;
+    max-width:42vw;
+  }
+  input[type="number"],input[type="text"],select,textarea{
+    max-width:100%;
+  }
+  textarea{
+    min-height:84px;
+  }
+  .canvas-stage{
+    align-items:start;
+    justify-items:start;
+    padding:10px;
+  }
+  .canvas-shell{
+    margin:0 auto;
+  }
+  #mobileQuickActions{
+    display:flex;
+  }
+  .floating-restore{
+    left:10px;
+    bottom:68px;
+  }
+}
+@media (max-width: 900px){
+  .app.toolbar-hidden{
+    grid-template-rows:0 auto 1fr;
+  }
+  .app.toolbar-hidden .topbar{
+    display:none;
+  }
+  .app.sidebar-hidden{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr;
+  }
+  .app.sidebar-hidden .sidebar{
+    display:none;
+  }
+  .app.sidebar-hidden .canvas-wrap{
+    grid-row:2;
+  }
+  .app.toolbar-hidden.sidebar-hidden{
+    grid-template-rows:1fr;
+  }
+  .app.toolbar-hidden.sidebar-hidden .canvas-wrap{
+    grid-row:1;
+  }
+  .app.canvas-fullscreen{
+    grid-template-columns:1fr !important;
+    grid-template-rows:1fr !important;
+  }
+  .app.canvas-fullscreen .topbar,
+  .app.canvas-fullscreen .sidebar{
+    display:none !important;
+  }
+  .app.canvas-fullscreen .canvas-wrap{
+    grid-column:1;
+    grid-row:1;
+  }
+  .app.canvas-fullscreen .canvas-stage{
+    padding:0;
+    min-height:100%;
+    place-items:start center;
+  }
+}
+/* keep quick actions available on all sizes if user wants */
+#mobileQuickActions{
+  position:fixed;
+  right:12px;
+  bottom:12px;
+  z-index:1000;
+}
+
+</style>
+</head>
+<body>
+<div class="top">
+  <strong>${(project.title || 'PHIK Viewer').replace(/[&<>]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]))}</strong>
+  <button id="prev">Prev</button>
+  <button id="next">Next</button>
+  <span class="small" id="readout"></span>
+</div>
+<div class="stage"><canvas id="canvas"></canvas></div>
+<script>
+const project = ${serialized};
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let pageIndex = 0;
+const cache = new Map();
+function wrapTextLines(text, maxWidth, font){
+  ctx.save(); ctx.font = font;
+  const words = String(text).split(/\s+/); const lines=[]; let line='';
+  for(const word of words){ const test = line ? line+' '+word : word; if(ctx.measureText(test).width <= maxWidth || !line) line=test; else { lines.push(line); line=word; } }
+  if(line) lines.push(line); ctx.restore(); return lines;
+}
+function drawRoundedRect(x,y,w,h,r){ const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); }
+function drawObject(obj){
+  ctx.save();
+  if(obj.type==='stroke'){ ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size; ctx.beginPath(); obj.points.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
+  else if(obj.type==='rect'){ ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
+  else if(obj.type==='rectfill'){ ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
+  else if(obj.type==='circle' || obj.type==='circlefill'){ ctx.beginPath(); ctx.ellipse(obj.x+obj.w/2,obj.y+obj.h/2,Math.abs(obj.w/2),Math.abs(obj.h/2),0,0,Math.PI*2); if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); } ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.stroke(); }
+  else if(obj.type==='text'){ const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.color; ctx.textBaseline='top'; const lines = wrapTextLines(obj.text,obj.w||99999,font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x,obj.y+i*lh)); }
+  else if(obj.type==='bubble'){ drawRoundedRect(obj.x,obj.y,obj.w,obj.h,18); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=2; ctx.stroke(); const cx=obj.x+obj.w/2, cy=obj.y+obj.h/2, ang=obj.pointerAngle*Math.PI/180; const px=cx+Math.cos(ang)*(Math.max(obj.w,obj.h)*0.42), py=cy+Math.sin(ang)*(Math.max(obj.w,obj.h)*0.42); const leftA=ang-0.28, rightA=ang+0.28; const sx1=cx+Math.cos(leftA)*(obj.w*0.32), sy1=cy+Math.sin(leftA)*(obj.h*0.32), sx2=cx+Math.cos(rightA)*(obj.w*0.32), sy2=cy+Math.sin(rightA)*(obj.h*0.32); ctx.beginPath(); ctx.moveTo(sx1,sy1); ctx.lineTo(px,py); ctx.lineTo(sx2,sy2); ctx.closePath(); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke(); const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.textColor; ctx.textBaseline='top'; const pad=18; const lines=wrapTextLines(obj.text,Math.max(10,obj.w-pad*2),font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x+pad,obj.y+pad+i*lh)); }
+  else if(obj.type==='image'){ let img = cache.get(obj.src); if(!img){ img = new Image(); img.onload = render; img.src = obj.src; cache.set(obj.src,img); } if(img.complete) ctx.drawImage(img,obj.x,obj.y,obj.w,obj.h); }
+  ctx.restore();
+}
+function render(){ canvas.width=project.width; canvas.height=project.height; const page=project.pages[pageIndex]; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); page.objects.forEach(drawObject); document.getElementById('readout').textContent = (pageIndex+1)+' / '+project.pages.length+' - '+page.name; }
+document.getElementById('prev').onclick = ()=>{ pageIndex = (pageIndex-1+project.pages.length)%project.pages.length; render(); };
+document.getElementById('next').onclick = ()=>{ pageIndex = (pageIndex+1)%project.pages.length; render(); };
+render();
+<\/script>
+
+</body>
+</html>`;
+  }
+
+  els.exportViewerBtn.onclick = () => {
+    state.project.title = els.projectTitle.value || state.project.title;
+    const html = buildViewerHtml(state.project);
+    download((state.project.title || 'phik-viewer').replace(/[^a-z0-9-_]+/gi,'_') + '_viewer.html', html, 'text/html');
+  };
+
+  buildToolButtons();
+  syncProjectUi();
+  render();
+}
+
+  function toggleSidebar(force){
+    const next = typeof force === 'boolean' ? force : !appEl.classList.contains('sidebar-hidden');
+    appEl.classList.toggle('sidebar-hidden', next);
+    setLabels();
+  }
+
+  function toggleCanvasFullscreen(force){
+    const next = typeof force === 'boolean' ? force : !appEl.classList.contains('canvas-fullscreen');
+    appEl.classList.toggle('canvas-fullscreen', next);
+    if(next){
+      appEl.classList.add('toolbar-hidden');
+      appEl.classList.add('sidebar-hidden');
+    }
+    setLabels();
+  }
+
+  if(ui.toggleToolbarBtn) ui.toggleToolbarBtn.onclick = ()=>toggleToolbar();
+  if(ui.toggleSidebarBtn) ui.toggleSidebarBtn.onclick = ()=>toggleSidebar();
+  if(ui.toggleCanvasFullscreenBtn) ui.toggleCanvasFullscreenBtn.onclick = ()=>toggleCanvasFullscreen();
+  if(ui.restoreToolbarBtn) ui.restoreToolbarBtn.onclick = ()=>toggleToolbar(false);
+  if(ui.restoreSidebarBtn) ui.restoreSidebarBtn.onclick = ()=>toggleSidebar(false);
+  if(ui.exitCanvasFullscreenBtn) ui.exitCanvasFullscreenBtn.onclick = ()=>toggleCanvasFullscreen(false);
+  if(ui.mobileToggleToolbar) ui.mobileToggleToolbar.onclick = ()=>toggleToolbar();
+  if(ui.mobileToggleSidebar) ui.mobileToggleSidebar.onclick = ()=>toggleSidebar();
+  if(ui.mobileToggleFullscreen) ui.mobileToggleFullscreen.onclick = ()=>toggleCanvasFullscreen();
+
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && appEl.classList.contains('canvas-fullscreen')){
+      toggleCanvasFullscreen(false);
+    }
+  });
+
+  setLabels();
+
+
+  // ===== PHIK mobile UI bridge =====
+  let phikZoom = 1;
+
+  function phikFind(ids){
+    for(const id of ids){
+      const el = document.getElementById(id);
+      if(el) return el;
+    }
+    return null;
+  }
+
+  function phikClick(ids){
+    const el = phikFind(ids);
+    if(el){ el.click(); return true; }
+    return false;
+  }
+
+  function phikInput(ids, value, fireChange=true){
+    const el = phikFind(ids);
+    if(!el) return false;
+    el.value = value;
+    el.dispatchEvent(new Event('input', {bubbles:true}));
+    if(fireChange) el.dispatchEvent(new Event('change', {bubbles:true}));
+    return true;
+  }
+
+  function phikSyncCompactToolState(){
+    const activeIds = {
+      toolSelectCompact:['selectTool','toolSelect'],
+      toolPenCompact:['penTool','toolPen'],
+      toolTextCompact:['textTool','toolText'],
+      toolBubbleCompact:['bubbleTool','toolBubble'],
+      toolRectCompact:['rectTool','toolRect'],
+      toolRectFillCompact:['rectFillTool','toolRectFill'],
+      toolCircCompact:['circTool','toolCirc'],
+      toolCircFillCompact:['circFillTool','toolCircFill']
+    };
+    for(const [compactId, targets] of Object.entries(activeIds)){
+      const btn = document.getElementById(compactId);
+      const target = phikFind(targets);
+      if(btn && target){
+        const active = target.classList.contains('active') || target.getAttribute('aria-pressed') === 'true' || target.dataset.active === '1';
+        btn.classList.toggle('active', active);
+      }
+    }
+  }
+
+  function phikSetCanvasFocusMode(focus){
+    document.body.classList.toggle('phik-canvas-focus', !!focus);
+    const topbar = document.querySelector('.topbar');
+    const rtb = document.getElementById('rightToolbar');
+    if(topbar) topbar.style.display = focus ? 'none' : '';
+    if(rtb) rtb.style.display = focus ? 'none' : '';
+    const filePanel = document.getElementById('fileMenuPanel');
+    if(filePanel){
+      filePanel.classList.remove('open');
+      filePanel.setAttribute('aria-hidden','true');
+    }
+  }
+
+  function phikApplyZoom(){
+    const shell = document.querySelector('.canvas-shell');
+    const resetTop = document.getElementById('zoomResetTopBtn');
+    const resetMenu = document.getElementById('zoomResetBtn');
+    if(shell){
+      shell.style.transformOrigin = 'top center';
+      shell.style.transform = `scale(${phikZoom})`;
+      shell.style.marginBottom = (Math.max(phikZoom,1)-1) * 300 + 'px';
+    }
+    const pct = Math.round(phikZoom * 100) + '%';
+    if(resetTop) resetTop.textContent = pct;
+    if(resetMenu) resetMenu.textContent = pct;
+  }
+
+  function phikWireMobileUI(){
+    const fileBtn = document.getElementById('fileMenuBtn');
+    const filePanel = document.getElementById('fileMenuPanel');
+    if(fileBtn && filePanel){
+      fileBtn.addEventListener('click', ()=>{
+        const open = !filePanel.classList.contains('open');
+        filePanel.classList.toggle('open', open);
+        filePanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      });
+      document.addEventListener('click', (e)=>{
+        if(!filePanel.contains(e.target) && !fileBtn.contains(e.target)){
+          filePanel.classList.remove('open');
+          filePanel.setAttribute('aria-hidden','true');
+        }
+      });
+    }
+
+    const mapButtons = [
+      ['mobileUndo',['undoBtn','undo']],
+      ['mobileRedo',['redoBtn','redo']],
+      ['mobileSaveProject',['saveProjectBtn','saveProject']],
+      ['mobileLoadProject',['loadProjectBtn','loadProject']],
+      ['mobileExportViewer',['exportViewerBtn','exportViewerHtmlBtn','exportViewer']],
+      ['mobileExportPNG',['exportPngBtn','exportCurrentPagePngBtn','exportPNG']],
+      ['mobilePrevPage',['prevPageBtn','pagePrevBtn']],
+      ['mobileNextPage',['nextPageBtn','pageNextBtn']],
+      ['mobileAddPage',['addPageBtn','newPageBtn']],
+      ['mobileDeletePage',['deletePageBtn','removePageBtn']]
+    ];
+    mapButtons.forEach(([compactId, targets])=>{
+      const compact = document.getElementById(compactId);
+      if(compact) compact.onclick = ()=>phikClick(targets);
+    });
+
+    const toolMap = [
+      ['toolSelectCompact',['selectTool','toolSelect']],
+      ['toolPenCompact',['penTool','toolPen']],
+      ['toolTextCompact',['textTool','toolText']],
+      ['toolBubbleCompact',['bubbleTool','toolBubble']],
+      ['toolRectCompact',['rectTool','toolRect']],
+      ['toolRectFillCompact',['rectFillTool','toolRectFill']],
+      ['toolCircCompact',['circTool','toolCirc']],
+      ['toolCircFillCompact',['circFillTool','toolCircFill']]
+    ];
+    toolMap.forEach(([compactId, targets])=>{
+      const compact = document.getElementById(compactId);
+      if(compact) compact.onclick = ()=>{
+        phikClick(targets);
+        setTimeout(phikSyncCompactToolState, 30);
+      };
+    });
+
+    const bindMirror = (compactId, targets)=>{
+      const compact = document.getElementById(compactId);
+      const target = phikFind(targets);
+      if(!compact || !target) return;
+      compact.value = target.value || compact.value;
+      compact.addEventListener('input', ()=>{
+        target.value = compact.value;
+        target.dispatchEvent(new Event('input', {bubbles:true}));
+        target.dispatchEvent(new Event('change', {bubbles:true}));
+      });
+      target.addEventListener('input', ()=>{ compact.value = target.value; });
+    };
+
+    bindMirror('strokeColorCompact',['strokeColor','stroke']);
+    bindMirror('fillColorCompact',['fillColor','fill']);
+    bindMirror('brushSizeCompact',['sizeSlider','brushSize','penSize']);
+    bindMirror('fontSizeCompact',['fontSize','fontSizeInput']);
+    bindMirror('mobileProjectTitle',['projectTitle']);
+    bindMirror('mobileProjectWidth',['projectWidth','canvasWidth']);
+    bindMirror('mobileProjectHeight',['projectHeight','canvasHeight']);
+    bindMirror('mobilePageBg',['pageBackgroundColor','pageBgColor','backgroundColor']);
+    bindMirror('bgColorCompact',['pageBackgroundColor','pageBgColor','backgroundColor']);
+
+    const applyProject = document.getElementById('mobileApplyProjectSize');
+    if(applyProject) applyProject.onclick = ()=>phikClick(['applyProjectSizeBtn','applyProjectBtn','applyCanvasSize']);
+
+    const applyBg = document.getElementById('mobileApplyPageBg');
+    if(applyBg) applyBg.onclick = ()=>{
+      const ok = phikClick(['applyPageBackgroundBtn','applyBgBtn','setPageBgBtn']);
+      if(!ok){
+        phikInput(['pageBackgroundColor','pageBgColor','backgroundColor'], document.getElementById('mobilePageBg')?.value || '#ffffff');
+      }
+    };
+
+    const canvasFocusBtn = document.getElementById('canvasFocusBtn');
+    const showRibbonBtn = document.getElementById('showRibbonBtn');
+    const mobileHideRibbon = document.getElementById('mobileHideRibbon');
+    const mobileShowRibbon = document.getElementById('mobileShowRibbon');
+
+    if(canvasFocusBtn) canvasFocusBtn.onclick = ()=>phikSetCanvasFocusMode(true);
+    if(showRibbonBtn) showRibbonBtn.onclick = ()=>phikSetCanvasFocusMode(false);
+    if(mobileHideRibbon) mobileHideRibbon.onclick = ()=>phikSetCanvasFocusMode(true);
+    if(mobileShowRibbon) mobileShowRibbon.onclick = ()=>phikSetCanvasFocusMode(false);
+
+    const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.1).toFixed(2)); phikApplyZoom(); };
+    const zoomOut = ()=>{ phikZoom = Math.max(0.2, +(phikZoom - 0.1).toFixed(2)); phikApplyZoom(); };
+    const zoomReset = ()=>{ phikZoom = 1; phikApplyZoom(); };
+
+    [['zoomInBtn',zoomIn],['zoomInTopBtn',zoomIn],['zoomOutBtn',zoomOut],['zoomOutTopBtn',zoomOut],['zoomResetBtn',zoomReset],['zoomResetTopBtn',zoomReset]]
+      .forEach(([id, fn])=>{
+        const el = document.getElementById(id);
+        if(el) el.onclick = fn;
+      });
+
+    setTimeout(()=>{
+      phikSyncCompactToolState();
+      phikApplyZoom();
+    }, 120);
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', phikWireMobileUI, {once:true});
+  }else{
+    phikWireMobileUI();
+  }
+
+  setInterval(phikSyncCompactToolState, 600);
+
+})();
+</script>
+
+</body>
+</html>
