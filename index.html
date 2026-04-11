@@ -457,11 +457,6 @@ body,html{
           <button id="mobileHideRibbon" type="button">Canvas Focus</button>
           <button id="mobileShowRibbon" type="button">Show Ribbon</button>
         </div>
-        <div class="file-inline">
-          <button id="zoomOutBtn" type="button">-</button>
-          <button id="zoomResetBtn" type="button">100%</button>
-          <button id="zoomInBtn" type="button">+</button>
-        </div>
       </div>
     </div>
   </div>
@@ -469,12 +464,6 @@ body,html{
   <div class="group">
     <button id="canvasFocusBtn" type="button">Canvas Focus</button>
     <button id="showRibbonBtn" type="button">Show Ribbon</button>
-  </div>
-
-  <div class="group">
-    <button id="zoomOutTopBtn" type="button">-</button>
-    <button id="zoomResetTopBtn" type="button">100%</button>
-    <button id="zoomInTopBtn" type="button">+</button>
   </div>
 
   <div class="canvas-status" id="canvasStatus">Canvas</div>
@@ -591,6 +580,14 @@ body,html{
     <label class="rtool-chip">BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <label class="rtool-chip">Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
     <label class="rtool-chip">Font<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    <div class="rtool-chip">
+      Zoom
+      <div class="file-inline" style="margin-top:6px;">
+        <button id="zoomOutBtn" type="button">-</button>
+        <button id="zoomResetBtn" type="button">100%</button>
+        <button id="zoomInBtn" type="button">+</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1358,40 +1355,6 @@ render();
   render();
 }
 
-  function toggleSidebar(force){
-    const next = typeof force === 'boolean' ? force : !appEl.classList.contains('sidebar-hidden');
-    appEl.classList.toggle('sidebar-hidden', next);
-    setLabels();
-  }
-
-  function toggleCanvasFullscreen(force){
-    const next = typeof force === 'boolean' ? force : !appEl.classList.contains('canvas-fullscreen');
-    appEl.classList.toggle('canvas-fullscreen', next);
-    if(next){
-      appEl.classList.add('toolbar-hidden');
-      appEl.classList.add('sidebar-hidden');
-    }
-    setLabels();
-  }
-
-  if(ui.toggleToolbarBtn) ui.toggleToolbarBtn.onclick = ()=>toggleToolbar();
-  if(ui.toggleSidebarBtn) ui.toggleSidebarBtn.onclick = ()=>toggleSidebar();
-  if(ui.toggleCanvasFullscreenBtn) ui.toggleCanvasFullscreenBtn.onclick = ()=>toggleCanvasFullscreen();
-  if(ui.restoreToolbarBtn) ui.restoreToolbarBtn.onclick = ()=>toggleToolbar(false);
-  if(ui.restoreSidebarBtn) ui.restoreSidebarBtn.onclick = ()=>toggleSidebar(false);
-  if(ui.exitCanvasFullscreenBtn) ui.exitCanvasFullscreenBtn.onclick = ()=>toggleCanvasFullscreen(false);
-  if(ui.mobileToggleToolbar) ui.mobileToggleToolbar.onclick = ()=>toggleToolbar();
-  if(ui.mobileToggleSidebar) ui.mobileToggleSidebar.onclick = ()=>toggleSidebar();
-  if(ui.mobileToggleFullscreen) ui.mobileToggleFullscreen.onclick = ()=>toggleCanvasFullscreen();
-
-  document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape' && appEl.classList.contains('canvas-fullscreen')){
-      toggleCanvasFullscreen(false);
-    }
-  });
-
-  setLabels();
-
 
   // ===== PHIK mobile UI bridge =====
   let phikZoom = 1;
@@ -1455,7 +1418,6 @@ render();
 
   function phikApplyZoom(){
     const shell = document.querySelector('.canvas-shell');
-    const resetTop = document.getElementById('zoomResetTopBtn');
     const resetMenu = document.getElementById('zoomResetBtn');
     if(shell){
       shell.style.transformOrigin = 'top center';
@@ -1463,7 +1425,6 @@ render();
       shell.style.marginBottom = (Math.max(phikZoom,1)-1) * 300 + 'px';
     }
     const pct = Math.round(phikZoom * 100) + '%';
-    if(resetTop) resetTop.textContent = pct;
     if(resetMenu) resetMenu.textContent = pct;
   }
 
@@ -1567,7 +1528,7 @@ render();
     const zoomOut = ()=>{ phikZoom = Math.max(0.2, +(phikZoom - 0.1).toFixed(2)); phikApplyZoom(); };
     const zoomReset = ()=>{ phikZoom = 1; phikApplyZoom(); };
 
-    [['zoomInBtn',zoomIn],['zoomInTopBtn',zoomIn],['zoomOutBtn',zoomOut],['zoomOutTopBtn',zoomOut],['zoomResetBtn',zoomReset],['zoomResetTopBtn',zoomReset]]
+    [['zoomInBtn',zoomIn],['zoomOutBtn',zoomOut],['zoomResetBtn',zoomReset]]
       .forEach(([id, fn])=>{
         const el = document.getElementById(id);
         if(el) el.onclick = fn;
