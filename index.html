@@ -561,8 +561,6 @@ body,html{
   
 <div class="right-toolbar" id="rightToolbar">
   <div class="rtool-stack">
-    <button class="rtool-btn" id="canvasFocusCompact" type="button">Canvas Focus</button>
-    <button class="rtool-btn" id="showRibbonCompact" type="button">Show Ribbon</button>
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
@@ -1360,7 +1358,6 @@ render();
   buildToolButtons();
   syncProjectUi();
   render();
-}
 
 
   // ===== PHIK mobile UI bridge =====
@@ -1407,19 +1404,6 @@ render();
         const active = target.classList.contains('active') || target.getAttribute('aria-pressed') === 'true' || target.dataset.active === '1';
         btn.classList.toggle('active', active);
       }
-    }
-  }
-
-  function phikSetCanvasFocusMode(focus){
-    document.body.classList.toggle('phik-canvas-focus', !!focus);
-    const topbar = document.querySelector('.topbar');
-    const rtb = document.getElementById('rightToolbar');
-    if(topbar) topbar.style.display = focus ? 'none' : '';
-    if(rtb) rtb.style.display = focus ? 'none' : '';
-    const filePanel = document.getElementById('fileMenuPanel');
-    if(filePanel){
-      filePanel.classList.remove('open');
-      filePanel.setAttribute('aria-hidden','true');
     }
   }
 
@@ -1534,12 +1518,6 @@ render();
         phikInput(['pageBackgroundColor','pageBgColor','backgroundColor'], document.getElementById('mobilePageBg')?.value || '#ffffff');
       }
     };
-
-    const canvasFocusBtn = document.getElementById('canvasFocusCompact');
-    const showRibbonBtn = document.getElementById('showRibbonCompact');
-
-    if(canvasFocusBtn) canvasFocusBtn.onclick = ()=>phikSetCanvasFocusMode(true);
-    if(showRibbonBtn) showRibbonBtn.onclick = ()=>phikSetCanvasFocusMode(false);
 
     const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.1).toFixed(2)); phikApplyZoom(); };
     const zoomOut = ()=>{ phikZoom = Math.max(0.2, +(phikZoom - 0.1).toFixed(2)); phikApplyZoom(); };
