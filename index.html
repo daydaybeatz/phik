@@ -554,6 +554,8 @@ body,html{
         Speech Bubble places a rounded bubble with a rotatable pointer.<br>
         Text places editable text using the sidebar contents.<br>
         Select lets you move and resize objects.<br>
+        Pan drags the viewport.<br>
+        Rotate spins the selected object.<br>
       </div>
     </div>
   </div>
@@ -562,6 +564,8 @@ body,html{
 <div class="right-toolbar" id="rightToolbar">
   <div class="rtool-stack">
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
+    <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
+    <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
     <button class="rtool-btn" id="toolBubbleCompact" type="button">Bubble</button>
@@ -596,13 +600,14 @@ body,html{
 <script>
 (() => {
   const tools = [
-    ['select','Select'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
+    ['select','Select'],['pan','Pan'],['rotate','Rotate'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
     ['circle','Circ'],['circlefill','Circ Fill'],['bubble','Speech Bubble'],['text','Text']
   ];
 
   const els = {
     canvas: document.getElementById('canvas'),
     canvasShell: document.getElementById('canvasShell'),
+    canvasWrap: document.querySelector('.canvas-wrap'),
     toolButtons: document.getElementById('toolButtons'),
     strokeColor: document.getElementById('strokeColor'),
     fillColor: document.getElementById('fillColor'),
@@ -684,6 +689,8 @@ body,html{
       b.dataset.tool = id;
       const compactIdMap = {
         select: 'toolSelect',
+        pan: 'toolPan',
+        rotate: 'toolRotate',
         pen: 'toolPen',
         text: 'toolText',
         bubble: 'toolBubble',
@@ -734,17 +741,40 @@ body,html{
   }
 
   function objectBounds(obj){
+    if(['rect','rectfill','circle','circlefill','text','bubble','image'].includes(obj.type)){
+      const angle = (obj.angle || 0) * Math.PI / 180;
+      if(!angle) return {x:obj.x,y:obj.y,w:obj.w||0,h:obj.h||0};
+      const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+      const pts = [
+        {x:obj.x,y:obj.y},
+        {x:obj.x+obj.w,y:obj.y},
+        {x:obj.x+obj.w,y:obj.y+obj.h},
+        {x:obj.x,y:obj.y+obj.h}
+      ].map(pt => {
+        const dx = pt.x - cx, dy = pt.y - cy;
+        return { x: cx + dx*Math.cos(angle) - dy*Math.sin(angle), y: cy + dx*Math.sin(angle) + dy*Math.cos(angle) };
+      });
+      const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+      return { x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys) };
+    }
     if(obj.type==='stroke'){
       const xs = obj.points.map(p=>p.x), ys = obj.points.map(p=>p.y);
       const minX = Math.min(...xs)-obj.size/2, minY = Math.min(...ys)-obj.size/2;
       const maxX = Math.max(...xs)+obj.size/2, maxY = Math.max(...ys)+obj.size/2;
       return {x:minX,y:minY,w:maxX-minX,h:maxY-minY};
     }
-    if(obj.type==='circle'||obj.type==='circlefill') return {x:obj.x,y:obj.y,w:obj.w,h:obj.h};
     return {x:obj.x,y:obj.y,w:obj.w||0,h:obj.h||0};
   }
 
   function hitTestObject(obj, p){
+    if(['rect','rectfill','circle','circlefill','text','bubble','image'].includes(obj.type)){
+      const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+      const angle = -((obj.angle || 0) * Math.PI / 180);
+      const dx = p.x - cx, dy = p.y - cy;
+      const rx = cx + dx*Math.cos(angle) - dy*Math.sin(angle);
+      const ry = cy + dx*Math.sin(angle) + dy*Math.cos(angle);
+      return rx >= obj.x && rx <= obj.x + obj.w && ry >= obj.y && ry <= obj.y + obj.h;
+    }
     const b = objectBounds(obj);
     return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
   }
@@ -782,6 +812,12 @@ body,html{
 
   function drawObject(obj){
     ctx.save();
+    if(['rect','rectfill','circle','circlefill','text','bubble','image'].includes(obj.type) && obj.angle){
+      const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+      ctx.translate(cx, cy);
+      ctx.rotate((obj.angle || 0) * Math.PI / 180);
+      ctx.translate(-cx, -cy);
+    }
     if(obj.type==='stroke'){
       ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size;
       ctx.beginPath();
@@ -915,6 +951,23 @@ body,html{
       return;
     }
 
+    if(state.tool === 'pan'){
+      state.drag = { mode:'pan', startClient:{x:evt.clientX,y:evt.clientY}, startScroll:{left:els.canvasWrap.scrollLeft,top:els.canvasWrap.scrollTop} };
+      return;
+    }
+
+    if(state.tool === 'rotate'){
+      const obj = findObjectAtPoint(p);
+      if(!obj || obj.type==='stroke') return;
+      pushHistory();
+      state.selectedId = obj.id;
+      const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+      const cursorAngle = Math.atan2(p.y-cy, p.x-cx) * 180 / Math.PI;
+      state.drag = { mode:'rotate', obj, center:{x:cx,y:cy}, offset:(obj.angle || 0) - cursorAngle };
+      render();
+      return;
+    }
+
     if(['rect','rectfill','circle','circlefill'].includes(state.tool)){
       pushHistory();
       const type = state.tool;
@@ -978,6 +1031,10 @@ body,html{
 
     if(d.mode === 'drawing-stroke'){
       d.obj.points.push(p);
+    } else if(d.mode === 'pan'){
+      const dx = evt.clientX - d.startClient.x, dy = evt.clientY - d.startClient.y;
+      els.canvasWrap.scrollLeft = d.startScroll.left - dx;
+      els.canvasWrap.scrollTop = d.startScroll.top - dy;
     } else if(d.mode === 'shape'){
       const r = normalizeRect(d.start, p);
       Object.assign(d.obj, r);
@@ -1005,6 +1062,9 @@ body,html{
       d.obj.pointerAngle = (ang + 360) % 360;
       els.bubbleAngle.value = Math.round(d.obj.pointerAngle);
       els.bubbleAngleReadout.textContent = `${Math.round(d.obj.pointerAngle)}°`;
+    } else if(d.mode === 'rotate'){
+      const ang = Math.atan2(p.y - d.center.y, p.x - d.center.x) * 180 / Math.PI;
+      d.obj.angle = (ang + d.offset + 360) % 360;
     }
     render();
   }
@@ -1389,6 +1449,8 @@ render();
   function phikSyncCompactToolState(){
     const activeIds = {
       toolSelectCompact:['toolSelect'],
+      toolPanCompact:['toolPan'],
+      toolRotateCompact:['toolRotate'],
       toolPenCompact:['toolPen'],
       toolTextCompact:['toolText'],
       toolBubbleCompact:['toolBubble'],
@@ -1423,13 +1485,27 @@ render();
     const fileBtn = document.getElementById('fileMenuBtn');
     const filePanel = document.getElementById('fileMenuPanel');
     if(fileBtn && filePanel){
-      fileBtn.addEventListener('click', ()=>{
+      const toggleMenu = (evt)=>{
+        evt.preventDefault();
+        evt.stopPropagation();
         const open = !filePanel.classList.contains('open');
         filePanel.classList.toggle('open', open);
         filePanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+      };
+      fileBtn.addEventListener('pointerdown', toggleMenu);
+      fileBtn.addEventListener('keydown', (evt)=>{
+        if(evt.key === 'Enter' || evt.key === ' '){
+          toggleMenu(evt);
+        }
       });
       document.addEventListener('click', (e)=>{
         if(!filePanel.contains(e.target) && !fileBtn.contains(e.target)){
+          filePanel.classList.remove('open');
+          filePanel.setAttribute('aria-hidden','true');
+        }
+      });
+      document.addEventListener('keydown', (e)=>{
+        if(e.key === 'Escape'){
           filePanel.classList.remove('open');
           filePanel.setAttribute('aria-hidden','true');
         }
@@ -1469,6 +1545,8 @@ render();
 
     const toolMap = [
       ['toolSelectCompact',['toolSelect']],
+      ['toolPanCompact',['toolPan']],
+      ['toolRotateCompact',['toolRotate']],
       ['toolPenCompact',['toolPen']],
       ['toolTextCompact',['toolText']],
       ['toolBubbleCompact',['toolBubble']],
