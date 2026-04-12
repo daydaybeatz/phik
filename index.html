@@ -333,34 +333,18 @@ body,html{
 .file-menu-panel{
   display:flex;
   flex-direction:row;
-  gap:10px;
-  overflow:visible;
+  gap:8px;
+  overflow-x:auto;
   max-width:100%;
-  white-space:normal;
+  white-space:nowrap;
   flex-wrap:nowrap;
   align-items:center;
 }
-.file-group{
-  display:flex;
-  flex-direction:row;
-  align-items:center;
-  gap:8px;
-  min-width:0;
-  padding-right:10px;
-  border-right:1px solid rgba(120,160,255,.15);
-}
-.file-group:last-child{
-  border-right:none;
-}
+.file-ribbon-btn{ min-width:88px; }
 .file-inline{
   display:flex;
   gap:8px;
-  flex-wrap:nowrap;
   align-items:center;
-}
-.file-inline input,.file-inline select{
-  min-width:0;
-  flex:1 1 110px;
 }
 .canvas-status{
   color:#aab6cf;
@@ -398,42 +382,11 @@ body,html{
   
 <div class="topbar">
     <div id="fileMenuPanel" class="file-menu-panel" aria-hidden="false">
-      <div class="file-group">
-        <strong>Project</strong>
-        <div class="file-inline">
-          <label>Title</label>
-          <input id="mobileProjectTitle" type="text" placeholder="PHIK Project">
-        </div>
-        <div class="file-inline">
-          <label>W</label>
-          <input id="mobileProjectWidth" type="number" min="64" step="1">
-          <label>H</label>
-          <input id="mobileProjectHeight" type="number" min="64" step="1">
-          <button id="mobileApplyProjectSize" type="button">Apply</button>
-        </div>
-      </div>
-
-      <div class="file-group">
-        <strong>Pages</strong>
-        <div class="file-inline">
-          <label>BG</label>
-          <input id="mobilePageBg" type="color" value="#ffffff">
-          <button id="mobileApplyPageBg" type="button">Apply BG</button>
-        </div>
-      </div>
-
-      <div class="file-group">
-        <strong>File</strong>
-        <div class="file-inline">
-          <button id="mobileSaveProject" type="button">Save Project</button>
-          <button id="mobileLoadProject" type="button">Load Project</button>
-        </div>
-        <div class="file-inline">
-          <button id="mobileExportViewer" type="button">Export Viewer HTML</button>
-          <button id="mobileExportPNG" type="button">Export PNG</button>
-        </div>
-      </div>
-
+      <button id="fileNewBtn" class="file-ribbon-btn" type="button">New</button>
+      <button id="fileSaveBtn" class="file-ribbon-btn" type="button">Save</button>
+      <button id="fileLoadBtn" class="file-ribbon-btn" type="button">Load</button>
+      <button id="fileExportBtn" class="file-ribbon-btn" type="button">Export</button>
+      <button id="fileResolutionBtn" class="file-ribbon-btn" type="button">Resolution</button>
     </div>
 
   <div class="canvas-status" id="canvasStatus">Canvas</div>
@@ -545,16 +498,16 @@ body,html{
     <button class="rtool-btn" id="toolbarDeletePage" type="button">Delete</button>
     <button class="rtool-btn" id="toolbarUndo" type="button">Undo</button>
     <button class="rtool-btn" id="toolbarRedo" type="button">Redo</button>
-    <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
-    <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
-    <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
-    <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
-    <button class="rtool-btn" id="toolBubbleCompact" type="button">Bubble</button>
     <button class="rtool-btn" id="toolRectCompact" type="button">Rect</button>
     <button class="rtool-btn" id="toolRectFillCompact" type="button">RFill</button>
     <button class="rtool-btn" id="toolCircCompact" type="button">Circ</button>
     <button class="rtool-btn" id="toolCircFillCompact" type="button">CFill</button>
+    <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
+    <button class="rtool-btn" id="toolBubbleCompact" type="button">Bubble</button>
+    <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
+    <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
+    <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
     <label class="rtool-chip">Stroke<input id="strokeColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <label class="rtool-chip">Fill<input id="fillColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <label class="rtool-chip">BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
@@ -642,7 +595,7 @@ body,html{
   };
 
   function makePage(index){
-    return { id: uid(), name: `Page ${index}`, objects: [] };
+    return { id: uid(), name: `Page ${index}`, bg: '#ffffff', objects: [] };
   }
   function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
   function currentPage(){ return state.project.pages[state.project.currentPage]; }
@@ -657,6 +610,86 @@ body,html{
     a.download = name;
     a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  }
+  const STORAGE_KEY = 'phik-projects-v1';
+  function getStoredProjects(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const data = raw ? JSON.parse(raw) : {};
+      return (data && typeof data === 'object') ? data : {};
+    }catch{
+      return {};
+    }
+  }
+  function setStoredProjects(projects){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  }
+  function saveProjectWithPrompt(){
+    const proposed = prompt('Project name:', state.project.title || 'PHIK Project');
+    if(proposed === null) return;
+    const name = proposed.trim() || 'PHIK Project';
+    state.project.title = name;
+    els.projectTitle.value = name;
+    const projects = getStoredProjects();
+    projects[name] = clone(state.project);
+    setStoredProjects(projects);
+  }
+  function loadProjectWithPrompt(){
+    const projects = getStoredProjects();
+    const names = Object.keys(projects).sort((a,b)=>a.localeCompare(b));
+    if(!names.length){
+      alert('No saved projects found. Save a project first.');
+      return;
+    }
+    const list = names.map((name,i)=>`${i+1}. ${name}`).join('\n');
+    const selected = prompt(`Load which project?\n${list}\n\nType name or number:`, names[0]);
+    if(selected === null) return;
+    const trimmed = selected.trim();
+    const byIndex = Number.parseInt(trimmed, 10);
+    const projectName = Number.isInteger(byIndex) && byIndex>=1 && byIndex<=names.length ? names[byIndex-1] : trimmed;
+    if(!projects[projectName]){
+      alert('Project not found.');
+      return;
+    }
+    pushHistory();
+    state.project = clone(projects[projectName]);
+    state.selectedId = null;
+    syncProjectUi();
+    render();
+  }
+  function exportProjectWithPrompt(){
+    state.project.title = els.projectTitle.value || state.project.title;
+    const data = JSON.stringify({ app:'PHIK', version:1, project:state.project }, null, 2);
+    const proposed = prompt('Export file name:', `${state.project.title || 'phik-project'}.json`);
+    if(proposed === null) return;
+    const fileName = (proposed.trim() || `${state.project.title || 'phik-project'}.json`).replace(/[^a-z0-9-_.]+/gi,'_');
+    download(fileName.endsWith('.json') ? fileName : `${fileName}.json`, data, 'application/json');
+  }
+  function updateResolutionWithPrompt(){
+    const current = `${state.project.width}x${state.project.height}`;
+    const input = prompt('Set canvas resolution (WIDTHxHEIGHT):', current);
+    if(input === null) return;
+    const match = input.trim().match(/^(\d+)\s*[x, ]\s*(\d+)$/i);
+    if(!match) return alert('Use format like 1200x900');
+    pushHistory();
+    state.project.width = Math.max(64, +match[1] || state.project.width);
+    state.project.height = Math.max(64, +match[2] || state.project.height);
+    syncProjectUi();
+    render();
+  }
+  function newProjectWithConfirm(){
+    if(!confirm('Create a new project? Unsaved changes in the current canvas will remain only in memory.')) return;
+    pushHistory();
+    state.project = {
+      title: 'PHIK Project',
+      width: 1200,
+      height: 900,
+      pages: [makePage(1)],
+      currentPage: 0
+    };
+    state.selectedId = null;
+    syncProjectUi();
+    render();
   }
 
   function getPointer(evt){
@@ -865,7 +898,7 @@ body,html{
     els.canvasShell.style.width = state.project.width + 'px';
     els.canvasShell.style.height = state.project.height + 'px';
     ctx.clearRect(0,0,els.canvas.width,els.canvas.height);
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,els.canvas.width,els.canvas.height);
+    ctx.fillStyle = currentPage().bg || '#ffffff'; ctx.fillRect(0,0,els.canvas.width,els.canvas.height);
     currentPage().objects.forEach(drawObject);
 
     const obj = currentPage().objects.find(o=>o.id===state.selectedId);
@@ -911,6 +944,8 @@ body,html{
     els.projectTitle.value = state.project.title;
     els.projectWidth.value = state.project.width;
     els.projectHeight.value = state.project.height;
+    const bg = document.getElementById('bgColorCompact');
+    if(bg) bg.value = currentPage().bg || '#ffffff';
   }
 
   function normalizeRect(a,b){
@@ -1116,13 +1151,9 @@ body,html{
     e.target.value = '';
   };
 
-  els.saveProjectBtn.onclick = () => {
-    state.project.title = els.projectTitle.value || state.project.title;
-    const data = JSON.stringify({ app:'PHIK', version:1, project:state.project }, null, 2);
-    download((state.project.title || 'phik-project').replace(/[^a-z0-9-_]+/gi,'_') + '.json', data, 'application/json');
-  };
+  els.saveProjectBtn.onclick = saveProjectWithPrompt;
 
-  els.loadProjectBtn.onclick = () => els.loadProjectInput.click();
+  els.loadProjectBtn.onclick = loadProjectWithPrompt;
   els.loadProjectInput.onchange = (e) => {
     const file = e.target.files[0]; if(!file) return;
     const reader = new FileReader();
@@ -1211,7 +1242,7 @@ function drawObject(obj){
   else if(obj.type==='image'){ let img = cache.get(obj.src); if(!img){ img = new Image(); img.onload = render; img.src = obj.src; cache.set(obj.src,img); } if(img.complete) ctx.drawImage(img,obj.x,obj.y,obj.w,obj.h); }
   ctx.restore();
 }
-function render(){ canvas.width=project.width; canvas.height=project.height; const page=project.pages[pageIndex]; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); page.objects.forEach(drawObject); document.getElementById('readout').textContent = (pageIndex+1)+' / '+project.pages.length+' - '+page.name; }
+function render(){ canvas.width=project.width; canvas.height=project.height; const page=project.pages[pageIndex]; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=page.bg || '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); page.objects.forEach(drawObject); document.getElementById('readout').textContent = (pageIndex+1)+' / '+project.pages.length+' - '+page.name; }
 document.getElementById('prev').onclick = ()=>{ pageIndex = (pageIndex-1+project.pages.length)%project.pages.length; render(); };
 document.getElementById('next').onclick = ()=>{ pageIndex = (pageIndex+1)%project.pages.length; render(); };
 render();
@@ -1294,38 +1325,21 @@ render();
   }
 
   function phikWireMobileUI(){
-    const fileBtn = document.getElementById('fileMenuBtn');
-    const filePanel = document.getElementById('fileMenuPanel');
-    if(fileBtn && filePanel){
-      const setOpen = (open) => {
-        filePanel.classList.toggle('open', open);
-        filePanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-        fileBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      };
-      fileBtn.onclick = (evt) => {
-        evt.preventDefault();
-        evt.stopPropagation();
-        setOpen(!filePanel.classList.contains('open'));
-      };
-      document.addEventListener('click', (e)=>{
-        if(!filePanel.contains(e.target) && !fileBtn.contains(e.target)){
-          setOpen(false);
-        }
-      });
-      document.addEventListener('keydown', (e)=>{
-        if(e.key === 'Escape'){
-          setOpen(false);
-        }
-      });
-    }
+    const ribbonMap = [
+      ['fileNewBtn', newProjectWithConfirm],
+      ['fileSaveBtn', saveProjectWithPrompt],
+      ['fileLoadBtn', loadProjectWithPrompt],
+      ['fileExportBtn', exportProjectWithPrompt],
+      ['fileResolutionBtn', updateResolutionWithPrompt]
+    ];
+    ribbonMap.forEach(([id, fn])=>{
+      const btn = document.getElementById(id);
+      if(btn) btn.onclick = fn;
+    });
 
     const mapButtons = [
       ['toolbarUndo',['undoBtn']],
       ['toolbarRedo',['redoBtn']],
-      ['mobileSaveProject',['saveProjectBtn']],
-      ['mobileLoadProject',['loadProjectBtn']],
-      ['mobileExportViewer',['exportViewerBtn']],
-      ['mobileExportPNG',['exportImageBtn']],
       ['toolbarAddPage',['addPageBtn']],
       ['toolbarDeletePage',['deletePageBtn']]
     ];
@@ -1387,22 +1401,19 @@ render();
     bindMirror('fillColorCompact',['fillColor','fill']);
     bindMirror('brushSizeCompact',['toolSize']);
     bindMirror('fontSizeCompact',['fontSize','fontSizeInput']);
-    bindMirror('mobileProjectTitle',['projectTitle']);
-    bindMirror('mobileProjectWidth',['projectWidth','canvasWidth']);
-    bindMirror('mobileProjectHeight',['projectHeight','canvasHeight']);
-    bindMirror('mobilePageBg',['pageBackgroundColor','pageBgColor','backgroundColor']);
-    bindMirror('bgColorCompact',['pageBackgroundColor','pageBgColor','backgroundColor']);
-
-    const applyProject = document.getElementById('mobileApplyProjectSize');
-    if(applyProject) applyProject.onclick = ()=>phikClick(['applyResolutionBtn']);
-
-    const applyBg = document.getElementById('mobileApplyPageBg');
-    if(applyBg) applyBg.onclick = ()=>{
-      const ok = phikClick(['applyPageBackgroundBtn','applyBgBtn','setPageBgBtn']);
-      if(!ok){
-        phikInput(['pageBackgroundColor','pageBgColor','backgroundColor'], document.getElementById('mobilePageBg')?.value || '#ffffff');
-      }
-    };
+    const bgCompact = document.getElementById('bgColorCompact');
+    if(bgCompact){
+      bgCompact.value = currentPage().bg || '#ffffff';
+      bgCompact.addEventListener('input', ()=>{
+        currentPage().bg = bgCompact.value;
+        render();
+      });
+      bgCompact.addEventListener('change', ()=>{
+        pushHistory();
+        currentPage().bg = bgCompact.value;
+        render();
+      });
+    }
 
     const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.1).toFixed(2)); phikApplyViewport(); };
     const zoomOut = ()=>{ phikZoom = Math.max(0.2, +(phikZoom - 0.1).toFixed(2)); phikApplyViewport(); };
