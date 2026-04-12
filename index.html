@@ -351,6 +351,10 @@ body,html{
   font-size:12px;
   margin-left:auto;
 }
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1200;padding:16px}
+.modal-backdrop.open{display:flex}
+.modal{width:min(560px,95vw);max-height:80vh;overflow:auto;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.project-load-item{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0;background:#151a22}
 .topbar .group{
   display:flex;
   gap:8px;
@@ -389,7 +393,7 @@ body,html{
       <button id="fileResolutionBtn" class="file-ribbon-btn" type="button">Resolution</button>
     </div>
 
-  <div class="canvas-status" id="canvasStatus">Canvas</div>
+  <div class="canvas-status" id="canvasStatus">Page 1 of 1</div>
 
   <div class="desktop-only-legacy">
 
@@ -409,8 +413,6 @@ body,html{
         <option>Times New Roman</option><option>Courier New</option><option>Comic Sans MS</option><option>Impact</option>
       </select></label>
       <label>Font Size <input id="fontSize" type="number" min="8" max="300" value="32" style="width:80px"></label>
-      <label>Bubble Pointer <input id="bubbleAngle" type="range" min="0" max="359" value="225"></label>
-      <span class="small" id="bubbleAngleReadout">225°</span>
     </div>
     <div class="group footer-actions">
       <button id="undoBtn">Undo</button>
@@ -461,6 +463,7 @@ body,html{
       <div class="row">
         <button id="addPageBtn">Add Page</button>
         <button id="deletePageBtn" class="danger">Delete Current</button>
+        <button id="clearPageBtn" class="danger">Clear Current</button>
       </div>
       <div class="pages" id="pagesList"></div>
     </div>
@@ -480,7 +483,6 @@ body,html{
         Pen draws strokes.<br>
         Rect and Circle drag out outlines.<br>
         Fill variants create filled shapes.<br>
-        Speech Bubble places a rounded bubble with a rotatable pointer.<br>
         Text places editable text using the sidebar contents.<br>
         Select lets you move and resize objects.<br>
         Pan drags the viewport.<br>
@@ -496,23 +498,24 @@ body,html{
     <button class="rtool-btn" id="toolbarNextPage" type="button">Next</button>
     <button class="rtool-btn" id="toolbarAddPage" type="button">Add</button>
     <button class="rtool-btn" id="toolbarDeletePage" type="button">Delete</button>
+    <button class="rtool-btn" id="toolbarClearPage" type="button">Clear</button>
     <button class="rtool-btn" id="toolbarUndo" type="button">Undo</button>
     <button class="rtool-btn" id="toolbarRedo" type="button">Redo</button>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
+    <label class="rtool-chip">Stroke Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
     <button class="rtool-btn" id="toolRectCompact" type="button">Rect</button>
     <button class="rtool-btn" id="toolRectFillCompact" type="button">RFill</button>
     <button class="rtool-btn" id="toolCircCompact" type="button">Circ</button>
     <button class="rtool-btn" id="toolCircFillCompact" type="button">CFill</button>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
-    <button class="rtool-btn" id="toolBubbleCompact" type="button">Bubble</button>
+    <label class="rtool-chip">Font Size<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    <button class="rtool-btn" id="toolbarImportImage" type="button">Image</button>
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
     <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
     <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
     <label class="rtool-chip">Stroke<input id="strokeColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <label class="rtool-chip">Fill<input id="fillColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <label class="rtool-chip">BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
-    <label class="rtool-chip">Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
-    <label class="rtool-chip">Font<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
     <div class="rtool-chip">
       Zoom
       <div class="file-inline" style="margin-top:6px;">
@@ -532,11 +535,20 @@ body,html{
     </div>
   </div>
 </div>
+<div class="modal-backdrop" id="loadModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="loadModalTitle">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between;">
+      <h3 id="loadModalTitle" style="margin:0;">Load Project</h3>
+      <button id="closeLoadModalBtn" type="button">Close</button>
+    </div>
+    <div id="loadProjectsList"></div>
+  </div>
+</div>
 <script>
 (() => {
   const tools = [
     ['select','Select'],['pan','Pan'],['rotate','Rotate'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
-    ['circle','Circ'],['circlefill','Circ Fill'],['bubble','Speech Bubble'],['text','Text']
+    ['circle','Circ'],['circlefill','Circ Fill'],['text','Text']
   ];
 
   const els = {
@@ -550,8 +562,6 @@ body,html{
     toolSizeReadout: document.getElementById('toolSizeReadout'),
     fontFamily: document.getElementById('fontFamily'),
     fontSize: document.getElementById('fontSize'),
-    bubbleAngle: document.getElementById('bubbleAngle'),
-    bubbleAngleReadout: document.getElementById('bubbleAngleReadout'),
     undoBtn: document.getElementById('undoBtn'),
     redoBtn: document.getElementById('redoBtn'),
     saveProjectBtn: document.getElementById('saveProjectBtn'),
@@ -566,6 +576,7 @@ body,html{
     textInput: document.getElementById('textInput'),
     addPageBtn: document.getElementById('addPageBtn'),
     deletePageBtn: document.getElementById('deletePageBtn'),
+    clearPageBtn: document.getElementById('clearPageBtn'),
     pagesList: document.getElementById('pagesList'),
     importImageBtn: document.getElementById('importImageBtn'),
     imageInput: document.getElementById('imageInput'),
@@ -634,6 +645,23 @@ body,html{
     projects[name] = clone(state.project);
     setStoredProjects(projects);
   }
+  function closeLoadModal(){
+    const backdrop = document.getElementById('loadModalBackdrop');
+    if(backdrop) backdrop.classList.remove('open');
+  }
+  function loadProjectByName(name){
+    const projects = getStoredProjects();
+    if(!projects[name]){
+      alert('Project not found.');
+      return;
+    }
+    pushHistory();
+    state.project = clone(projects[name]);
+    state.selectedId = null;
+    syncProjectUi();
+    render();
+    closeLoadModal();
+  }
   function loadProjectWithPrompt(){
     const projects = getStoredProjects();
     const names = Object.keys(projects).sort((a,b)=>a.localeCompare(b));
@@ -641,21 +669,21 @@ body,html{
       alert('No saved projects found. Save a project first.');
       return;
     }
-    const list = names.map((name,i)=>`${i+1}. ${name}`).join('\n');
-    const selected = prompt(`Load which project?\n${list}\n\nType name or number:`, names[0]);
-    if(selected === null) return;
-    const trimmed = selected.trim();
-    const byIndex = Number.parseInt(trimmed, 10);
-    const projectName = Number.isInteger(byIndex) && byIndex>=1 && byIndex<=names.length ? names[byIndex-1] : trimmed;
-    if(!projects[projectName]){
-      alert('Project not found.');
-      return;
-    }
-    pushHistory();
-    state.project = clone(projects[projectName]);
-    state.selectedId = null;
-    syncProjectUi();
-    render();
+    const list = document.getElementById('loadProjectsList');
+    const backdrop = document.getElementById('loadModalBackdrop');
+    list.innerHTML = '';
+    names.forEach((name) => {
+      const row = document.createElement('div');
+      row.className = 'project-load-item';
+      const title = document.createElement('div');
+      title.textContent = name;
+      const loadBtn = document.createElement('button');
+      loadBtn.textContent = 'Load';
+      loadBtn.onclick = () => loadProjectByName(name);
+      row.append(title, loadBtn);
+      list.appendChild(row);
+    });
+    backdrop.classList.add('open');
   }
   function exportProjectWithPrompt(){
     state.project.title = els.projectTitle.value || state.project.title;
@@ -708,7 +736,6 @@ body,html{
         rotate: 'toolRotate',
         pen: 'toolPen',
         text: 'toolText',
-        bubble: 'toolBubble',
         rect: 'toolRect',
         rectfill: 'toolRectFill',
         circle: 'toolCirc',
@@ -910,13 +937,6 @@ body,html{
       ctx.setLineDash([]);
       ctx.fillStyle = '#70d6ff';
       ctx.fillRect(b.x+b.w-8,b.y+b.h-8,16,16);
-      if(obj.type==='bubble'){
-        const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
-        const ang = obj.pointerAngle * Math.PI / 180;
-        const kx = cx + Math.cos(ang) * (Math.max(obj.w,obj.h) * 0.52);
-        const ky = cy + Math.sin(ang) * (Math.max(obj.w,obj.h) * 0.52);
-        ctx.fillStyle='#ffb86c'; ctx.beginPath(); ctx.arc(kx,ky,8,0,Math.PI*2); ctx.fill();
-      }
       ctx.restore();
     }
     renderPagesList();
@@ -938,6 +958,8 @@ body,html{
       item.append(left,right);
       els.pagesList.appendChild(item);
     });
+    const pageNum = state.project.currentPage + 1;
+    document.getElementById('canvasStatus').textContent = `Page ${pageNum} of ${state.project.pages.length} — ${currentPage().name}`;
   }
 
   function syncProjectUi(){
@@ -1006,35 +1028,12 @@ body,html{
       return;
     }
 
-    if(state.tool === 'bubble'){
-      pushHistory();
-      const size = Math.max(12, +els.fontSize.value || 28);
-      const obj = { id:uid(), type:'bubble', x:p.x, y:p.y, w:260, h:150, text:els.textInput.value || 'Speech bubble', color:els.strokeColor.value, fill:els.fillColor.value, textColor:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size, pointerAngle:+els.bubbleAngle.value };
-      page.objects.push(obj);
-      state.selectedId = obj.id;
-      render();
-      return;
-    }
-
     if(state.tool === 'select'){
       const obj = findObjectAtPoint(p);
       if(!obj){ state.selectedId = null; render(); return; }
       state.selectedId = obj.id;
       const b = objectBounds(obj);
       const handle = p.x >= b.x+b.w-16 && p.y >= b.y+b.h-16;
-      if(obj.type==='bubble'){
-        const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
-        const ang = obj.pointerAngle * Math.PI / 180;
-        const kx = cx + Math.cos(ang) * (Math.max(obj.w,obj.h) * 0.52);
-        const ky = cy + Math.sin(ang) * (Math.max(obj.w,obj.h) * 0.52);
-        const d = Math.hypot(p.x-kx,p.y-ky);
-        if(d < 14){
-          pushHistory();
-          state.drag = { mode:'bubble-angle', obj };
-          render();
-          return;
-        }
-      }
       pushHistory();
       state.drag = { mode: handle ? 'resize' : 'move', obj, start:p, origin:clone(objectBounds(obj)), raw:clone(obj) };
       render();
@@ -1073,12 +1072,6 @@ body,html{
       } else {
         d.obj.w = Math.max(4, d.raw.w + dx); d.obj.h = Math.max(4, d.raw.h + dy);
       }
-    } else if(d.mode === 'bubble-angle'){
-      const cx = d.obj.x + d.obj.w/2, cy = d.obj.y + d.obj.h/2;
-      const ang = Math.atan2(p.y - cy, p.x - cx) * 180 / Math.PI;
-      d.obj.pointerAngle = (ang + 360) % 360;
-      els.bubbleAngle.value = Math.round(d.obj.pointerAngle);
-      els.bubbleAngleReadout.textContent = `${Math.round(d.obj.pointerAngle)}°`;
     } else if(d.mode === 'rotate'){
       const ang = Math.atan2(p.y - d.center.y, p.x - d.center.x) * 180 / Math.PI;
       d.obj.angle = (ang + d.offset + 360) % 360;
@@ -1093,12 +1086,6 @@ body,html{
   window.addEventListener('pointerup', onPointerUp);
 
   els.toolSize.oninput = () => els.toolSizeReadout.textContent = els.toolSize.value;
-  els.bubbleAngle.oninput = () => {
-    els.bubbleAngleReadout.textContent = `${els.bubbleAngle.value}°`;
-    const obj = currentPage().objects.find(o=>o.id===state.selectedId && o.type==='bubble');
-    if(obj){ pushHistory(); obj.pointerAngle = +els.bubbleAngle.value; render(); }
-  };
-
   els.undoBtn.onclick = undo;
   els.redoBtn.onclick = redo;
   els.applyResolutionBtn.onclick = () => {
@@ -1121,9 +1108,17 @@ body,html{
   els.addPageBtn.onclick = () => { pushHistory(); state.project.pages.push(makePage(state.project.pages.length+1)); state.project.currentPage = state.project.pages.length-1; render(); };
   els.deletePageBtn.onclick = () => {
     if(state.project.pages.length===1) return alert('Project needs at least one page.');
+    if(!confirm('Delete the current page? This cannot be undone except with Undo.')) return;
     pushHistory();
     state.project.pages.splice(state.project.currentPage,1);
     state.project.currentPage = Math.max(0, state.project.currentPage-1);
+    state.selectedId = null;
+    render();
+  };
+  els.clearPageBtn.onclick = () => {
+    if(!confirm('Clear all content from the current page?')) return;
+    pushHistory();
+    currentPage().objects = [];
     state.selectedId = null;
     render();
   };
@@ -1308,7 +1303,6 @@ render();
       toolRotateCompact:['toolRotate'],
       toolPenCompact:['toolPen'],
       toolTextCompact:['toolText'],
-      toolBubbleCompact:['toolBubble'],
       toolRectCompact:['toolRect'],
       toolRectFillCompact:['toolRectFill'],
       toolCircCompact:['toolCirc'],
@@ -1341,7 +1335,9 @@ render();
       ['toolbarUndo',['undoBtn']],
       ['toolbarRedo',['redoBtn']],
       ['toolbarAddPage',['addPageBtn']],
-      ['toolbarDeletePage',['deletePageBtn']]
+      ['toolbarDeletePage',['deletePageBtn']],
+      ['toolbarClearPage',['clearPageBtn']],
+      ['toolbarImportImage',['importImageBtn']]
     ];
     mapButtons.forEach(([compactId, targets])=>{
       const compact = document.getElementById(compactId);
@@ -1370,7 +1366,6 @@ render();
       ['toolRotateCompact',['toolRotate']],
       ['toolPenCompact',['toolPen']],
       ['toolTextCompact',['toolText']],
-      ['toolBubbleCompact',['toolBubble']],
       ['toolRectCompact',['toolRect']],
       ['toolRectFillCompact',['toolRectFill']],
       ['toolCircCompact',['toolCirc']],
@@ -1438,6 +1433,14 @@ render();
   }
 
   setInterval(phikSyncCompactToolState, 600);
+  const closeLoadModalBtn = document.getElementById('closeLoadModalBtn');
+  if(closeLoadModalBtn) closeLoadModalBtn.onclick = closeLoadModal;
+  const loadModalBackdrop = document.getElementById('loadModalBackdrop');
+  if(loadModalBackdrop){
+    loadModalBackdrop.onclick = (evt) => {
+      if(evt.target === loadModalBackdrop) closeLoadModal();
+    };
+  }
 
   const originalOnPointerDown = onPointerDown;
   function onPointerDownWithViewport(evt){
