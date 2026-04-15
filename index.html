@@ -254,6 +254,7 @@ html,body{
 /* ===== PHIK mobile refactor ===== */
 :root{
   --filebar-h: 54px;
+  --lefttools-w: 110px;
   --righttools-w: 72px;
 }
 body,html{
@@ -263,11 +264,11 @@ body,html{
   width:100vw;
   height:100dvh;
   display:grid;
-  grid-template-columns:minmax(0,1fr) var(--righttools-w);
+  grid-template-columns:var(--lefttools-w) minmax(0,1fr) var(--righttools-w);
   grid-template-rows:var(--filebar-h) minmax(0,1fr);
 }
 .topbar{
-  grid-column:1 / span 2;
+  grid-column:1 / span 3;
   grid-row:1;
   display:flex;
   align-items:center;
@@ -281,7 +282,7 @@ body,html{
   display:none !important;
 }
 .canvas-wrap{
-  grid-column:1;
+  grid-column:2;
   grid-row:2;
   min-width:0;
   min-height:0;
@@ -300,8 +301,20 @@ body,html{
   margin:0;
   max-width:none;
 }
+.left-toolbar{
+  grid-column:1;
+  grid-row:2;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:8px 6px;
+  border-right:1px solid var(--line);
+  background:rgba(10,16,30,.92);
+  overflow-y:auto;
+  overflow-x:hidden;
+}
 .right-toolbar{
-  grid-column:2;
+  grid-column:3;
   grid-row:2;
   display:flex;
   flex-direction:column;
@@ -405,6 +418,14 @@ body,html{
       <label>Stroke <input id="strokeColor" type="color" value="#111111"></label>
       <label>Fill <input id="fillColor" type="color" value="#ffffff"></label>
       <label>Size <input id="toolSize" type="range" min="1" max="80" value="4"></label>
+      <label>Brush
+        <select id="brushPattern">
+          <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+          <option value="dotted">Dotted</option>
+          <option value="highlighter">Highlighter</option>
+        </select>
+      </label>
       <span class="small" id="toolSizeReadout">4</span>
     </div>
     <div class="group">
@@ -483,32 +504,70 @@ body,html{
         Pen draws strokes.<br>
         Rect and Circle drag out outlines.<br>
         Fill variants create filled shapes.<br>
+        Fill tool recolors clicked objects or page background.<br>
         Text places editable text using the sidebar contents.<br>
-        Select lets you move and resize objects.<br>
+        Select lets you move, resize, and drag-select multiple objects.<br>
         Pan drags the viewport.<br>
         Rotate spins the selected object.<br>
+        Pen supports solid, dashed, dotted, and highlighter strokes.<br>
       </div>
     </div>
   </div>
 
   
+<div class="left-toolbar" id="leftToolbar">
+  <div class="rtool-stack">
+    <div class="rtool-chip">
+      <div style="font-weight:700;margin-bottom:6px;">Pages / Layers</div>
+      <div class="file-inline" style="margin-bottom:6px;">
+        <button class="rtool-btn" id="toolbarPrevPage" type="button">Prev Pg</button>
+        <button class="rtool-btn" id="toolbarNextPage" type="button">Next Pg</button>
+      </div>
+      <div class="file-inline" style="margin-bottom:6px;">
+        <button class="rtool-btn" id="toolbarAddPage" type="button">Add Pg</button>
+        <button class="rtool-btn" id="toolbarDeletePage" type="button">Del Pg</button>
+      </div>
+      <div class="file-inline">
+        <button class="rtool-btn" id="toolbarAddLayer" type="button">Add Lyr</button>
+        <button class="rtool-btn" id="toolbarDeleteLayer" type="button">Del Lyr</button>
+      </div>
+    </div>
+    <button class="rtool-btn danger" id="toolbarClearPage" type="button">Clear Page</button>
+    <button class="rtool-btn danger" id="toolbarClearLayer" type="button">Clear Layer</button>
+    <button class="rtool-btn danger" id="toolbarDeleteSelection" type="button">Delete Sel</button>
+    <div class="rtool-chip">
+      <div id="pageLayerStatus">Page 1 · Layer 1</div>
+    </div>
+  </div>
+</div>
+
 <div class="right-toolbar" id="rightToolbar">
   <div class="rtool-stack">
-    <button class="rtool-btn" id="toolbarPrevPage" type="button">Prev</button>
-    <button class="rtool-btn" id="toolbarNextPage" type="button">Next</button>
-    <button class="rtool-btn" id="toolbarAddPage" type="button">Add</button>
-    <button class="rtool-btn" id="toolbarDeletePage" type="button">Delete</button>
-    <button class="rtool-btn" id="toolbarClearPage" type="button">Clear</button>
     <button class="rtool-btn" id="toolbarUndo" type="button">Undo</button>
     <button class="rtool-btn" id="toolbarRedo" type="button">Redo</button>
+    <button class="rtool-btn" id="toolBucketCompact" type="button">Fill</button>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
     <label class="rtool-chip">Stroke Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    <label class="rtool-chip">Brush
+      <select id="brushPatternCompact" style="display:block;width:100%;margin-top:6px;">
+        <option value="solid">Solid</option>
+        <option value="dashed">Dashed</option>
+        <option value="dotted">Dotted</option>
+        <option value="highlighter">Highlighter</option>
+      </select>
+    </label>
     <button class="rtool-btn" id="toolRectCompact" type="button">Rect</button>
     <button class="rtool-btn" id="toolRectFillCompact" type="button">RFill</button>
     <button class="rtool-btn" id="toolCircCompact" type="button">Circ</button>
     <button class="rtool-btn" id="toolCircFillCompact" type="button">CFill</button>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
     <label class="rtool-chip">Font Size<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    <label class="rtool-chip" id="textFontFamilyChip" style="display:none;">Font
+      <select id="fontFamilyCompact" style="display:block;width:100%;margin-top:6px;">
+        <option>Arial</option><option>Georgia</option><option>Verdana</option><option>Tahoma</option>
+        <option>Times New Roman</option><option>Courier New</option><option>Comic Sans MS</option><option>Impact</option>
+      </select>
+    </label>
     <button class="rtool-btn" id="toolbarImportImage" type="button">Image</button>
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
     <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
@@ -547,7 +606,7 @@ body,html{
 <script>
 (() => {
   const tools = [
-    ['select','Select'],['pan','Pan'],['rotate','Rotate'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
+    ['select','Select'],['pan','Pan'],['rotate','Rotate'],['bucket','Fill'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
     ['circle','Circ'],['circlefill','Circ Fill'],['text','Text']
   ];
 
@@ -558,6 +617,7 @@ body,html{
     toolButtons: document.getElementById('toolButtons'),
     strokeColor: document.getElementById('strokeColor'),
     fillColor: document.getElementById('fillColor'),
+    brushPattern: document.getElementById('brushPattern'),
     toolSize: document.getElementById('toolSize'),
     toolSizeReadout: document.getElementById('toolSizeReadout'),
     fontFamily: document.getElementById('fontFamily'),
@@ -585,7 +645,9 @@ body,html{
     selW: document.getElementById('selW'),
     selH: document.getElementById('selH'),
     applySelectionBtn: document.getElementById('applySelectionBtn'),
-    deleteSelectionBtn: document.getElementById('deleteSelectionBtn')
+    deleteSelectionBtn: document.getElementById('deleteSelectionBtn'),
+    pageLayerStatus: document.getElementById('pageLayerStatus'),
+    textFontFamilyChip: document.getElementById('textFontFamilyChip')
   };
 
   const ctx = els.canvas.getContext('2d');
@@ -593,6 +655,7 @@ body,html{
     tool: 'select',
     drag: null,
     selectedId: null,
+    selectedIds: [],
     project: {
       title: 'PHIK Project',
       width: 1200,
@@ -606,14 +669,32 @@ body,html{
   };
 
   function makePage(index){
-    return { id: uid(), name: `Page ${index}`, bg: '#ffffff', objects: [] };
+    return { id: uid(), name: `Page ${index}`, bg: '#ffffff', layers:[{id:uid(), name:'Layer 1', objects:[]}], currentLayer:0 };
   }
   function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
-  function currentPage(){ return state.project.pages[state.project.currentPage]; }
+  function ensurePageStructure(page){
+    if(!Array.isArray(page.layers) || !page.layers.length){
+      page.layers = [{id:uid(), name:'Layer 1', objects:Array.isArray(page.objects) ? page.objects : []}];
+      page.currentLayer = 0;
+      delete page.objects;
+    }
+    if(typeof page.currentLayer !== 'number' || page.currentLayer < 0 || page.currentLayer >= page.layers.length){
+      page.currentLayer = 0;
+    }
+    page.layers.forEach((layer, i) => {
+      if(!layer.id) layer.id = uid();
+      if(!layer.name) layer.name = `Layer ${i+1}`;
+      if(!Array.isArray(layer.objects)) layer.objects = [];
+    });
+  }
+  function currentPage(){ const page = state.project.pages[state.project.currentPage]; ensurePageStructure(page); return page; }
+  function currentLayer(){ const page = currentPage(); return page.layers[page.currentLayer]; }
+  function allObjects(page = currentPage()){ return page.layers.flatMap(layer => layer.objects); }
   function clone(data){ return JSON.parse(JSON.stringify(data)); }
   function pushHistory(){ state.history.push(clone(state.project)); if(state.history.length>100) state.history.shift(); state.future.length=0; }
-  function undo(){ if(!state.history.length) return; state.future.push(clone(state.project)); state.project = state.history.pop(); state.selectedId = null; syncProjectUi(); render(); }
-  function redo(){ if(!state.future.length) return; state.history.push(clone(state.project)); state.project = state.future.pop(); state.selectedId = null; syncProjectUi(); render(); }
+  function undo(){ if(!state.history.length) return; state.future.push(clone(state.project)); state.project = state.history.pop(); clearSelection(); syncProjectUi(); render(); }
+  function redo(){ if(!state.future.length) return; state.history.push(clone(state.project)); state.project = state.future.pop(); clearSelection(); syncProjectUi(); render(); }
+  function clearSelection(){ state.selectedId = null; state.selectedIds = []; }
   function download(name, content, type='text/plain'){
     const blob = new Blob([content], {type});
     const a = document.createElement('a');
@@ -657,7 +738,7 @@ body,html{
     }
     pushHistory();
     state.project = clone(projects[name]);
-    state.selectedId = null;
+    clearSelection();
     syncProjectUi();
     render();
     closeLoadModal();
@@ -715,7 +796,7 @@ body,html{
       pages: [makePage(1)],
       currentPage: 0
     };
-    state.selectedId = null;
+    clearSelection();
     syncProjectUi();
     render();
   }
@@ -734,6 +815,7 @@ body,html{
         select: 'toolSelect',
         pan: 'toolPan',
         rotate: 'toolRotate',
+        bucket: 'toolBucket',
         pen: 'toolPen',
         text: 'toolText',
         rect: 'toolRect',
@@ -746,6 +828,7 @@ body,html{
       b.onclick = () => {
         state.tool = id;
         [...els.toolButtons.children].forEach(x=>x.classList.toggle('active', x.dataset.tool===id));
+        syncCanvasToolUi();
       };
       els.toolButtons.appendChild(b);
     });
@@ -822,13 +905,13 @@ body,html{
   }
 
   function findObjectAtPoint(p){
-    const objs = currentPage().objects;
+    const objs = allObjects();
     for(let i=objs.length-1; i>=0; i--){ if(hitTestObject(objs[i], p)) return objs[i]; }
     return null;
   }
 
   function updateSelectionUi(){
-    const obj = currentPage().objects.find(o=>o.id===state.selectedId);
+    const obj = allObjects().find(o=>o.id===state.selectedId);
     const b = obj ? objectBounds(obj) : {x:'',y:'',w:'',h:''};
     els.selX.value = b.x === '' ? '' : Math.round(b.x);
     els.selY.value = b.y === '' ? '' : Math.round(b.y);
@@ -837,7 +920,7 @@ body,html{
   }
 
   function applySelectionFields(){
-    const obj = currentPage().objects.find(o=>o.id===state.selectedId);
+    const obj = allObjects().find(o=>o.id===state.selectedId);
     if(!obj) return;
     pushHistory();
     const x = +els.selX.value || 0, y = +els.selY.value || 0, w = +els.selW.value || 1, h = +els.selH.value || 1;
@@ -862,6 +945,11 @@ body,html{
     }
     if(obj.type==='stroke'){
       ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size;
+      const pattern = obj.pattern || 'solid';
+      if(pattern === 'dashed') ctx.setLineDash([obj.size * 2.2, obj.size * 1.2]);
+      else if(pattern === 'dotted') ctx.setLineDash([obj.size * 0.2, obj.size * 1.6]);
+      else ctx.setLineDash([]);
+      ctx.globalAlpha = pattern === 'highlighter' ? 0.3 : 1;
       ctx.beginPath();
       obj.points.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
       ctx.stroke();
@@ -926,21 +1014,34 @@ body,html{
     els.canvasShell.style.height = state.project.height + 'px';
     ctx.clearRect(0,0,els.canvas.width,els.canvas.height);
     ctx.fillStyle = currentPage().bg || '#ffffff'; ctx.fillRect(0,0,els.canvas.width,els.canvas.height);
-    currentPage().objects.forEach(drawObject);
+    allObjects().forEach(drawObject);
 
-    const obj = currentPage().objects.find(o=>o.id===state.selectedId);
-    if(obj){
+    state.selectedIds.forEach((id, idx) => {
+      const obj = allObjects().find(o=>o.id===id);
+      if(!obj) return;
       const b = objectBounds(obj);
       ctx.save();
-      ctx.strokeStyle = '#70d6ff'; ctx.lineWidth = 1; ctx.setLineDash([6,4]);
+      ctx.strokeStyle = idx === state.selectedIds.length - 1 ? '#70d6ff' : '#ffa94d';
+      ctx.lineWidth = 1; ctx.setLineDash([6,4]);
       ctx.strokeRect(b.x,b.y,b.w,b.h);
       ctx.setLineDash([]);
-      ctx.fillStyle = '#70d6ff';
-      ctx.fillRect(b.x+b.w-8,b.y+b.h-8,16,16);
+      if(id === state.selectedId){
+        ctx.fillStyle = '#70d6ff';
+        ctx.fillRect(b.x+b.w-8,b.y+b.h-8,16,16);
+      }
+      ctx.restore();
+    });
+    if(state.drag?.mode === 'marquee'){
+      const r = normalizeRect(state.drag.start, state.drag.current || state.drag.start);
+      ctx.save();
+      ctx.strokeStyle = '#9cd0ff';
+      ctx.setLineDash([4,4]);
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
       ctx.restore();
     }
     renderPagesList();
     updateSelectionUi();
+    syncCanvasToolUi();
   }
 
   function renderPagesList(){
@@ -951,15 +1052,20 @@ body,html{
       const left = document.createElement('button');
       left.textContent = page.name;
       left.style.flex='1';
-      left.onclick = () => { state.project.currentPage = i; state.selectedId = null; render(); };
+      left.onclick = () => { state.project.currentPage = i; clearSelection(); render(); };
       const right = document.createElement('span');
       right.className = 'small';
-      right.textContent = `${page.objects.length} objs`;
+      ensurePageStructure(page);
+      const objectCount = page.layers.reduce((sum, layer) => sum + layer.objects.length, 0);
+      right.textContent = `${objectCount} objs`;
       item.append(left,right);
       els.pagesList.appendChild(item);
     });
     const pageNum = state.project.currentPage + 1;
     document.getElementById('canvasStatus').textContent = `Page ${pageNum} of ${state.project.pages.length} — ${currentPage().name}`;
+    if(els.pageLayerStatus){
+      els.pageLayerStatus.textContent = `Page ${pageNum} · Layer ${currentPage().currentLayer + 1}/${currentPage().layers.length}`;
+    }
   }
 
   function syncProjectUi(){
@@ -974,19 +1080,36 @@ body,html{
     return { x:Math.min(a.x,b.x), y:Math.min(a.y,b.y), w:Math.abs(b.x-a.x), h:Math.abs(b.y-a.y) };
   }
 
-  function selectObject(id){ state.selectedId = id; updateSelectionUi(); render(); }
+  function syncCanvasToolUi(){
+    const selected = allObjects().find(o=>o.id===state.selectedId);
+    const isTextSelected = selected?.type === 'text' || state.tool === 'text';
+    if(els.textFontFamilyChip) els.textFontFamilyChip.style.display = isTextSelected ? '' : 'none';
+    if(selected?.type === 'text'){
+      els.fontFamily.value = selected.fontFamily || els.fontFamily.value;
+      const compactFont = document.getElementById('fontFamilyCompact');
+      if(compactFont) compactFont.value = selected.fontFamily || compactFont.value;
+    }
+  }
+
+  function selectObject(id, additive = false){
+    if(!additive) state.selectedIds = [];
+    if(id && !state.selectedIds.includes(id)) state.selectedIds.push(id);
+    state.selectedId = id || null;
+    updateSelectionUi();
+    syncCanvasToolUi();
+    render();
+  }
 
   function onPointerDown(evt){
     const p = getPointer(evt);
-    const page = currentPage();
+    const layer = currentLayer();
 
     if(state.tool === 'pen'){
       pushHistory();
-      const obj = { id:uid(), type:'stroke', color:els.strokeColor.value, size:+els.toolSize.value, points:[p] };
-      page.objects.push(obj);
+      const obj = { id:uid(), type:'stroke', color:els.strokeColor.value, size:+els.toolSize.value, pattern:els.brushPattern.value, points:[p] };
+      layer.objects.push(obj);
       state.drag = { mode:'drawing-stroke', obj };
-      state.selectedId = obj.id;
-      render();
+      selectObject(obj.id);
       return;
     }
 
@@ -999,7 +1122,7 @@ body,html{
       const obj = findObjectAtPoint(p);
       if(!obj || obj.type==='stroke') return;
       pushHistory();
-      state.selectedId = obj.id;
+      selectObject(obj.id);
       const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
       const cursorAngle = Math.atan2(p.y-cy, p.x-cx) * 180 / Math.PI;
       state.drag = { mode:'rotate', obj, center:{x:cx,y:cy}, offset:(obj.angle || 0) - cursorAngle };
@@ -1007,14 +1130,29 @@ body,html{
       return;
     }
 
+    if(state.tool === 'bucket'){
+      pushHistory();
+      const obj = findObjectAtPoint(p);
+      if(obj){
+        if(['rectfill','circlefill','bubble'].includes(obj.type)) obj.fill = els.fillColor.value;
+        else if(obj.type==='text' || obj.type==='stroke') obj.color = els.strokeColor.value;
+        else if(['rect','circle'].includes(obj.type)) obj.color = els.strokeColor.value;
+        selectObject(obj.id);
+      } else {
+        currentPage().bg = els.fillColor.value;
+        clearSelection();
+        render();
+      }
+      return;
+    }
+
     if(['rect','rectfill','circle','circlefill'].includes(state.tool)){
       pushHistory();
       const type = state.tool;
       const obj = { id:uid(), type, x:p.x, y:p.y, w:1, h:1, color:els.strokeColor.value, fill:els.fillColor.value, lineWidth:Math.max(1, +els.toolSize.value) };
-      page.objects.push(obj);
+      layer.objects.push(obj);
       state.drag = { mode:'shape', start:p, obj };
-      state.selectedId = obj.id;
-      render();
+      selectObject(obj.id);
       return;
     }
 
@@ -1022,20 +1160,33 @@ body,html{
       pushHistory();
       const size = Math.max(8, +els.fontSize.value || 32);
       const obj = { id:uid(), type:'text', x:p.x, y:p.y, w:280, h:size*2, text:els.textInput.value || 'Text', color:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size };
-      page.objects.push(obj);
-      state.selectedId = obj.id;
-      render();
+      layer.objects.push(obj);
+      selectObject(obj.id);
       return;
     }
 
     if(state.tool === 'select'){
       const obj = findObjectAtPoint(p);
-      if(!obj){ state.selectedId = null; render(); return; }
-      state.selectedId = obj.id;
+      if(!obj){
+        if(!evt.shiftKey) clearSelection();
+        state.drag = { mode:'marquee', start:p, current:p, additive:evt.shiftKey };
+        render();
+        return;
+      }
+      selectObject(obj.id, evt.shiftKey);
       const b = objectBounds(obj);
-      const handle = p.x >= b.x+b.w-16 && p.y >= b.y+b.h-16;
+      const handle = state.selectedIds.length === 1 && p.x >= b.x+b.w-16 && p.y >= b.y+b.h-16;
       pushHistory();
-      state.drag = { mode: handle ? 'resize' : 'move', obj, start:p, origin:clone(objectBounds(obj)), raw:clone(obj) };
+      const selectedObjects = allObjects().filter(o=>state.selectedIds.includes(o.id));
+      state.drag = {
+        mode: handle ? 'resize' : 'move',
+        obj,
+        selectedObjects,
+        start:p,
+        origin:clone(objectBounds(obj)),
+        rawMap:new Map(selectedObjects.map(item => [item.id, clone(item)])),
+        raw:clone(obj)
+      };
       render();
     }
   }
@@ -1047,6 +1198,8 @@ body,html{
 
     if(d.mode === 'drawing-stroke'){
       d.obj.points.push(p);
+    } else if(d.mode === 'marquee'){
+      d.current = p;
     } else if(d.mode === 'pan'){
       const dx = evt.clientX - d.startClient.x, dy = evt.clientY - d.startClient.y;
       els.canvasWrap.scrollLeft = d.startScroll.left - dx;
@@ -1056,11 +1209,12 @@ body,html{
       Object.assign(d.obj, r);
     } else if(d.mode === 'move'){
       const dx = p.x - d.start.x, dy = p.y - d.start.y;
-      if(d.obj.type==='stroke'){
-        d.obj.points = d.raw.points.map(pt => ({x:pt.x+dx, y:pt.y+dy}));
-      } else {
-        d.obj.x = d.raw.x + dx; d.obj.y = d.raw.y + dy;
-      }
+      d.selectedObjects.forEach((item) => {
+        const raw = d.rawMap.get(item.id);
+        if(!raw) return;
+        if(item.type==='stroke') item.points = raw.points.map(pt => ({x:pt.x+dx, y:pt.y+dy}));
+        else { item.x = raw.x + dx; item.y = raw.y + dy; }
+      });
     } else if(d.mode === 'resize'){
       const dx = p.x - d.start.x, dy = p.y - d.start.y;
       if(d.obj.type==='stroke'){
@@ -1079,13 +1233,39 @@ body,html{
     render();
   }
 
-  function onPointerUp(){ state.drag = null; }
+  function onPointerUp(){
+    if(state.drag?.mode === 'marquee'){
+      const r = normalizeRect(state.drag.start, state.drag.current || state.drag.start);
+      const hits = allObjects().filter(obj => {
+        const b = objectBounds(obj);
+        return b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y;
+      }).map(obj => obj.id);
+      const selection = state.drag.additive ? [...new Set([...state.selectedIds, ...hits])] : hits;
+      state.selectedIds = selection;
+      state.selectedId = selection[selection.length - 1] || null;
+      syncCanvasToolUi();
+      render();
+    }
+    state.drag = null;
+  }
 
   els.canvas.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
 
   els.toolSize.oninput = () => els.toolSizeReadout.textContent = els.toolSize.value;
+  const applyTextStyleToSelection = () => {
+    const selectedTexts = allObjects().filter(o => state.selectedIds.includes(o.id) && o.type === 'text');
+    if(!selectedTexts.length) return;
+    pushHistory();
+    selectedTexts.forEach((obj) => {
+      obj.fontFamily = els.fontFamily.value;
+      obj.fontSize = Math.max(8, +els.fontSize.value || obj.fontSize || 32);
+    });
+    render();
+  };
+  els.fontFamily.addEventListener('change', applyTextStyleToSelection);
+  els.fontSize.addEventListener('change', applyTextStyleToSelection);
   els.undoBtn.onclick = undo;
   els.redoBtn.onclick = redo;
   els.applyResolutionBtn.onclick = () => {
@@ -1098,11 +1278,13 @@ body,html{
 
   els.applySelectionBtn.onclick = applySelectionFields;
   els.deleteSelectionBtn.onclick = () => {
-    const page = currentPage();
-    const idx = page.objects.findIndex(o=>o.id===state.selectedId);
-    if(idx<0) return;
+    if(!state.selectedIds.length) return;
     pushHistory();
-    page.objects.splice(idx,1); state.selectedId = null; render();
+    currentPage().layers.forEach(layer => {
+      layer.objects = layer.objects.filter(o=>!state.selectedIds.includes(o.id));
+    });
+    clearSelection();
+    render();
   };
 
   els.addPageBtn.onclick = () => { pushHistory(); state.project.pages.push(makePage(state.project.pages.length+1)); state.project.currentPage = state.project.pages.length-1; render(); };
@@ -1112,14 +1294,39 @@ body,html{
     pushHistory();
     state.project.pages.splice(state.project.currentPage,1);
     state.project.currentPage = Math.max(0, state.project.currentPage-1);
-    state.selectedId = null;
+    clearSelection();
     render();
   };
   els.clearPageBtn.onclick = () => {
     if(!confirm('Clear all content from the current page?')) return;
     pushHistory();
-    currentPage().objects = [];
-    state.selectedId = null;
+    currentPage().layers.forEach(layer => layer.objects = []);
+    clearSelection();
+    render();
+  };
+  const clearLayer = () => {
+    if(!confirm('Clear all content from the current layer?')) return;
+    pushHistory();
+    currentLayer().objects = [];
+    clearSelection();
+    render();
+  };
+  const addLayer = () => {
+    pushHistory();
+    const page = currentPage();
+    page.layers.push({ id:uid(), name:`Layer ${page.layers.length + 1}`, objects:[] });
+    page.currentLayer = page.layers.length - 1;
+    clearSelection();
+    render();
+  };
+  const deleteLayer = () => {
+    const page = currentPage();
+    if(page.layers.length === 1) return alert('Page needs at least one layer.');
+    if(!confirm('Delete the current layer?')) return;
+    pushHistory();
+    page.layers.splice(page.currentLayer, 1);
+    page.currentLayer = Math.max(0, page.currentLayer - 1);
+    clearSelection();
     render();
   };
 
@@ -1135,8 +1342,8 @@ body,html{
         const scale = Math.min(maxW/img.width, maxH/img.height, 1);
         const w = img.width*scale, h = img.height*scale;
         const obj = { id:uid(), type:'image', x:40, y:40, w, h, src:reader.result, name:file.name };
-        currentPage().objects.push(obj);
-        state.selectedId = obj.id;
+        currentLayer().objects.push(obj);
+        selectObject(obj.id);
         state.imageCache.set(obj.src, img);
         render();
       };
@@ -1158,7 +1365,7 @@ body,html{
         if(!data.project || !Array.isArray(data.project.pages)) throw new Error('Invalid project file');
         pushHistory();
         state.project = data.project;
-        state.selectedId = null;
+        clearSelection();
         syncProjectUi();
         render();
       } catch(err){ alert('Could not load project: ' + err.message); }
@@ -1228,7 +1435,7 @@ function wrapTextLines(text, maxWidth, font){
 function drawRoundedRect(x,y,w,h,r){ const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); }
 function drawObject(obj){
   ctx.save();
-  if(obj.type==='stroke'){ ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size; ctx.beginPath(); obj.points.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
+  if(obj.type==='stroke'){ ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size; const pattern = obj.pattern || 'solid'; if(pattern==='dashed') ctx.setLineDash([obj.size*2.2,obj.size*1.2]); else if(pattern==='dotted') ctx.setLineDash([obj.size*0.2,obj.size*1.6]); else ctx.setLineDash([]); ctx.globalAlpha = pattern==='highlighter' ? 0.3 : 1; ctx.beginPath(); obj.points.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
   else if(obj.type==='rect'){ ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='rectfill'){ ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='circle' || obj.type==='circlefill'){ ctx.beginPath(); ctx.ellipse(obj.x+obj.w/2,obj.y+obj.h/2,Math.abs(obj.w/2),Math.abs(obj.h/2),0,0,Math.PI*2); if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); } ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.stroke(); }
@@ -1237,7 +1444,7 @@ function drawObject(obj){
   else if(obj.type==='image'){ let img = cache.get(obj.src); if(!img){ img = new Image(); img.onload = render; img.src = obj.src; cache.set(obj.src,img); } if(img.complete) ctx.drawImage(img,obj.x,obj.y,obj.w,obj.h); }
   ctx.restore();
 }
-function render(){ canvas.width=project.width; canvas.height=project.height; const page=project.pages[pageIndex]; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=page.bg || '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); page.objects.forEach(drawObject); document.getElementById('readout').textContent = (pageIndex+1)+' / '+project.pages.length+' - '+page.name; }
+function render(){ canvas.width=project.width; canvas.height=project.height; const page=project.pages[pageIndex]; if(!Array.isArray(page.layers) || !page.layers.length) page.layers=[{objects:Array.isArray(page.objects)?page.objects:[]}]; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=page.bg || '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); page.layers.forEach(layer => (layer.objects || []).forEach(drawObject)); document.getElementById('readout').textContent = (pageIndex+1)+' / '+project.pages.length+' - '+page.name; }
 document.getElementById('prev').onclick = ()=>{ pageIndex = (pageIndex-1+project.pages.length)%project.pages.length; render(); };
 document.getElementById('next').onclick = ()=>{ pageIndex = (pageIndex+1)%project.pages.length; render(); };
 render();
@@ -1301,6 +1508,7 @@ render();
       toolSelectCompact:['toolSelect'],
       toolPanCompact:['toolPan'],
       toolRotateCompact:['toolRotate'],
+      toolBucketCompact:['toolBucket'],
       toolPenCompact:['toolPen'],
       toolTextCompact:['toolText'],
       toolRectCompact:['toolRect'],
@@ -1337,6 +1545,7 @@ render();
       ['toolbarAddPage',['addPageBtn']],
       ['toolbarDeletePage',['deletePageBtn']],
       ['toolbarClearPage',['clearPageBtn']],
+      ['toolbarDeleteSelection',['deleteSelectionBtn']],
       ['toolbarImportImage',['importImageBtn']]
     ];
     mapButtons.forEach(([compactId, targets])=>{
@@ -1348,22 +1557,29 @@ render();
     if(prevPageBtn){
       prevPageBtn.onclick = ()=>{
         state.project.currentPage = (state.project.currentPage - 1 + state.project.pages.length) % state.project.pages.length;
-        state.selectedId = null;
+        clearSelection();
         render();
       };
     }
     if(nextPageBtn){
       nextPageBtn.onclick = ()=>{
         state.project.currentPage = (state.project.currentPage + 1) % state.project.pages.length;
-        state.selectedId = null;
+        clearSelection();
         render();
       };
     }
+    const addLayerBtn = document.getElementById('toolbarAddLayer');
+    if(addLayerBtn) addLayerBtn.onclick = addLayer;
+    const deleteLayerBtn = document.getElementById('toolbarDeleteLayer');
+    if(deleteLayerBtn) deleteLayerBtn.onclick = deleteLayer;
+    const clearLayerBtn = document.getElementById('toolbarClearLayer');
+    if(clearLayerBtn) clearLayerBtn.onclick = clearLayer;
 
     const toolMap = [
       ['toolSelectCompact',['toolSelect']],
       ['toolPanCompact',['toolPan']],
       ['toolRotateCompact',['toolRotate']],
+      ['toolBucketCompact',['toolBucket']],
       ['toolPenCompact',['toolPen']],
       ['toolTextCompact',['toolText']],
       ['toolRectCompact',['toolRect']],
@@ -1395,7 +1611,9 @@ render();
     bindMirror('strokeColorCompact',['strokeColor','stroke']);
     bindMirror('fillColorCompact',['fillColor','fill']);
     bindMirror('brushSizeCompact',['toolSize']);
+    bindMirror('brushPatternCompact',['brushPattern']);
     bindMirror('fontSizeCompact',['fontSize','fontSizeInput']);
+    bindMirror('fontFamilyCompact',['fontFamily']);
     const bgCompact = document.getElementById('bgColorCompact');
     if(bgCompact){
       bgCompact.value = currentPage().bg || '#ffffff';
