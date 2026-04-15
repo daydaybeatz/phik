@@ -254,7 +254,6 @@ html,body{
 /* ===== PHIK mobile refactor ===== */
 :root{
   --filebar-h: 54px;
-  --lefttools-w: 110px;
   --righttools-w: 72px;
 }
 body,html{
@@ -264,11 +263,11 @@ body,html{
   width:100vw;
   height:100dvh;
   display:grid;
-  grid-template-columns:var(--lefttools-w) minmax(0,1fr) var(--righttools-w);
-  grid-template-rows:var(--filebar-h) minmax(0,1fr);
+  grid-template-columns:minmax(0,1fr) var(--righttools-w);
+  grid-template-rows:var(--filebar-h) auto minmax(0,1fr);
 }
 .topbar{
-  grid-column:1 / span 3;
+  grid-column:1 / span 2;
   grid-row:1;
   display:flex;
   align-items:center;
@@ -282,8 +281,8 @@ body,html{
   display:none !important;
 }
 .canvas-wrap{
-  grid-column:2;
-  grid-row:2;
+  grid-column:1;
+  grid-row:3;
   min-width:0;
   min-height:0;
   overflow:hidden;
@@ -305,17 +304,19 @@ body,html{
   grid-column:1;
   grid-row:2;
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   gap:8px;
-  padding:8px 6px;
-  border-right:1px solid var(--line);
+  padding:8px 10px;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
   background:rgba(10,16,30,.92);
-  overflow-y:auto;
-  overflow-x:hidden;
+  overflow-x:auto;
+  overflow-y:hidden;
+  align-items:center;
 }
 .right-toolbar{
-  grid-column:3;
-  grid-row:2;
+  grid-column:2;
+  grid-row:2 / span 2;
   display:flex;
   flex-direction:column;
   gap:8px;
@@ -342,6 +343,15 @@ body,html{
   display:flex;
   flex-direction:column;
   gap:8px;
+}
+.left-toolbar .rtool-stack{
+  flex-direction:row;
+  align-items:center;
+  flex-wrap:nowrap;
+}
+.left-toolbar .rtool-chip,
+.left-toolbar .rtool-btn{
+  white-space:nowrap;
 }
 .file-menu-panel{
   display:flex;
@@ -603,6 +613,20 @@ body,html{
     <div id="loadProjectsList"></div>
   </div>
 </div>
+<div class="modal-backdrop" id="resolutionModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="resolutionModalTitle">
+  <div class="modal" style="width:min(420px,95vw);">
+    <div class="row" style="justify-content:space-between;">
+      <h3 id="resolutionModalTitle" style="margin:0;">Set Resolution</h3>
+      <button id="closeResolutionModalBtn" type="button">Close</button>
+    </div>
+    <div class="row">
+      <label>W <input id="resolutionWidthInput" type="number" min="64" max="4096" step="1" style="width:120px"></label>
+      <label>H <input id="resolutionHeightInput" type="number" min="64" max="4096" step="1" style="width:120px"></label>
+      <button id="applyResolutionModalBtn" type="button">Apply</button>
+    </div>
+    <div class="hint">Resize updates all pages in the project.</div>
+  </div>
+</div>
 <script>
 (() => {
   const tools = [
@@ -647,7 +671,10 @@ body,html{
     applySelectionBtn: document.getElementById('applySelectionBtn'),
     deleteSelectionBtn: document.getElementById('deleteSelectionBtn'),
     pageLayerStatus: document.getElementById('pageLayerStatus'),
-    textFontFamilyChip: document.getElementById('textFontFamilyChip')
+    textFontFamilyChip: document.getElementById('textFontFamilyChip'),
+    resolutionModalBackdrop: document.getElementById('resolutionModalBackdrop'),
+    resolutionWidthInput: document.getElementById('resolutionWidthInput'),
+    resolutionHeightInput: document.getElementById('resolutionHeightInput')
   };
 
   const ctx = els.canvas.getContext('2d');
@@ -775,16 +802,27 @@ body,html{
     download(fileName.endsWith('.json') ? fileName : `${fileName}.json`, data, 'application/json');
   }
   function updateResolutionWithPrompt(){
-    const current = `${state.project.width}x${state.project.height}`;
-    const input = prompt('Set canvas resolution (WIDTHxHEIGHT):', current);
-    if(input === null) return;
-    const match = input.trim().match(/^(\d+)\s*[x, ]\s*(\d+)$/i);
-    if(!match) return alert('Use format like 1200x900');
+    if(!els.resolutionModalBackdrop) return;
+    els.resolutionWidthInput.value = state.project.width;
+    els.resolutionHeightInput.value = state.project.height;
+    els.resolutionModalBackdrop.classList.add('open');
+    els.resolutionWidthInput.focus();
+    els.resolutionWidthInput.select();
+  }
+  function closeResolutionModal(){
+    if(els.resolutionModalBackdrop){
+      els.resolutionModalBackdrop.classList.remove('open');
+    }
+  }
+  function applyResolutionFromModal(){
+    const width = Math.max(64, +els.resolutionWidthInput.value || state.project.width);
+    const height = Math.max(64, +els.resolutionHeightInput.value || state.project.height);
     pushHistory();
-    state.project.width = Math.max(64, +match[1] || state.project.width);
-    state.project.height = Math.max(64, +match[2] || state.project.height);
+    state.project.width = width;
+    state.project.height = height;
     syncProjectUi();
     render();
+    closeResolutionModal();
   }
   function newProjectWithConfirm(){
     if(!confirm('Create a new project? Unsaved changes in the current canvas will remain only in memory.')) return;
@@ -1657,6 +1695,16 @@ render();
   if(loadModalBackdrop){
     loadModalBackdrop.onclick = (evt) => {
       if(evt.target === loadModalBackdrop) closeLoadModal();
+    };
+  }
+  const closeResolutionModalBtn = document.getElementById('closeResolutionModalBtn');
+  if(closeResolutionModalBtn) closeResolutionModalBtn.onclick = closeResolutionModal;
+  const applyResolutionModalBtn = document.getElementById('applyResolutionModalBtn');
+  if(applyResolutionModalBtn) applyResolutionModalBtn.onclick = applyResolutionFromModal;
+  const resolutionModalBackdrop = document.getElementById('resolutionModalBackdrop');
+  if(resolutionModalBackdrop){
+    resolutionModalBackdrop.onclick = (evt) => {
+      if(evt.target === resolutionModalBackdrop) closeResolutionModal();
     };
   }
 
