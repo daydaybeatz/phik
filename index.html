@@ -401,6 +401,11 @@ body,html{
   color:#aab6cf;
   font-size:12px;
   margin-left:auto;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:2px;
+  text-align:right;
 }
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1200;padding:16px}
 .modal-backdrop.open{display:flex}
@@ -444,7 +449,7 @@ body,html{
       <button id="fileResolutionBtn" class="file-ribbon-btn" type="button">Resolution</button>
     </div>
 
-  <div class="canvas-status" id="canvasStatus">Page 1 of 1</div>
+  <div class="canvas-status" id="canvasStatus"><span id="canvasPageStatus">Page 1/1</span><span id="canvasLayerStatus">Layer 1/1</span></div>
 
   <div class="desktop-only-legacy">
 
@@ -572,7 +577,6 @@ body,html{
     <button class="rtool-btn danger" id="toolbarClearPage" type="button">Clear Page</button>
     <button class="rtool-btn danger" id="toolbarClearLayer" type="button">Clear Layer</button>
     <button class="rtool-btn danger" id="toolbarDeleteSelection" type="button">Delete Sel</button>
-    <div class="rtool-chip" id="pageLayerStatus">Page 1 · Layer 1</div>
   </div>
 </div>
 
@@ -703,7 +707,8 @@ body,html{
     selH: document.getElementById('selH'),
     applySelectionBtn: document.getElementById('applySelectionBtn'),
     deleteSelectionBtn: document.getElementById('deleteSelectionBtn'),
-    pageLayerStatus: document.getElementById('pageLayerStatus'),
+    canvasPageStatus: document.getElementById('canvasPageStatus'),
+    canvasLayerStatus: document.getElementById('canvasLayerStatus'),
     textFontFamilyChip: document.getElementById('textFontFamilyChip'),
     resolutionModalBackdrop: document.getElementById('resolutionModalBackdrop'),
     resolutionWidthInput: document.getElementById('resolutionWidthInput'),
@@ -828,11 +833,13 @@ body,html{
   }
   function exportProjectWithPrompt(){
     state.project.title = els.projectTitle.value || state.project.title;
-    const data = JSON.stringify({ app:'PHIK', version:1, project:state.project }, null, 2);
-    const proposed = prompt('Export file name:', `${state.project.title || 'phik-project'}.json`);
+    const fallback = `${(state.project.title || 'project').replace(/[^a-z0-9-_.]+/gi,'_')}.html`;
+    const proposed = prompt('Export file name:', fallback);
     if(proposed === null) return;
-    const fileName = (proposed.trim() || `${state.project.title || 'phik-project'}.json`).replace(/[^a-z0-9-_.]+/gi,'_');
-    download(fileName.endsWith('.json') ? fileName : `${fileName}.json`, data, 'application/json');
+    const requested = (proposed.trim() || fallback).replace(/[^a-z0-9-_.]+/gi,'_');
+    const fileName = requested.toLowerCase().endsWith('.html') ? requested : `${requested}.html`;
+    const html = buildViewerHtml(state.project);
+    download(fileName, html, 'text/html');
   }
   function updateResolutionWithPrompt(){
     if(!els.resolutionModalBackdrop) return;
@@ -1189,9 +1196,12 @@ body,html{
       els.pagesList.appendChild(item);
     });
     const pageNum = state.project.currentPage + 1;
-    document.getElementById('canvasStatus').textContent = `Page ${pageNum} of ${state.project.pages.length} — ${currentPage().name}`;
-    if(els.pageLayerStatus){
-      els.pageLayerStatus.textContent = `Page ${pageNum} · Layer ${currentPage().currentLayer + 1}/${currentPage().layers.length}`;
+    const layerNum = currentPage().currentLayer + 1;
+    if(els.canvasPageStatus){
+      els.canvasPageStatus.textContent = `Page ${pageNum}/${state.project.pages.length}`;
+    }
+    if(els.canvasLayerStatus){
+      els.canvasLayerStatus.textContent = `Layer ${layerNum}/${currentPage().layers.length}`;
     }
   }
 
@@ -1596,7 +1606,7 @@ function drawObject(obj){
   else if(obj.type==='image'){ let img = cache.get(obj.src); if(!img){ img = new Image(); img.onload = render; img.src = obj.src; cache.set(obj.src,img); } if(img.complete) ctx.drawImage(img,obj.x,obj.y,obj.w,obj.h); }
   ctx.restore();
 }
-function render(){ canvas.width=project.width; canvas.height=project.height; const page=project.pages[pageIndex]; if(!Array.isArray(page.layers) || !page.layers.length) page.layers=[{objects:Array.isArray(page.objects)?page.objects:[]}]; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=page.bg || '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); page.layers.forEach(layer => (layer.objects || []).forEach(drawObject)); document.getElementById('readout').textContent = (pageIndex+1)+' / '+project.pages.length+' - '+page.name; }
+function render(){ canvas.width=project.width; canvas.height=project.height; const page=project.pages[pageIndex]; if(!Array.isArray(page.layers) || !page.layers.length) page.layers=[{objects:Array.isArray(page.objects)?page.objects:[]}]; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle=page.bg || '#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); page.layers.forEach(layer => (layer.objects || []).forEach(drawObject)); document.getElementById('readout').textContent = (pageIndex+1)+'/'+project.pages.length; }
 document.getElementById('prev').onclick = ()=>{ pageIndex = (pageIndex-1+project.pages.length)%project.pages.length; render(); };
 document.getElementById('next').onclick = ()=>{ pageIndex = (pageIndex+1)%project.pages.length; render(); };
 render();
@@ -1607,9 +1617,7 @@ render();
   }
 
   els.exportViewerBtn.onclick = () => {
-    state.project.title = els.projectTitle.value || state.project.title;
-    const html = buildViewerHtml(state.project);
-    download((state.project.title || 'phik-viewer').replace(/[^a-z0-9-_]+/gi,'_') + '_viewer.html', html, 'text/html');
+    exportProjectWithPrompt();
   };
 
   buildToolButtons();
