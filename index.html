@@ -334,6 +334,7 @@ body,html{
   overflow-x:auto;
   overflow-y:hidden;
   align-items:center;
+  white-space:nowrap;
 }
 .right-toolbar{
   grid-column:2;
@@ -373,6 +374,12 @@ body,html{
 .left-toolbar .rtool-chip,
 .left-toolbar .rtool-btn{
   white-space:nowrap;
+}
+.left-toolbar .rtool-chip{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 12px;
 }
 .file-menu-panel{
   display:flex;
@@ -556,27 +563,16 @@ body,html{
   
 <div class="left-toolbar" id="leftToolbar">
   <div class="rtool-stack">
-    <div class="rtool-chip">
-      <div style="font-weight:700;margin-bottom:6px;">Pages / Layers</div>
-      <div class="file-inline" style="margin-bottom:6px;">
-        <button class="rtool-btn" id="toolbarPrevPage" type="button">Prev Pg</button>
-        <button class="rtool-btn" id="toolbarNextPage" type="button">Next Pg</button>
-      </div>
-      <div class="file-inline" style="margin-bottom:6px;">
-        <button class="rtool-btn" id="toolbarAddPage" type="button">Add Pg</button>
-        <button class="rtool-btn" id="toolbarDeletePage" type="button">Del Pg</button>
-      </div>
-      <div class="file-inline">
-        <button class="rtool-btn" id="toolbarAddLayer" type="button">Add Lyr</button>
-        <button class="rtool-btn" id="toolbarDeleteLayer" type="button">Del Lyr</button>
-      </div>
-    </div>
+    <button class="rtool-btn" id="toolbarPrevPage" type="button">Prev Pg</button>
+    <button class="rtool-btn" id="toolbarNextPage" type="button">Next Pg</button>
+    <button class="rtool-btn" id="toolbarAddPage" type="button">Add Pg</button>
+    <button class="rtool-btn" id="toolbarDeletePage" type="button">Del Pg</button>
+    <button class="rtool-btn" id="toolbarAddLayer" type="button">Add Lyr</button>
+    <button class="rtool-btn" id="toolbarDeleteLayer" type="button">Del Lyr</button>
     <button class="rtool-btn danger" id="toolbarClearPage" type="button">Clear Page</button>
     <button class="rtool-btn danger" id="toolbarClearLayer" type="button">Clear Layer</button>
     <button class="rtool-btn danger" id="toolbarDeleteSelection" type="button">Delete Sel</button>
-    <div class="rtool-chip">
-      <div id="pageLayerStatus">Page 1 · Layer 1</div>
-    </div>
+    <div class="rtool-chip" id="pageLayerStatus">Page 1 · Layer 1</div>
   </div>
 </div>
 
