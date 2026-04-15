@@ -464,17 +464,11 @@ body,html{
       <label>Brush
         <select id="brushPattern">
           <option value="solid">Solid</option>
-          <option value="dashed">Dashed</option>
-          <option value="dotted">Dotted</option>
-          <option value="highlighter">Highlighter</option>
-          <option value="double">Double</option>
-          <option value="dashdot">Dash Dot</option>
-          <option value="longdash">Long Dash</option>
-          <option value="scribble">Scribble</option>
-          <option value="calligraphy">Calligraphy</option>
-          <option value="neon">Neon</option>
-          <option value="spray">Spray</option>
-          <option value="pixel">Pixel</option>
+          <option value="drybrush">Dry Brush</option>
+          <option value="watercolor">Watercolor</option>
+          <option value="charcoal">Charcoal</option>
+          <option value="sharpie">Sharpie</option>
+          <option value="spraypaint">Spray Paint</option>
         </select>
       </label>
       <span class="small" id="toolSizeReadout">4</span>
@@ -521,7 +515,7 @@ body,html{
         <button id="applySelectionBtn">Apply</button>
         <button id="deleteSelectionBtn" class="danger">Delete</button>
       </div>
-      <div class="hint">Use Select to move or resize. Drag the bottom-right handle to resize. Text, bubbles, shapes, and images can all be edited this way.</div>
+      <div class="hint">Use Select to move or resize. Drag any corner handle to scale. Text, bubbles, shapes, and images can all be edited this way.</div>
     </div>
 
     <div class="section">
@@ -560,7 +554,7 @@ body,html{
         Select lets you move, resize, and drag-select multiple objects.<br>
         Pan drags the viewport.<br>
         Rotate spins the selected object.<br>
-        Pen supports 12 brush styles: solid, dashed, dotted, highlighter, double, dash dot, long dash, scribble, calligraphy, neon, spray, and pixel.<br>
+        Pen supports these brush styles: solid, dry brush, watercolor, charcoal, sharpie, and spray paint.<br>
       </div>
     </div>
   </div>
@@ -590,17 +584,11 @@ body,html{
     <label class="rtool-chip">Brush
       <select id="brushPatternCompact" style="display:block;width:100%;margin-top:6px;">
         <option value="solid">Solid</option>
-        <option value="dashed">Dashed</option>
-        <option value="dotted">Dotted</option>
-        <option value="highlighter">Highlighter</option>
-        <option value="double">Double</option>
-        <option value="dashdot">Dash Dot</option>
-        <option value="longdash">Long Dash</option>
-        <option value="scribble">Scribble</option>
-        <option value="calligraphy">Calligraphy</option>
-        <option value="neon">Neon</option>
-        <option value="spray">Spray</option>
-        <option value="pixel">Pixel</option>
+        <option value="drybrush">Dry Brush</option>
+        <option value="watercolor">Watercolor</option>
+        <option value="charcoal">Charcoal</option>
+        <option value="sharpie">Sharpie</option>
+        <option value="spraypaint">Spray Paint</option>
       </select>
     </label>
     <button class="rtool-btn" id="toolRectCompact" type="button">Rect</button>
@@ -1017,55 +1005,40 @@ body,html{
   function applyStrokePattern(targetCtx, obj){
     const pattern = obj.pattern || 'solid';
     const size = Math.max(1, +obj.size || 1);
-    targetCtx.lineCap = pattern === 'pixel' ? 'butt' : (pattern === 'calligraphy' ? 'square' : 'round');
-    targetCtx.lineJoin = pattern === 'pixel' ? 'miter' : 'round';
+    targetCtx.lineCap = 'round';
+    targetCtx.lineJoin = 'round';
     targetCtx.globalAlpha = 1;
     targetCtx.shadowBlur = 0;
     targetCtx.shadowColor = 'transparent';
     targetCtx.filter = 'none';
     targetCtx.setLineDash([]);
     switch(pattern){
-      case 'dashed':
-        targetCtx.setLineDash([size * 2.2, size * 1.2]);
+      case 'drybrush':
+        targetCtx.setLineDash([Math.max(1, size * 0.5), Math.max(1, size * 0.85)]);
+        targetCtx.lineWidth = Math.max(1, size * 0.95);
+        targetCtx.globalAlpha = 0.88;
         break;
-      case 'dotted':
-        targetCtx.setLineDash([size * 0.2, size * 1.6]);
-        break;
-      case 'highlighter':
-        targetCtx.globalAlpha = 0.3;
-        break;
-      case 'double':
-        targetCtx.lineWidth = Math.max(1, size * 1.6);
-        targetCtx.globalAlpha = 0.85;
-        break;
-      case 'dashdot':
-        targetCtx.setLineDash([size * 2.3, size * 0.9, size * 0.3, size * 0.9]);
-        break;
-      case 'longdash':
-        targetCtx.setLineDash([size * 4.8, size * 1.6]);
-        break;
-      case 'scribble':
-        targetCtx.setLineDash([size * 0.9, size * 0.7]);
-        targetCtx.lineWidth = Math.max(1, size * 0.9);
-        targetCtx.globalAlpha = 0.95;
-        break;
-      case 'calligraphy':
-        targetCtx.lineWidth = Math.max(1, size * 1.25);
-        targetCtx.globalAlpha = 0.95;
-        break;
-      case 'neon':
-        targetCtx.shadowBlur = size * 1.8;
+      case 'watercolor':
+        targetCtx.lineWidth = Math.max(1, size * 1.55);
+        targetCtx.globalAlpha = 0.34;
+        targetCtx.shadowBlur = size * 0.5;
         targetCtx.shadowColor = obj.color;
-        targetCtx.globalAlpha = 0.9;
         break;
-      case 'spray':
-        targetCtx.setLineDash([size * 0.1, size * 1.2]);
+      case 'charcoal':
+        targetCtx.setLineDash([Math.max(1, size * 0.15), Math.max(1, size * 0.55)]);
+        targetCtx.lineWidth = Math.max(1, size * 1.15);
+        targetCtx.globalAlpha = 0.74;
+        break;
+      case 'sharpie':
+        targetCtx.lineCap = 'square';
+        targetCtx.lineJoin = 'miter';
+        targetCtx.lineWidth = Math.max(1, size * 1.2);
+        targetCtx.globalAlpha = 0.97;
+        break;
+      case 'spraypaint':
+        targetCtx.setLineDash([Math.max(1, size * 0.1), Math.max(1, size * 1.1)]);
         targetCtx.lineWidth = Math.max(1, size * 0.75);
-        targetCtx.globalAlpha = 0.8;
-        break;
-      case 'pixel':
-        targetCtx.lineWidth = Math.max(1, Math.round(size));
-        targetCtx.imageSmoothingEnabled = false;
+        targetCtx.globalAlpha = 0.62;
         break;
       default:
         break;
@@ -1161,7 +1134,13 @@ body,html{
       ctx.setLineDash([]);
       if(id === state.selectedId){
         ctx.fillStyle = '#70d6ff';
-        ctx.fillRect(b.x+b.w-8,b.y+b.h-8,16,16);
+        const handles = [
+          {x:b.x,y:b.y},
+          {x:b.x+b.w,y:b.y},
+          {x:b.x,y:b.y+b.h},
+          {x:b.x+b.w,y:b.y+b.h}
+        ];
+        handles.forEach(h => ctx.fillRect(h.x-8,h.y-8,16,16));
       }
       ctx.restore();
     });
@@ -1240,6 +1219,15 @@ body,html{
   function onPointerDown(evt){
     const p = getPointer(evt);
     const layer = currentLayer();
+    const getResizeHandle = (b, pt) => {
+      const handles = [
+        {key:'nw',x:b.x,y:b.y},
+        {key:'ne',x:b.x+b.w,y:b.y},
+        {key:'sw',x:b.x,y:b.y+b.h},
+        {key:'se',x:b.x+b.w,y:b.y+b.h}
+      ];
+      return handles.find(h => Math.abs(pt.x - h.x) <= 12 && Math.abs(pt.y - h.y) <= 12)?.key || null;
+    };
 
     if(state.tool === 'pen'){
       pushHistory();
@@ -1312,11 +1300,12 @@ body,html{
       }
       selectObject(obj.id, evt.shiftKey);
       const b = objectBounds(obj);
-      const handle = state.selectedIds.length === 1 && p.x >= b.x+b.w-16 && p.y >= b.y+b.h-16;
+      const resizeHandle = state.selectedIds.length === 1 ? getResizeHandle(b, p) : null;
       pushHistory();
       const selectedObjects = allObjects().filter(o=>state.selectedIds.includes(o.id));
       state.drag = {
-        mode: handle ? 'resize' : 'move',
+        mode: resizeHandle ? 'resize' : 'move',
+        resizeHandle,
         obj,
         selectedObjects,
         start:p,
@@ -1353,15 +1342,27 @@ body,html{
         else { item.x = raw.x + dx; item.y = raw.y + dy; }
       });
     } else if(d.mode === 'resize'){
-      const dx = p.x - d.start.x, dy = p.y - d.start.y;
+      const b = d.origin;
+      const anchorByHandle = {
+        nw: {x:b.x + b.w, y:b.y + b.h},
+        ne: {x:b.x, y:b.y + b.h},
+        sw: {x:b.x + b.w, y:b.y},
+        se: {x:b.x, y:b.y}
+      };
+      const anchor = anchorByHandle[d.resizeHandle || 'se'];
+      const nextX = Math.min(anchor.x, p.x);
+      const nextY = Math.min(anchor.y, p.y);
+      const nextW = Math.max(4, Math.abs(anchor.x - p.x));
+      const nextH = Math.max(4, Math.abs(anchor.y - p.y));
       if(d.obj.type==='stroke'){
-        const b = d.origin;
-        const nw = Math.max(4, b.w + dx), nh = Math.max(4, b.h + dy);
-        const sx = nw / Math.max(1,b.w), sy = nh / Math.max(1,b.h);
-        d.obj.points = d.raw.points.map(pt => ({ x: b.x + (pt.x - b.x) * sx, y: b.y + (pt.y - b.y) * sy }));
+        const sx = nextW / Math.max(1,b.w), sy = nextH / Math.max(1,b.h);
+        d.obj.points = d.raw.points.map(pt => ({ x: nextX + (pt.x - b.x) * sx, y: nextY + (pt.y - b.y) * sy }));
         d.obj.size = Math.max(1, d.raw.size * ((sx+sy)/2));
       } else {
-        d.obj.w = Math.max(4, d.raw.w + dx); d.obj.h = Math.max(4, d.raw.h + dy);
+        d.obj.x = nextX;
+        d.obj.y = nextY;
+        d.obj.w = nextW;
+        d.obj.h = nextH;
       }
     } else if(d.mode === 'rotate'){
       const ang = Math.atan2(p.y - d.center.y, p.x - d.center.x) * 180 / Math.PI;
@@ -1573,25 +1574,19 @@ function drawRoundedRect(x,y,w,h,r){ const rr = Math.min(r, Math.abs(w)/2, Math.
 function applyStrokePattern(targetCtx,obj){
   const pattern = obj.pattern || 'solid';
   const size = Math.max(1,+obj.size||1);
-  targetCtx.lineCap = pattern==='pixel' ? 'butt' : (pattern==='calligraphy' ? 'square' : 'round');
-  targetCtx.lineJoin = pattern==='pixel' ? 'miter' : 'round';
+  targetCtx.lineCap = 'round';
+  targetCtx.lineJoin = 'round';
   targetCtx.globalAlpha = 1;
   targetCtx.shadowBlur = 0;
   targetCtx.shadowColor = 'transparent';
   targetCtx.filter = 'none';
   targetCtx.setLineDash([]);
   switch(pattern){
-    case 'dashed': targetCtx.setLineDash([size*2.2,size*1.2]); break;
-    case 'dotted': targetCtx.setLineDash([size*0.2,size*1.6]); break;
-    case 'highlighter': targetCtx.globalAlpha = 0.3; break;
-    case 'double': targetCtx.lineWidth = Math.max(1,size*1.6); targetCtx.globalAlpha = 0.85; break;
-    case 'dashdot': targetCtx.setLineDash([size*2.3,size*0.9,size*0.3,size*0.9]); break;
-    case 'longdash': targetCtx.setLineDash([size*4.8,size*1.6]); break;
-    case 'scribble': targetCtx.setLineDash([size*0.9,size*0.7]); targetCtx.lineWidth = Math.max(1,size*0.9); targetCtx.globalAlpha = 0.95; break;
-    case 'calligraphy': targetCtx.lineWidth = Math.max(1,size*1.25); targetCtx.globalAlpha = 0.95; break;
-    case 'neon': targetCtx.shadowBlur = size*1.8; targetCtx.shadowColor = obj.color; targetCtx.globalAlpha = 0.9; break;
-    case 'spray': targetCtx.setLineDash([size*0.1,size*1.2]); targetCtx.lineWidth = Math.max(1,size*0.75); targetCtx.globalAlpha = 0.8; break;
-    case 'pixel': targetCtx.lineWidth = Math.max(1,Math.round(size)); targetCtx.imageSmoothingEnabled = false; break;
+    case 'drybrush': targetCtx.setLineDash([Math.max(1,size*0.5),Math.max(1,size*0.85)]); targetCtx.lineWidth = Math.max(1,size*0.95); targetCtx.globalAlpha = 0.88; break;
+    case 'watercolor': targetCtx.lineWidth = Math.max(1,size*1.55); targetCtx.globalAlpha = 0.34; targetCtx.shadowBlur = size*0.5; targetCtx.shadowColor = obj.color; break;
+    case 'charcoal': targetCtx.setLineDash([Math.max(1,size*0.15),Math.max(1,size*0.55)]); targetCtx.lineWidth = Math.max(1,size*1.15); targetCtx.globalAlpha = 0.74; break;
+    case 'sharpie': targetCtx.lineCap = 'square'; targetCtx.lineJoin = 'miter'; targetCtx.lineWidth = Math.max(1,size*1.2); targetCtx.globalAlpha = 0.97; break;
+    case 'spraypaint': targetCtx.setLineDash([Math.max(1,size*0.1),Math.max(1,size*1.1)]); targetCtx.lineWidth = Math.max(1,size*0.75); targetCtx.globalAlpha = 0.62; break;
     default: break;
   }
 }
