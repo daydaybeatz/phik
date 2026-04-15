@@ -434,6 +434,14 @@ body,html{
           <option value="dashed">Dashed</option>
           <option value="dotted">Dotted</option>
           <option value="highlighter">Highlighter</option>
+          <option value="double">Double</option>
+          <option value="dashdot">Dash Dot</option>
+          <option value="longdash">Long Dash</option>
+          <option value="scribble">Scribble</option>
+          <option value="calligraphy">Calligraphy</option>
+          <option value="neon">Neon</option>
+          <option value="spray">Spray</option>
+          <option value="pixel">Pixel</option>
         </select>
       </label>
       <span class="small" id="toolSizeReadout">4</span>
@@ -519,7 +527,7 @@ body,html{
         Select lets you move, resize, and drag-select multiple objects.<br>
         Pan drags the viewport.<br>
         Rotate spins the selected object.<br>
-        Pen supports solid, dashed, dotted, and highlighter strokes.<br>
+        Pen supports 12 brush styles: solid, dashed, dotted, highlighter, double, dash dot, long dash, scribble, calligraphy, neon, spray, and pixel.<br>
       </div>
     </div>
   </div>
@@ -564,6 +572,14 @@ body,html{
         <option value="dashed">Dashed</option>
         <option value="dotted">Dotted</option>
         <option value="highlighter">Highlighter</option>
+        <option value="double">Double</option>
+        <option value="dashdot">Dash Dot</option>
+        <option value="longdash">Long Dash</option>
+        <option value="scribble">Scribble</option>
+        <option value="calligraphy">Calligraphy</option>
+        <option value="neon">Neon</option>
+        <option value="spray">Spray</option>
+        <option value="pixel">Pixel</option>
       </select>
     </label>
     <button class="rtool-btn" id="toolRectCompact" type="button">Rect</button>
@@ -973,6 +989,65 @@ body,html{
     render();
   }
 
+
+  function applyStrokePattern(targetCtx, obj){
+    const pattern = obj.pattern || 'solid';
+    const size = Math.max(1, +obj.size || 1);
+    targetCtx.lineCap = pattern === 'pixel' ? 'butt' : (pattern === 'calligraphy' ? 'square' : 'round');
+    targetCtx.lineJoin = pattern === 'pixel' ? 'miter' : 'round';
+    targetCtx.globalAlpha = 1;
+    targetCtx.shadowBlur = 0;
+    targetCtx.shadowColor = 'transparent';
+    targetCtx.filter = 'none';
+    targetCtx.setLineDash([]);
+    switch(pattern){
+      case 'dashed':
+        targetCtx.setLineDash([size * 2.2, size * 1.2]);
+        break;
+      case 'dotted':
+        targetCtx.setLineDash([size * 0.2, size * 1.6]);
+        break;
+      case 'highlighter':
+        targetCtx.globalAlpha = 0.3;
+        break;
+      case 'double':
+        targetCtx.lineWidth = Math.max(1, size * 1.6);
+        targetCtx.globalAlpha = 0.85;
+        break;
+      case 'dashdot':
+        targetCtx.setLineDash([size * 2.3, size * 0.9, size * 0.3, size * 0.9]);
+        break;
+      case 'longdash':
+        targetCtx.setLineDash([size * 4.8, size * 1.6]);
+        break;
+      case 'scribble':
+        targetCtx.setLineDash([size * 0.9, size * 0.7]);
+        targetCtx.lineWidth = Math.max(1, size * 0.9);
+        targetCtx.globalAlpha = 0.95;
+        break;
+      case 'calligraphy':
+        targetCtx.lineWidth = Math.max(1, size * 1.25);
+        targetCtx.globalAlpha = 0.95;
+        break;
+      case 'neon':
+        targetCtx.shadowBlur = size * 1.8;
+        targetCtx.shadowColor = obj.color;
+        targetCtx.globalAlpha = 0.9;
+        break;
+      case 'spray':
+        targetCtx.setLineDash([size * 0.1, size * 1.2]);
+        targetCtx.lineWidth = Math.max(1, size * 0.75);
+        targetCtx.globalAlpha = 0.8;
+        break;
+      case 'pixel':
+        targetCtx.lineWidth = Math.max(1, Math.round(size));
+        targetCtx.imageSmoothingEnabled = false;
+        break;
+      default:
+        break;
+    }
+  }
+
   function drawObject(obj){
     ctx.save();
     if(['rect','rectfill','circle','circlefill','text','bubble','image'].includes(obj.type) && obj.angle){
@@ -982,12 +1057,9 @@ body,html{
       ctx.translate(-cx, -cy);
     }
     if(obj.type==='stroke'){
-      ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size;
-      const pattern = obj.pattern || 'solid';
-      if(pattern === 'dashed') ctx.setLineDash([obj.size * 2.2, obj.size * 1.2]);
-      else if(pattern === 'dotted') ctx.setLineDash([obj.size * 0.2, obj.size * 1.6]);
-      else ctx.setLineDash([]);
-      ctx.globalAlpha = pattern === 'highlighter' ? 0.3 : 1;
+      ctx.strokeStyle=obj.color;
+      ctx.lineWidth=Math.max(1, obj.size || 1);
+      applyStrokePattern(ctx, obj);
       ctx.beginPath();
       obj.points.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
       ctx.stroke();
@@ -1471,9 +1543,34 @@ function wrapTextLines(text, maxWidth, font){
   if(line) lines.push(line); ctx.restore(); return lines;
 }
 function drawRoundedRect(x,y,w,h,r){ const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); }
+function applyStrokePattern(targetCtx,obj){
+  const pattern = obj.pattern || 'solid';
+  const size = Math.max(1,+obj.size||1);
+  targetCtx.lineCap = pattern==='pixel' ? 'butt' : (pattern==='calligraphy' ? 'square' : 'round');
+  targetCtx.lineJoin = pattern==='pixel' ? 'miter' : 'round';
+  targetCtx.globalAlpha = 1;
+  targetCtx.shadowBlur = 0;
+  targetCtx.shadowColor = 'transparent';
+  targetCtx.filter = 'none';
+  targetCtx.setLineDash([]);
+  switch(pattern){
+    case 'dashed': targetCtx.setLineDash([size*2.2,size*1.2]); break;
+    case 'dotted': targetCtx.setLineDash([size*0.2,size*1.6]); break;
+    case 'highlighter': targetCtx.globalAlpha = 0.3; break;
+    case 'double': targetCtx.lineWidth = Math.max(1,size*1.6); targetCtx.globalAlpha = 0.85; break;
+    case 'dashdot': targetCtx.setLineDash([size*2.3,size*0.9,size*0.3,size*0.9]); break;
+    case 'longdash': targetCtx.setLineDash([size*4.8,size*1.6]); break;
+    case 'scribble': targetCtx.setLineDash([size*0.9,size*0.7]); targetCtx.lineWidth = Math.max(1,size*0.9); targetCtx.globalAlpha = 0.95; break;
+    case 'calligraphy': targetCtx.lineWidth = Math.max(1,size*1.25); targetCtx.globalAlpha = 0.95; break;
+    case 'neon': targetCtx.shadowBlur = size*1.8; targetCtx.shadowColor = obj.color; targetCtx.globalAlpha = 0.9; break;
+    case 'spray': targetCtx.setLineDash([size*0.1,size*1.2]); targetCtx.lineWidth = Math.max(1,size*0.75); targetCtx.globalAlpha = 0.8; break;
+    case 'pixel': targetCtx.lineWidth = Math.max(1,Math.round(size)); targetCtx.imageSmoothingEnabled = false; break;
+    default: break;
+  }
+}
 function drawObject(obj){
   ctx.save();
-  if(obj.type==='stroke'){ ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=obj.color; ctx.lineWidth=obj.size; const pattern = obj.pattern || 'solid'; if(pattern==='dashed') ctx.setLineDash([obj.size*2.2,obj.size*1.2]); else if(pattern==='dotted') ctx.setLineDash([obj.size*0.2,obj.size*1.6]); else ctx.setLineDash([]); ctx.globalAlpha = pattern==='highlighter' ? 0.3 : 1; ctx.beginPath(); obj.points.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
+  if(obj.type==='stroke'){ ctx.strokeStyle=obj.color; ctx.lineWidth=Math.max(1,obj.size||1); applyStrokePattern(ctx,obj); ctx.beginPath(); obj.points.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
   else if(obj.type==='rect'){ ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='rectfill'){ ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='circle' || obj.type==='circlefill'){ ctx.beginPath(); ctx.ellipse(obj.x+obj.w/2,obj.y+obj.h/2,Math.abs(obj.w/2),Math.abs(obj.h/2),0,0,Math.PI*2); if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); } ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.stroke(); }
