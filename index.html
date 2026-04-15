@@ -366,6 +366,12 @@ body,html{
   flex-direction:column;
   gap:8px;
 }
+.tool-config{
+  display:none;
+}
+.tool-config.active{
+  display:flex;
+}
 .left-toolbar .rtool-stack{
   flex-direction:row;
   align-items:center;
@@ -471,16 +477,6 @@ body,html{
       <label>Stroke <input id="strokeColor" type="color" value="#111111"></label>
       <label>Fill <input id="fillColor" type="color" value="#ffffff"></label>
       <label>Size <input id="toolSize" type="range" min="1" max="80" value="4"></label>
-      <label>Brush
-        <select id="brushPattern">
-          <option value="solid">Solid</option>
-          <option value="drybrush">Dry Brush</option>
-          <option value="watercolor">Watercolor</option>
-          <option value="charcoal">Charcoal</option>
-          <option value="sharpie">Sharpie</option>
-          <option value="spraypaint">Spray Paint</option>
-        </select>
-      </label>
       <span class="small" id="toolSizeReadout">4</span>
     </div>
     <div class="group">
@@ -564,7 +560,6 @@ body,html{
         Select lets you move, resize, and drag-select multiple objects.<br>
         Pan drags the viewport.<br>
         Rotate spins the selected object.<br>
-        Pen supports these brush styles: solid, dry brush, watercolor, charcoal, sharpie, and spray paint.<br>
       </div>
     </div>
   </div>
@@ -576,6 +571,7 @@ body,html{
     <button class="rtool-btn" id="toolbarNextPage" type="button">Next Pg</button>
     <button class="rtool-btn" id="toolbarAddPage" type="button">Add Pg</button>
     <button class="rtool-btn" id="toolbarDeletePage" type="button">Del Pg</button>
+    <label class="rtool-chip">Page BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <button class="rtool-btn" id="toolbarAddLayer" type="button">Add Lyr</button>
     <button class="rtool-btn" id="toolbarDeleteLayer" type="button">Del Lyr</button>
     <button class="rtool-btn danger" id="toolbarClearPage" type="button">Clear Page</button>
@@ -589,37 +585,51 @@ body,html{
     <button class="rtool-btn" id="toolbarUndo" type="button">Undo</button>
     <button class="rtool-btn" id="toolbarRedo" type="button">Redo</button>
     <button class="rtool-btn" id="toolBucketCompact" type="button">Fill</button>
+    <div class="rtool-stack tool-config" id="toolConfigBucket">
+      <label class="rtool-chip">Fill<input id="fillColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+    </div>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
-    <label class="rtool-chip">Stroke Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
-    <label class="rtool-chip">Brush
-      <select id="brushPatternCompact" style="display:block;width:100%;margin-top:6px;">
-        <option value="solid">Solid</option>
-        <option value="drybrush">Dry Brush</option>
-        <option value="watercolor">Watercolor</option>
-        <option value="charcoal">Charcoal</option>
-        <option value="sharpie">Sharpie</option>
-        <option value="spraypaint">Spray Paint</option>
-      </select>
-    </label>
+    <div class="rtool-stack tool-config" id="toolConfigPen">
+      <label class="rtool-chip">Stroke<input id="strokeColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Stroke Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    </div>
     <button class="rtool-btn" id="toolRectCompact" type="button">Rect</button>
+    <div class="rtool-stack tool-config" id="toolConfigRect">
+      <label class="rtool-chip">Stroke<input id="strokeColorRectCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Stroke Size<input id="shapeSizeRectCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    </div>
     <button class="rtool-btn" id="toolRectFillCompact" type="button">RFill</button>
+    <div class="rtool-stack tool-config" id="toolConfigRectFill">
+      <label class="rtool-chip">Stroke<input id="strokeColorRectFillCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Fill<input id="fillColorRectFillCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Stroke Size<input id="shapeSizeRectFillCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    </div>
     <button class="rtool-btn" id="toolCircCompact" type="button">Circ</button>
+    <div class="rtool-stack tool-config" id="toolConfigCircle">
+      <label class="rtool-chip">Stroke<input id="strokeColorCircleCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Stroke Size<input id="shapeSizeCircleCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    </div>
     <button class="rtool-btn" id="toolCircFillCompact" type="button">CFill</button>
+    <div class="rtool-stack tool-config" id="toolConfigCircleFill">
+      <label class="rtool-chip">Stroke<input id="strokeColorCircleFillCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Fill<input id="fillColorCircleFillCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Stroke Size<input id="shapeSizeCircleFillCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+    </div>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
-    <label class="rtool-chip">Font Size<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
-    <label class="rtool-chip" id="textFontFamilyChip" style="display:none;">Font
-      <select id="fontFamilyCompact" style="display:block;width:100%;margin-top:6px;">
-        <option>Arial</option><option>Georgia</option><option>Verdana</option><option>Tahoma</option>
-        <option>Times New Roman</option><option>Courier New</option><option>Comic Sans MS</option><option>Impact</option>
-      </select>
-    </label>
+    <div class="rtool-stack tool-config" id="toolConfigText">
+      <label class="rtool-chip">Color<input id="strokeColorTextCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Font Size<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+      <label class="rtool-chip" id="textFontFamilyChip" style="display:none;">Font
+        <select id="fontFamilyCompact" style="display:block;width:100%;margin-top:6px;">
+          <option>Arial</option><option>Georgia</option><option>Verdana</option><option>Tahoma</option>
+          <option>Times New Roman</option><option>Courier New</option><option>Comic Sans MS</option><option>Impact</option>
+        </select>
+      </label>
+    </div>
     <button class="rtool-btn" id="toolbarImportImage" type="button">Image</button>
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
     <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
     <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
-    <label class="rtool-chip">Stroke<input id="strokeColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
-    <label class="rtool-chip">Fill<input id="fillColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
-    <label class="rtool-chip">BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <div class="rtool-chip">
       Zoom
       <div class="zoom-controls">
@@ -676,7 +686,6 @@ body,html{
     toolButtons: document.getElementById('toolButtons'),
     strokeColor: document.getElementById('strokeColor'),
     fillColor: document.getElementById('fillColor'),
-    brushPattern: document.getElementById('brushPattern'),
     toolSize: document.getElementById('toolSize'),
     toolSizeReadout: document.getElementById('toolSizeReadout'),
     fontFamily: document.getElementById('fontFamily'),
@@ -719,6 +728,7 @@ body,html{
     drag: null,
     selectedId: null,
     selectedIds: [],
+    textEditingId: null,
     project: {
       title: 'PHIK Project',
       width: 1200,
@@ -757,7 +767,7 @@ body,html{
   function pushHistory(){ state.history.push(clone(state.project)); if(state.history.length>100) state.history.shift(); state.future.length=0; }
   function undo(){ if(!state.history.length) return; state.future.push(clone(state.project)); state.project = state.history.pop(); clearSelection(); syncProjectUi(); render(); }
   function redo(){ if(!state.future.length) return; state.history.push(clone(state.project)); state.project = state.future.pop(); clearSelection(); syncProjectUi(); render(); }
-  function clearSelection(){ state.selectedId = null; state.selectedIds = []; }
+  function clearSelection(){ state.selectedId = null; state.selectedIds = []; state.textEditingId = null; }
   function download(name, content, type='text/plain'){
     const blob = new Blob([content], {type});
     const a = document.createElement('a');
@@ -1013,46 +1023,15 @@ body,html{
 
 
   function applyStrokePattern(targetCtx, obj){
-    const pattern = obj.pattern || 'solid';
     const size = Math.max(1, +obj.size || 1);
     targetCtx.lineCap = 'round';
     targetCtx.lineJoin = 'round';
+    targetCtx.lineWidth = size;
     targetCtx.globalAlpha = 1;
     targetCtx.shadowBlur = 0;
     targetCtx.shadowColor = 'transparent';
     targetCtx.filter = 'none';
     targetCtx.setLineDash([]);
-    switch(pattern){
-      case 'drybrush':
-        targetCtx.setLineDash([Math.max(1, size * 0.5), Math.max(1, size * 0.85)]);
-        targetCtx.lineWidth = Math.max(1, size * 0.95);
-        targetCtx.globalAlpha = 0.88;
-        break;
-      case 'watercolor':
-        targetCtx.lineWidth = Math.max(1, size * 1.55);
-        targetCtx.globalAlpha = 0.34;
-        targetCtx.shadowBlur = size * 0.5;
-        targetCtx.shadowColor = obj.color;
-        break;
-      case 'charcoal':
-        targetCtx.setLineDash([Math.max(1, size * 0.15), Math.max(1, size * 0.55)]);
-        targetCtx.lineWidth = Math.max(1, size * 1.15);
-        targetCtx.globalAlpha = 0.74;
-        break;
-      case 'sharpie':
-        targetCtx.lineCap = 'square';
-        targetCtx.lineJoin = 'miter';
-        targetCtx.lineWidth = Math.max(1, size * 1.2);
-        targetCtx.globalAlpha = 0.97;
-        break;
-      case 'spraypaint':
-        targetCtx.setLineDash([Math.max(1, size * 0.1), Math.max(1, size * 1.1)]);
-        targetCtx.lineWidth = Math.max(1, size * 0.75);
-        targetCtx.globalAlpha = 0.62;
-        break;
-      default:
-        break;
-    }
   }
 
   function drawObject(obj){
@@ -1150,7 +1129,7 @@ body,html{
           {x:b.x,y:b.y+b.h},
           {x:b.x+b.w,y:b.y+b.h}
         ];
-        handles.forEach(h => ctx.fillRect(h.x-8,h.y-8,16,16));
+        handles.forEach(h => ctx.fillRect(h.x-10,h.y-10,20,20));
       }
       ctx.restore();
     });
@@ -1210,10 +1189,34 @@ body,html{
     const selected = allObjects().find(o=>o.id===state.selectedId);
     const isTextSelected = selected?.type === 'text' || state.tool === 'text';
     if(els.textFontFamilyChip) els.textFontFamilyChip.style.display = isTextSelected ? '' : 'none';
+    const toolConfigMap = {
+      bucket: ['toolConfigBucket'],
+      pen: ['toolConfigPen'],
+      rect: ['toolConfigRect'],
+      rectfill: ['toolConfigRectFill'],
+      circle: ['toolConfigCircle'],
+      circlefill: ['toolConfigCircleFill'],
+      text: ['toolConfigText']
+    };
+    document.querySelectorAll('.tool-config').forEach((node)=>node.classList.remove('active'));
+    (toolConfigMap[state.tool] || []).forEach((id) => {
+      const node = document.getElementById(id);
+      if(node) node.classList.add('active');
+    });
     if(selected?.type === 'text'){
       els.fontFamily.value = selected.fontFamily || els.fontFamily.value;
+      els.fontSize.value = Math.max(8, +selected.fontSize || +els.fontSize.value || 32);
+      els.strokeColor.value = selected.color || els.strokeColor.value;
       const compactFont = document.getElementById('fontFamilyCompact');
       if(compactFont) compactFont.value = selected.fontFamily || compactFont.value;
+      const compactTextColor = document.getElementById('strokeColorTextCompact');
+      if(compactTextColor) compactTextColor.value = selected.color || compactTextColor.value;
+      const compactFontSize = document.getElementById('fontSizeCompact');
+      if(compactFontSize) compactFontSize.value = Math.max(8, +selected.fontSize || +compactFontSize.value || 32);
+    }
+    const editingText = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
+    if(editingText){
+      els.textInput.value = editingText.text || '';
     }
   }
 
@@ -1236,12 +1239,12 @@ body,html{
         {key:'sw',x:b.x,y:b.y+b.h},
         {key:'se',x:b.x+b.w,y:b.y+b.h}
       ];
-      return handles.find(h => Math.abs(pt.x - h.x) <= 12 && Math.abs(pt.y - h.y) <= 12)?.key || null;
+      return handles.find(h => Math.abs(pt.x - h.x) <= 14 && Math.abs(pt.y - h.y) <= 14)?.key || null;
     };
 
     if(state.tool === 'pen'){
       pushHistory();
-      const obj = { id:uid(), type:'stroke', color:els.strokeColor.value, size:+els.toolSize.value, pattern:els.brushPattern.value, points:[p] };
+      const obj = { id:uid(), type:'stroke', color:els.strokeColor.value, size:+els.toolSize.value, points:[p] };
       layer.objects.push(obj);
       state.drag = { mode:'drawing-stroke', obj };
       selectObject(obj.id);
@@ -1292,11 +1295,26 @@ body,html{
     }
 
     if(state.tool === 'text'){
+      const clicked = findObjectAtPoint(p);
+      if(clicked?.type === 'text'){
+        if(state.textEditingId === clicked.id){
+          state.textEditingId = null;
+          clearSelection();
+        } else {
+          state.textEditingId = clicked.id;
+          selectObject(clicked.id);
+          els.textInput.value = clicked.text || '';
+        }
+        render();
+        return;
+      }
       pushHistory();
       const size = Math.max(8, +els.fontSize.value || 32);
       const obj = { id:uid(), type:'text', x:p.x, y:p.y, w:280, h:size*2, text:els.textInput.value || 'Text', color:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size };
       layer.objects.push(obj);
+      state.textEditingId = obj.id;
       selectObject(obj.id);
+      els.textInput.focus();
       return;
     }
 
@@ -1402,6 +1420,13 @@ body,html{
   window.addEventListener('pointerup', onPointerUp);
 
   els.toolSize.oninput = () => els.toolSizeReadout.textContent = els.toolSize.value;
+  els.textInput.addEventListener('input', () => {
+    if(!state.textEditingId) return;
+    const obj = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
+    if(!obj) return;
+    obj.text = els.textInput.value;
+    render();
+  });
   const applyTextStyleToSelection = () => {
     const selectedTexts = allObjects().filter(o => state.selectedIds.includes(o.id) && o.type === 'text');
     if(!selectedTexts.length) return;
@@ -1582,23 +1607,15 @@ function wrapTextLines(text, maxWidth, font){
 }
 function drawRoundedRect(x,y,w,h,r){ const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); }
 function applyStrokePattern(targetCtx,obj){
-  const pattern = obj.pattern || 'solid';
   const size = Math.max(1,+obj.size||1);
   targetCtx.lineCap = 'round';
   targetCtx.lineJoin = 'round';
+  targetCtx.lineWidth = size;
   targetCtx.globalAlpha = 1;
   targetCtx.shadowBlur = 0;
   targetCtx.shadowColor = 'transparent';
   targetCtx.filter = 'none';
   targetCtx.setLineDash([]);
-  switch(pattern){
-    case 'drybrush': targetCtx.setLineDash([Math.max(1,size*0.5),Math.max(1,size*0.85)]); targetCtx.lineWidth = Math.max(1,size*0.95); targetCtx.globalAlpha = 0.88; break;
-    case 'watercolor': targetCtx.lineWidth = Math.max(1,size*1.55); targetCtx.globalAlpha = 0.34; targetCtx.shadowBlur = size*0.5; targetCtx.shadowColor = obj.color; break;
-    case 'charcoal': targetCtx.setLineDash([Math.max(1,size*0.15),Math.max(1,size*0.55)]); targetCtx.lineWidth = Math.max(1,size*1.15); targetCtx.globalAlpha = 0.74; break;
-    case 'sharpie': targetCtx.lineCap = 'square'; targetCtx.lineJoin = 'miter'; targetCtx.lineWidth = Math.max(1,size*1.2); targetCtx.globalAlpha = 0.97; break;
-    case 'spraypaint': targetCtx.setLineDash([Math.max(1,size*0.1),Math.max(1,size*1.1)]); targetCtx.lineWidth = Math.max(1,size*0.75); targetCtx.globalAlpha = 0.62; break;
-    default: break;
-  }
 }
 function drawObject(obj){
   ctx.save();
@@ -1774,9 +1791,19 @@ render();
     };
 
     bindMirror('strokeColorCompact',['strokeColor','stroke']);
+    bindMirror('strokeColorRectCompact',['strokeColor','stroke']);
+    bindMirror('strokeColorRectFillCompact',['strokeColor','stroke']);
+    bindMirror('strokeColorCircleCompact',['strokeColor','stroke']);
+    bindMirror('strokeColorCircleFillCompact',['strokeColor','stroke']);
+    bindMirror('strokeColorTextCompact',['strokeColor','stroke']);
     bindMirror('fillColorCompact',['fillColor','fill']);
+    bindMirror('fillColorRectFillCompact',['fillColor','fill']);
+    bindMirror('fillColorCircleFillCompact',['fillColor','fill']);
     bindMirror('brushSizeCompact',['toolSize']);
-    bindMirror('brushPatternCompact',['brushPattern']);
+    bindMirror('shapeSizeRectCompact',['toolSize']);
+    bindMirror('shapeSizeRectFillCompact',['toolSize']);
+    bindMirror('shapeSizeCircleCompact',['toolSize']);
+    bindMirror('shapeSizeCircleFillCompact',['toolSize']);
     bindMirror('fontSizeCompact',['fontSize','fontSizeInput']);
     bindMirror('fontFamilyCompact',['fontFamily']);
     const bgCompact = document.getElementById('bgColorCompact');
