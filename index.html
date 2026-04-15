@@ -275,7 +275,7 @@ html,body{
 /* ===== PHIK mobile refactor ===== */
 :root{
   --filebar-h: 54px;
-  --righttools-w: 72px;
+  --righttools-w: 96px;
 }
 body,html{
   overflow:hidden;
@@ -396,6 +396,16 @@ body,html{
   display:flex;
   gap:8px;
   align-items:center;
+}
+.zoom-controls{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:6px;
+}
+.zoom-controls button{
+  width:100%;
+  padding:8px 6px;
 }
 .canvas-status{
   color:#aab6cf;
@@ -612,7 +622,7 @@ body,html{
     <label class="rtool-chip">BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <div class="rtool-chip">
       Zoom
-      <div class="file-inline" style="margin-top:6px;">
+      <div class="zoom-controls">
         <button id="zoomOutBtn" type="button">-</button>
         <button id="zoomResetBtn" type="button">100%</button>
         <button id="zoomInBtn" type="button">+</button>
