@@ -275,7 +275,7 @@ html,body{
 /* ===== PHIK mobile refactor ===== */
 :root{
   --filebar-h: 54px;
-  --righttools-w: 84px;
+  --righttools-w: 72px;
 }
 body,html{
   overflow:hidden;
@@ -306,7 +306,7 @@ body,html{
   grid-row:3;
   min-width:0;
   min-height:0;
-  overflow:hidden;
+  overflow:auto;
   touch-action:none;
 }
 .canvas-stage{
@@ -724,7 +724,9 @@ body,html{
   };
 
   const ctx = els.canvas.getContext('2d');
-  const VIEWPORT_PADDING = 220;
+  const VIEWPORT_PADDING = 360;
+  const SELECTION_HANDLE_SIZE = 36;
+  const SELECTION_HANDLE_HIT_RADIUS = 24;
   const state = {
     tool: 'select',
     drag: null,
@@ -1148,7 +1150,8 @@ body,html{
           {x:b.x,y:b.y+b.h},
           {x:b.x+b.w,y:b.y+b.h}
         ];
-        handles.forEach(h => ctx.fillRect(h.x-14,h.y-14,28,28));
+        const halfHandle = SELECTION_HANDLE_SIZE / 2;
+        handles.forEach(h => ctx.fillRect(h.x-halfHandle,h.y-halfHandle,SELECTION_HANDLE_SIZE,SELECTION_HANDLE_SIZE));
       }
       ctx.restore();
     });
@@ -1260,7 +1263,7 @@ body,html{
         {key:'sw',x:b.x,y:b.y+b.h},
         {key:'se',x:b.x+b.w,y:b.y+b.h}
       ];
-      return handles.find(h => Math.abs(pt.x - h.x) <= 18 && Math.abs(pt.y - h.y) <= 18)?.key || null;
+      return handles.find(h => Math.abs(pt.x - h.x) <= SELECTION_HANDLE_HIT_RADIUS && Math.abs(pt.y - h.y) <= SELECTION_HANDLE_HIT_RADIUS)?.key || null;
     };
 
     if(state.tool === 'pen' || state.tool === 'eraser'){
