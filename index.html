@@ -275,7 +275,7 @@ html,body{
 /* ===== PHIK mobile refactor ===== */
 :root{
   --filebar-h: 54px;
-  --righttools-w: 96px;
+  --righttools-w: 84px;
 }
 body,html{
   overflow:hidden;
@@ -589,6 +589,7 @@ body,html{
       <label class="rtool-chip">Fill<input id="fillColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     </div>
     <button class="rtool-btn" id="toolPenCompact" type="button">Pen</button>
+    <button class="rtool-btn" id="toolEraserCompact" type="button">Erase</button>
     <div class="rtool-stack tool-config" id="toolConfigPen">
       <label class="rtool-chip">Stroke<input id="strokeColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
       <label class="rtool-chip">Stroke Size<input id="brushSizeCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
@@ -676,7 +677,7 @@ body,html{
 (() => {
   const tools = [
     ['select','Select'],['pan','Pan'],['rotate','Rotate'],['bucket','Fill'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
-    ['circle','Circ'],['circlefill','Circ Fill'],['text','Text']
+    ['circle','Circ'],['circlefill','Circ Fill'],['eraser','Erase'],['text','Text']
   ];
 
   const els = {
@@ -723,6 +724,7 @@ body,html{
   };
 
   const ctx = els.canvas.getContext('2d');
+  const VIEWPORT_PADDING = 220;
   const state = {
     tool: 'select',
     drag: null,
@@ -889,7 +891,10 @@ body,html{
 
   function getPointer(evt){
     const rect = els.canvas.getBoundingClientRect();
-    return { x:(evt.clientX-rect.left)*(els.canvas.width/rect.width), y:(evt.clientY-rect.top)*(els.canvas.height/rect.height) };
+    return {
+      x:(evt.clientX-rect.left)*(els.canvas.width/rect.width) - VIEWPORT_PADDING,
+      y:(evt.clientY-rect.top)*(els.canvas.height/rect.height) - VIEWPORT_PADDING
+    };
   }
 
   function buildToolButtons(){
@@ -903,6 +908,7 @@ body,html{
         rotate: 'toolRotate',
         bucket: 'toolBucket',
         pen: 'toolPen',
+        eraser: 'toolEraser',
         text: 'toolText',
         rect: 'toolRect',
         rectfill: 'toolRectFill',
@@ -920,15 +926,15 @@ body,html{
     });
   }
 
-  function wrapTextLines(text, maxWidth, font){
-    ctx.save();
-    ctx.font = font;
+  function wrapTextLines(text, maxWidth, font, targetCtx = ctx){
+    targetCtx.save();
+    targetCtx.font = font;
     const words = String(text).split(/\s+/);
     const lines = [];
     let line = '';
     for(const word of words){
       const test = line ? line + ' ' + word : word;
-      if(ctx.measureText(test).width <= maxWidth || !line){
+      if(targetCtx.measureText(test).width <= maxWidth || !line){
         line = test;
       } else {
         lines.push(line);
@@ -936,19 +942,19 @@ body,html{
       }
     }
     if(line) lines.push(line);
-    ctx.restore();
+    targetCtx.restore();
     return lines;
   }
 
-  function drawRoundedRect(x,y,w,h,r){
+  function drawRoundedRect(x,y,w,h,r, targetCtx = ctx){
     const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
-    ctx.beginPath();
-    ctx.moveTo(x+rr,y);
-    ctx.arcTo(x+w,y,x+w,y+h,rr);
-    ctx.arcTo(x+w,y+h,x,y+h,rr);
-    ctx.arcTo(x,y+h,x,y,rr);
-    ctx.arcTo(x,y,x+w,y,rr);
-    ctx.closePath();
+    targetCtx.beginPath();
+    targetCtx.moveTo(x+rr,y);
+    targetCtx.arcTo(x+w,y,x+w,y+h,rr);
+    targetCtx.arcTo(x+w,y+h,x,y+h,rr);
+    targetCtx.arcTo(x,y+h,x,y,rr);
+    targetCtx.arcTo(x,y,x+w,y,rr);
+    targetCtx.closePath();
   }
 
   function objectBounds(obj){
@@ -968,7 +974,7 @@ body,html{
       const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
       return { x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs)-Math.min(...xs), h:Math.max(...ys)-Math.min(...ys) };
     }
-    if(obj.type==='stroke'){
+    if(obj.type==='stroke' || obj.type==='eraser'){
       const xs = obj.points.map(p=>p.x), ys = obj.points.map(p=>p.y);
       const minX = Math.min(...xs)-obj.size/2, minY = Math.min(...ys)-obj.size/2;
       const maxX = Math.max(...xs)+obj.size/2, maxY = Math.max(...ys)+obj.size/2;
@@ -1010,7 +1016,7 @@ body,html{
     if(!obj) return;
     pushHistory();
     const x = +els.selX.value || 0, y = +els.selY.value || 0, w = +els.selW.value || 1, h = +els.selH.value || 1;
-    if(obj.type==='stroke'){
+    if(obj.type==='stroke' || obj.type==='eraser'){
       const b = objectBounds(obj);
       const sx = w / Math.max(1, b.w), sy = h / Math.max(1, b.h);
       obj.points = obj.points.map(pt => ({ x: x + (pt.x - b.x) * sx, y: y + (pt.y - b.y) * sy }));
@@ -1034,40 +1040,48 @@ body,html{
     targetCtx.setLineDash([]);
   }
 
-  function drawObject(obj){
-    ctx.save();
+  function drawObject(obj, targetCtx = ctx){
+    targetCtx.save();
     if(['rect','rectfill','circle','circlefill','text','bubble','image'].includes(obj.type) && obj.angle){
       const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
-      ctx.translate(cx, cy);
-      ctx.rotate((obj.angle || 0) * Math.PI / 180);
-      ctx.translate(-cx, -cy);
+      targetCtx.translate(cx, cy);
+      targetCtx.rotate((obj.angle || 0) * Math.PI / 180);
+      targetCtx.translate(-cx, -cy);
     }
     if(obj.type==='stroke'){
-      ctx.strokeStyle=obj.color;
-      ctx.lineWidth=Math.max(1, obj.size || 1);
-      applyStrokePattern(ctx, obj);
-      ctx.beginPath();
-      obj.points.forEach((p,i)=> i ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y));
-      ctx.stroke();
+      targetCtx.strokeStyle=obj.color;
+      targetCtx.lineWidth=Math.max(1, obj.size || 1);
+      applyStrokePattern(targetCtx, obj);
+      targetCtx.beginPath();
+      obj.points.forEach((p,i)=> i ? targetCtx.lineTo(p.x,p.y) : targetCtx.moveTo(p.x,p.y));
+      targetCtx.stroke();
+    } else if(obj.type==='eraser'){
+      targetCtx.globalCompositeOperation = 'destination-out';
+      targetCtx.strokeStyle='rgba(0,0,0,1)';
+      targetCtx.lineWidth=Math.max(4, obj.size || 4);
+      applyStrokePattern(targetCtx, obj);
+      targetCtx.beginPath();
+      obj.points.forEach((p,i)=> i ? targetCtx.lineTo(p.x,p.y) : targetCtx.moveTo(p.x,p.y));
+      targetCtx.stroke();
     } else if(obj.type==='rect'){
-      ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth || 2; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
+      targetCtx.strokeStyle=obj.color; targetCtx.lineWidth=obj.lineWidth || 2; targetCtx.strokeRect(obj.x,obj.y,obj.w,obj.h);
     } else if(obj.type==='rectfill'){
-      ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h);
-      ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth || 1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
+      targetCtx.fillStyle=obj.fill; targetCtx.fillRect(obj.x,obj.y,obj.w,obj.h);
+      targetCtx.strokeStyle=obj.color; targetCtx.lineWidth=obj.lineWidth || 1; targetCtx.strokeRect(obj.x,obj.y,obj.w,obj.h);
     } else if(obj.type==='circle' || obj.type==='circlefill'){
-      ctx.beginPath();
-      ctx.ellipse(obj.x + obj.w/2, obj.y + obj.h/2, Math.abs(obj.w/2), Math.abs(obj.h/2), 0, 0, Math.PI*2);
-      if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); }
-      ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth || 2; ctx.stroke();
+      targetCtx.beginPath();
+      targetCtx.ellipse(obj.x + obj.w/2, obj.y + obj.h/2, Math.abs(obj.w/2), Math.abs(obj.h/2), 0, 0, Math.PI*2);
+      if(obj.type==='circlefill'){ targetCtx.fillStyle=obj.fill; targetCtx.fill(); }
+      targetCtx.strokeStyle=obj.color; targetCtx.lineWidth=obj.lineWidth || 2; targetCtx.stroke();
     } else if(obj.type==='text'){
       const font = `${obj.fontSize}px ${obj.fontFamily}`;
-      ctx.font = font; ctx.fillStyle = obj.color; ctx.textBaseline='top';
-      const lines = wrapTextLines(obj.text, obj.w || 99999, font);
+      targetCtx.font = font; targetCtx.fillStyle = obj.color; targetCtx.textBaseline='top';
+      const lines = wrapTextLines(obj.text, obj.w || 99999, font, targetCtx);
       const lineHeight = obj.fontSize * 1.2;
-      lines.forEach((line,i)=> ctx.fillText(line, obj.x, obj.y + i*lineHeight));
+      lines.forEach((line,i)=> targetCtx.fillText(line, obj.x, obj.y + i*lineHeight));
     } else if(obj.type==='bubble'){
-      drawRoundedRect(obj.x,obj.y,obj.w,obj.h,18);
-      ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=2; ctx.stroke();
+      drawRoundedRect(obj.x,obj.y,obj.w,obj.h,18,targetCtx);
+      targetCtx.fillStyle=obj.fill; targetCtx.fill(); targetCtx.strokeStyle=obj.color; targetCtx.lineWidth=2; targetCtx.stroke();
       const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
       const ang = obj.pointerAngle * Math.PI / 180;
       const px = cx + Math.cos(ang) * (Math.max(obj.w,obj.h) * 0.42);
@@ -1078,15 +1092,15 @@ body,html{
       const sy1 = cy + Math.sin(leftA) * (obj.h*0.32);
       const sx2 = cx + Math.cos(rightA) * (obj.w*0.32);
       const sy2 = cy + Math.sin(rightA) * (obj.h*0.32);
-      ctx.beginPath();
-      ctx.moveTo(sx1,sy1); ctx.lineTo(px,py); ctx.lineTo(sx2,sy2); ctx.closePath();
-      ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke();
+      targetCtx.beginPath();
+      targetCtx.moveTo(sx1,sy1); targetCtx.lineTo(px,py); targetCtx.lineTo(sx2,sy2); targetCtx.closePath();
+      targetCtx.fillStyle=obj.fill; targetCtx.fill(); targetCtx.strokeStyle=obj.color; targetCtx.stroke();
       const font = `${obj.fontSize}px ${obj.fontFamily}`;
-      ctx.font = font; ctx.fillStyle = obj.textColor; ctx.textBaseline='top';
+      targetCtx.font = font; targetCtx.fillStyle = obj.textColor; targetCtx.textBaseline='top';
       const pad = 18;
-      const lines = wrapTextLines(obj.text, Math.max(10, obj.w - pad*2), font);
+      const lines = wrapTextLines(obj.text, Math.max(10, obj.w - pad*2), font, targetCtx);
       const lineHeight = obj.fontSize * 1.2;
-      lines.forEach((line,i)=> ctx.fillText(line, obj.x + pad, obj.y + pad + i*lineHeight));
+      lines.forEach((line,i)=> targetCtx.fillText(line, obj.x + pad, obj.y + pad + i*lineHeight));
     } else if(obj.type==='image'){
       let img = state.imageCache.get(obj.src);
       if(!img){
@@ -1095,22 +1109,27 @@ body,html{
         img.onload = () => render();
         state.imageCache.set(obj.src, img);
       }
-      if(img.complete) ctx.drawImage(img, obj.x, obj.y, obj.w, obj.h);
-      else { ctx.fillStyle='#ddd'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle='#666'; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
+      if(img.complete) targetCtx.drawImage(img, obj.x, obj.y, obj.w, obj.h);
+      else { targetCtx.fillStyle='#ddd'; targetCtx.fillRect(obj.x,obj.y,obj.w,obj.h); targetCtx.strokeStyle='#666'; targetCtx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
     }
-    ctx.restore();
+    targetCtx.restore();
   }
 
   function render(){
-    els.canvas.width = state.project.width;
-    els.canvas.height = state.project.height;
-    els.canvas.style.width = state.project.width + 'px';
-    els.canvas.style.height = state.project.height + 'px';
-    els.canvasShell.style.width = state.project.width + 'px';
-    els.canvasShell.style.height = state.project.height + 'px';
+    const workspaceWidth = state.project.width + VIEWPORT_PADDING * 2;
+    const workspaceHeight = state.project.height + VIEWPORT_PADDING * 2;
+    els.canvas.width = workspaceWidth;
+    els.canvas.height = workspaceHeight;
+    els.canvas.style.width = workspaceWidth + 'px';
+    els.canvas.style.height = workspaceHeight + 'px';
+    els.canvasShell.style.width = workspaceWidth + 'px';
+    els.canvasShell.style.height = workspaceHeight + 'px';
     ctx.clearRect(0,0,els.canvas.width,els.canvas.height);
-    ctx.fillStyle = currentPage().bg || '#ffffff'; ctx.fillRect(0,0,els.canvas.width,els.canvas.height);
-    allObjects().forEach(drawObject);
+    ctx.save();
+    ctx.translate(VIEWPORT_PADDING, VIEWPORT_PADDING);
+    ctx.fillStyle = currentPage().bg || '#ffffff';
+    ctx.fillRect(0,0,state.project.width,state.project.height);
+    allObjects().forEach((obj) => drawObject(obj, ctx));
 
     state.selectedIds.forEach((id, idx) => {
       const obj = allObjects().find(o=>o.id===id);
@@ -1129,7 +1148,7 @@ body,html{
           {x:b.x,y:b.y+b.h},
           {x:b.x+b.w,y:b.y+b.h}
         ];
-        handles.forEach(h => ctx.fillRect(h.x-10,h.y-10,20,20));
+        handles.forEach(h => ctx.fillRect(h.x-14,h.y-14,28,28));
       }
       ctx.restore();
     });
@@ -1141,6 +1160,7 @@ body,html{
       ctx.strokeRect(r.x, r.y, r.w, r.h);
       ctx.restore();
     }
+    ctx.restore();
     renderPagesList();
     updateSelectionUi();
     syncCanvasToolUi();
@@ -1196,6 +1216,7 @@ body,html{
       rectfill: ['toolConfigRectFill'],
       circle: ['toolConfigCircle'],
       circlefill: ['toolConfigCircleFill'],
+      eraser: ['toolConfigPen'],
       text: ['toolConfigText']
     };
     document.querySelectorAll('.tool-config').forEach((node)=>node.classList.remove('active'));
@@ -1239,12 +1260,18 @@ body,html{
         {key:'sw',x:b.x,y:b.y+b.h},
         {key:'se',x:b.x+b.w,y:b.y+b.h}
       ];
-      return handles.find(h => Math.abs(pt.x - h.x) <= 14 && Math.abs(pt.y - h.y) <= 14)?.key || null;
+      return handles.find(h => Math.abs(pt.x - h.x) <= 18 && Math.abs(pt.y - h.y) <= 18)?.key || null;
     };
 
-    if(state.tool === 'pen'){
+    if(state.tool === 'pen' || state.tool === 'eraser'){
       pushHistory();
-      const obj = { id:uid(), type:'stroke', color:els.strokeColor.value, size:+els.toolSize.value, points:[p] };
+      const obj = {
+        id:uid(),
+        type: state.tool === 'eraser' ? 'eraser' : 'stroke',
+        color:els.strokeColor.value,
+        size:+els.toolSize.value,
+        points:[p]
+      };
       layer.objects.push(obj);
       state.drag = { mode:'drawing-stroke', obj };
       selectObject(obj.id);
@@ -1258,7 +1285,7 @@ body,html{
 
     if(state.tool === 'rotate'){
       const obj = findObjectAtPoint(p);
-      if(!obj || obj.type==='stroke') return;
+      if(!obj || obj.type==='stroke' || obj.type==='eraser') return;
       pushHistory();
       selectObject(obj.id);
       const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
@@ -1326,7 +1353,8 @@ body,html{
         render();
         return;
       }
-      selectObject(obj.id, evt.shiftKey);
+      const additiveSelect = evt.shiftKey || (!!state.selectedIds.length && !state.selectedIds.includes(obj.id));
+      selectObject(obj.id, additiveSelect);
       const b = objectBounds(obj);
       const resizeHandle = state.selectedIds.length === 1 ? getResizeHandle(b, p) : null;
       pushHistory();
@@ -1366,7 +1394,7 @@ body,html{
       d.selectedObjects.forEach((item) => {
         const raw = d.rawMap.get(item.id);
         if(!raw) return;
-        if(item.type==='stroke') item.points = raw.points.map(pt => ({x:pt.x+dx, y:pt.y+dy}));
+        if(item.type==='stroke' || item.type==='eraser') item.points = raw.points.map(pt => ({x:pt.x+dx, y:pt.y+dy}));
         else { item.x = raw.x + dx; item.y = raw.y + dy; }
       });
     } else if(d.mode === 'resize'){
@@ -1382,7 +1410,7 @@ body,html{
       const nextY = Math.min(anchor.y, p.y);
       const nextW = Math.max(4, Math.abs(anchor.x - p.x));
       const nextH = Math.max(4, Math.abs(anchor.y - p.y));
-      if(d.obj.type==='stroke'){
+      if(d.obj.type==='stroke' || d.obj.type==='eraser'){
         const sx = nextW / Math.max(1,b.w), sy = nextH / Math.max(1,b.h);
         d.obj.points = d.raw.points.map(pt => ({ x: nextX + (pt.x - b.x) * sx, y: nextY + (pt.y - b.y) * sy }));
         d.obj.size = Math.max(1, d.raw.size * ((sx+sy)/2));
@@ -1406,7 +1434,9 @@ body,html{
         const b = objectBounds(obj);
         return b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y;
       }).map(obj => obj.id);
-      const selection = state.drag.additive ? [...new Set([...state.selectedIds, ...hits])] : hits;
+      const selection = (state.drag.additive || state.selectedIds.length)
+        ? [...new Set([...state.selectedIds, ...hits])]
+        : hits;
       state.selectedIds = selection;
       state.selectedId = selection[selection.length - 1] || null;
       syncCanvasToolUi();
@@ -1548,8 +1578,15 @@ body,html{
   };
 
   els.exportImageBtn.onclick = () => {
-    render();
-    els.canvas.toBlob(blob => {
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = state.project.width;
+    exportCanvas.height = state.project.height;
+    const exportCtx = exportCanvas.getContext('2d');
+    exportCtx.clearRect(0,0,exportCanvas.width, exportCanvas.height);
+    exportCtx.fillStyle = currentPage().bg || '#ffffff';
+    exportCtx.fillRect(0,0,exportCanvas.width, exportCanvas.height);
+    allObjects().forEach((obj)=>drawObject(obj, exportCtx));
+    exportCanvas.toBlob(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = (currentPage().name || 'page').replace(/[^a-z0-9-_]+/gi,'_') + '.png';
@@ -1619,7 +1656,14 @@ function applyStrokePattern(targetCtx,obj){
 }
 function drawObject(obj){
   ctx.save();
+  if(['rect','rectfill','circle','circlefill','text','bubble','image'].includes(obj.type) && obj.angle){
+    const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+    ctx.translate(cx, cy);
+    ctx.rotate((obj.angle || 0) * Math.PI / 180);
+    ctx.translate(-cx, -cy);
+  }
   if(obj.type==='stroke'){ ctx.strokeStyle=obj.color; ctx.lineWidth=Math.max(1,obj.size||1); applyStrokePattern(ctx,obj); ctx.beginPath(); obj.points.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
+  else if(obj.type==='eraser'){ ctx.globalCompositeOperation='destination-out'; ctx.strokeStyle='rgba(0,0,0,1)'; ctx.lineWidth=Math.max(4,obj.size||4); applyStrokePattern(ctx,obj); ctx.beginPath(); obj.points.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); }
   else if(obj.type==='rect'){ ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='rectfill'){ ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='circle' || obj.type==='circlefill'){ ctx.beginPath(); ctx.ellipse(obj.x+obj.w/2,obj.y+obj.h/2,Math.abs(obj.w/2),Math.abs(obj.h/2),0,0,Math.PI*2); if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); } ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.stroke(); }
@@ -1692,6 +1736,7 @@ render();
       toolRotateCompact:['toolRotate'],
       toolBucketCompact:['toolBucket'],
       toolPenCompact:['toolPen'],
+      toolEraserCompact:['toolEraser'],
       toolTextCompact:['toolText'],
       toolRectCompact:['toolRect'],
       toolRectFillCompact:['toolRectFill'],
@@ -1763,6 +1808,7 @@ render();
       ['toolRotateCompact',['toolRotate']],
       ['toolBucketCompact',['toolBucket']],
       ['toolPenCompact',['toolPen']],
+      ['toolEraserCompact',['toolEraser']],
       ['toolTextCompact',['toolText']],
       ['toolRectCompact',['toolRect']],
       ['toolRectFillCompact',['toolRectFill']],
