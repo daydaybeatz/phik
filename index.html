@@ -519,6 +519,7 @@ body,html{
       <label>H <input id="selH" type="number" style="width:80px"></label></div>
       <div class="row">
         <button id="applySelectionBtn">Apply</button>
+        <button id="combineSelectionBtn">Combine</button>
         <button id="deleteSelectionBtn" class="danger">Delete</button>
       </div>
       <div class="hint">Use Select to move or resize. Drag any corner handle to scale. Text, bubbles, shapes, and images can all be edited this way.</div>
@@ -558,6 +559,7 @@ body,html{
         Fill tool recolors clicked objects or page background.<br>
         Text places editable text using the sidebar contents.<br>
         Select lets you move, resize, and drag-select multiple objects.<br>
+        Combine turns selected objects into one movable image object.<br>
         Pan drags the viewport.<br>
         Rotate spins the selected object.<br>
       </div>
@@ -577,6 +579,7 @@ body,html{
     <button class="rtool-btn danger" id="toolbarClearPage" type="button">Clear Page</button>
     <button class="rtool-btn danger" id="toolbarClearLayer" type="button">Clear Layer</button>
     <button class="rtool-btn danger" id="toolbarDeleteSelection" type="button">Delete Sel</button>
+    <button class="rtool-btn" id="toolbarCombineSelection" type="button">Combine Sel</button>
   </div>
 </div>
 
@@ -714,6 +717,7 @@ body,html{
     selW: document.getElementById('selW'),
     selH: document.getElementById('selH'),
     applySelectionBtn: document.getElementById('applySelectionBtn'),
+    combineSelectionBtn: document.getElementById('combineSelectionBtn'),
     deleteSelectionBtn: document.getElementById('deleteSelectionBtn'),
     canvasPageStatus: document.getElementById('canvasPageStatus'),
     canvasLayerStatus: document.getElementById('canvasLayerStatus'),
@@ -1483,6 +1487,65 @@ body,html{
   };
 
   els.applySelectionBtn.onclick = applySelectionFields;
+  const combineSelection = () => {
+    if(state.selectedIds.length < 2) return alert('Select at least two objects to combine.');
+    const page = currentPage();
+    const selectedSet = new Set(state.selectedIds);
+    const selectedEntries = [];
+    page.layers.forEach((layer, layerIndex) => {
+      layer.objects.forEach((obj, objectIndex) => {
+        if(selectedSet.has(obj.id)){
+          selectedEntries.push({ layer, layerIndex, objectIndex, obj });
+        }
+      });
+    });
+    if(selectedEntries.length < 2) return;
+    const bounds = selectedEntries.reduce((acc, entry) => {
+      const b = objectBounds(entry.obj);
+      if(!acc) return { x:b.x, y:b.y, maxX:b.x + b.w, maxY:b.y + b.h };
+      acc.x = Math.min(acc.x, b.x);
+      acc.y = Math.min(acc.y, b.y);
+      acc.maxX = Math.max(acc.maxX, b.x + b.w);
+      acc.maxY = Math.max(acc.maxY, b.y + b.h);
+      return acc;
+    }, null);
+    if(!bounds) return;
+    const width = Math.max(1, Math.ceil(bounds.maxX - bounds.x));
+    const height = Math.max(1, Math.ceil(bounds.maxY - bounds.y));
+    const mergeCanvas = document.createElement('canvas');
+    mergeCanvas.width = width;
+    mergeCanvas.height = height;
+    const mergeCtx = mergeCanvas.getContext('2d');
+    mergeCtx.translate(-bounds.x, -bounds.y);
+    const sortedEntries = selectedEntries
+      .slice()
+      .sort((a,b) => a.layerIndex - b.layerIndex || a.objectIndex - b.objectIndex);
+    sortedEntries.forEach((entry) => drawObject(entry.obj, mergeCtx));
+    const mergedObject = {
+      id: uid(),
+      type: 'image',
+      x: bounds.x,
+      y: bounds.y,
+      w: width,
+      h: height,
+      src: mergeCanvas.toDataURL('image/png'),
+      name: 'Combined Selection'
+    };
+    pushHistory();
+    page.layers.forEach((layer) => {
+      layer.objects = layer.objects.filter((obj) => !selectedSet.has(obj.id));
+    });
+    const topmostEntry = sortedEntries.at(-1);
+    const insertLayer = topmostEntry?.layer || currentLayer();
+    insertLayer.objects.push(mergedObject);
+    const mergedImage = new Image();
+    mergedImage.src = mergedObject.src;
+    state.imageCache.set(mergedObject.src, mergedImage);
+    clearSelection();
+    selectObject(mergedObject.id);
+    render();
+  };
+  els.combineSelectionBtn.onclick = combineSelection;
   els.deleteSelectionBtn.onclick = () => {
     if(!state.selectedIds.length) return;
     pushHistory();
@@ -1775,6 +1838,7 @@ render();
       ['toolbarAddPage',['addPageBtn']],
       ['toolbarDeletePage',['deletePageBtn']],
       ['toolbarClearPage',['clearPageBtn']],
+      ['toolbarCombineSelection',['combineSelectionBtn']],
       ['toolbarDeleteSelection',['deleteSelectionBtn']],
       ['toolbarImportImage',['importImageBtn']]
     ];
