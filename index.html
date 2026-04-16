@@ -582,8 +582,8 @@ body,html{
 
 <div class="right-toolbar" id="rightToolbar">
   <div class="rtool-stack">
-    <button class="rtool-btn" id="toolbarUndo" type="button">Undo</button>
-    <button class="rtool-btn" id="toolbarRedo" type="button">Redo</button>
+    <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
+    <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
     <button class="rtool-btn" id="toolBucketCompact" type="button">Fill</button>
     <div class="rtool-stack tool-config" id="toolConfigBucket">
       <label class="rtool-chip">Fill<input id="fillColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
@@ -628,9 +628,7 @@ body,html{
       </label>
     </div>
     <button class="rtool-btn" id="toolbarImportImage" type="button">Image</button>
-    <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
     <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
-    <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
     <div class="rtool-chip">
       Zoom
       <div class="zoom-controls">
@@ -639,6 +637,8 @@ body,html{
         <button id="zoomInBtn" type="button">+</button>
       </div>
     </div>
+    <button class="rtool-btn" id="toolbarUndo" type="button">Undo</button>
+    <button class="rtool-btn" id="toolbarRedo" type="button">Redo</button>
   </div>
 </div>
 
@@ -673,6 +673,7 @@ body,html{
     <div class="hint">Resize updates all pages in the project.</div>
   </div>
 </div>
+<textarea id="inlineTextEditor" style="position:fixed;left:10px;right:82px;bottom:10px;z-index:1300;min-height:84px;display:none;" placeholder="Edit text"></textarea>
 <script>
 (() => {
   const tools = [
@@ -724,7 +725,7 @@ body,html{
   };
 
   const ctx = els.canvas.getContext('2d');
-  const VIEWPORT_PADDING = 360;
+  const VIEWPORT_PADDING = 2000;
   const SELECTION_HANDLE_SIZE = 36;
   const SELECTION_HANDLE_HIT_RADIUS = 24;
   const state = {
@@ -1128,8 +1129,9 @@ body,html{
     els.canvasShell.style.height = workspaceHeight + 'px';
     ctx.clearRect(0,0,els.canvas.width,els.canvas.height);
     ctx.save();
-    ctx.translate(VIEWPORT_PADDING, VIEWPORT_PADDING);
     ctx.fillStyle = currentPage().bg || '#ffffff';
+    ctx.fillRect(0,0,workspaceWidth,workspaceHeight);
+    ctx.translate(VIEWPORT_PADDING, VIEWPORT_PADDING);
     ctx.fillRect(0,0,state.project.width,state.project.height);
     allObjects().forEach((obj) => drawObject(obj, ctx));
 
@@ -1242,6 +1244,23 @@ body,html{
     if(editingText){
       els.textInput.value = editingText.text || '';
     }
+    syncInlineTextEditor();
+  }
+
+  function syncInlineTextEditor(focus = false){
+    const inlineEditor = document.getElementById('inlineTextEditor');
+    if(!inlineEditor) return;
+    const editingText = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
+    if(!editingText){
+      inlineEditor.style.display = 'none';
+      return;
+    }
+    inlineEditor.style.display = 'block';
+    inlineEditor.value = editingText.text || '';
+    if(focus){
+      inlineEditor.focus();
+      inlineEditor.select();
+    }
   }
 
   function selectObject(id, additive = false){
@@ -1327,14 +1346,10 @@ body,html{
     if(state.tool === 'text'){
       const clicked = findObjectAtPoint(p);
       if(clicked?.type === 'text'){
-        if(state.textEditingId === clicked.id){
-          state.textEditingId = null;
-          clearSelection();
-        } else {
-          state.textEditingId = clicked.id;
-          selectObject(clicked.id);
-          els.textInput.value = clicked.text || '';
-        }
+        state.textEditingId = clicked.id;
+        selectObject(clicked.id);
+        els.textInput.value = clicked.text || '';
+        syncInlineTextEditor(true);
         render();
         return;
       }
@@ -1345,6 +1360,7 @@ body,html{
       state.textEditingId = obj.id;
       selectObject(obj.id);
       els.textInput.focus();
+      syncInlineTextEditor(true);
       return;
     }
 
@@ -1358,6 +1374,14 @@ body,html{
       }
       const additiveSelect = evt.shiftKey || (!!state.selectedIds.length && !state.selectedIds.includes(obj.id));
       selectObject(obj.id, additiveSelect);
+      if(obj.type === 'text'){
+        state.textEditingId = obj.id;
+        els.textInput.value = obj.text || '';
+        syncInlineTextEditor(true);
+      } else if(!evt.shiftKey){
+        state.textEditingId = null;
+        syncInlineTextEditor();
+      }
       const b = objectBounds(obj);
       const resizeHandle = state.selectedIds.length === 1 ? getResizeHandle(b, p) : null;
       pushHistory();
@@ -1458,8 +1482,23 @@ body,html{
     const obj = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
     if(!obj) return;
     obj.text = els.textInput.value;
+    const inlineEditor = document.getElementById('inlineTextEditor');
+    if(inlineEditor && inlineEditor.value !== obj.text){
+      inlineEditor.value = obj.text;
+    }
     render();
   });
+  const inlineTextEditor = document.getElementById('inlineTextEditor');
+  if(inlineTextEditor){
+    inlineTextEditor.addEventListener('input', () => {
+      if(!state.textEditingId) return;
+      const obj = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
+      if(!obj) return;
+      obj.text = inlineTextEditor.value;
+      els.textInput.value = inlineTextEditor.value;
+      render();
+    });
+  }
   const applyTextStyleToSelection = () => {
     const selectedTexts = allObjects().filter(o => state.selectedIds.includes(o.id) && o.type === 'text');
     if(!selectedTexts.length) return;
@@ -1695,7 +1734,7 @@ render();
 
 
   // ===== PHIK mobile UI bridge =====
-  const DEFAULT_ZOOM = 0.2;
+  const DEFAULT_ZOOM = 0.1;
   let phikZoom = DEFAULT_ZOOM;
   const viewPan = { x: 0, y: 0 };
   function phikApplyViewport(){
@@ -1870,7 +1909,7 @@ render();
     }
 
     const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.1).toFixed(2)); phikApplyViewport(); };
-    const zoomOut = ()=>{ phikZoom = Math.max(0.2, +(phikZoom - 0.1).toFixed(2)); phikApplyViewport(); };
+    const zoomOut = ()=>{ phikZoom = Math.max(0.05, +(phikZoom - 0.05).toFixed(2)); phikApplyViewport(); };
     const zoomReset = ()=>{ phikZoom = 1; phikApplyViewport(); };
 
     [['zoomInBtn',zoomIn],['zoomOutBtn',zoomOut],['zoomResetBtn',zoomReset]]
