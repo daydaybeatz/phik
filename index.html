@@ -749,8 +749,42 @@ body,html{
     history: [],
     future: [],
     imageCache: new Map(),
-    zoom: 1
+    zoom: 1,
+    viewportCentered: false
   };
+
+  function centerViewportOnPage(){
+    const wrap = els.canvasWrap;
+    if(!wrap) return;
+    const pageLeft = VIEWPORT_PADDING * state.zoom;
+    const pageTop = VIEWPORT_PADDING * state.zoom;
+    const pageWidth = state.project.width * state.zoom;
+    const pageHeight = state.project.height * state.zoom;
+    const targetLeft = Math.max(0, pageLeft - Math.max(0, (wrap.clientWidth - pageWidth) / 2));
+    const targetTop = Math.max(0, pageTop - Math.max(0, (wrap.clientHeight - pageHeight) / 2));
+    wrap.scrollLeft = targetLeft;
+    wrap.scrollTop = targetTop;
+    state.viewportCentered = true;
+  }
+
+  function setZoom(nextZoom, anchor){
+    const wrap = els.canvasWrap;
+    const oldZoom = state.zoom || 1;
+    const clamped = Math.max(0.1, Math.min(4, +nextZoom || 1));
+    if(!wrap){
+      state.zoom = clamped;
+      render();
+      return;
+    }
+    const anchorX = anchor?.x ?? wrap.clientWidth / 2;
+    const anchorY = anchor?.y ?? wrap.clientHeight / 2;
+    const worldX = (wrap.scrollLeft + anchorX) / oldZoom;
+    const worldY = (wrap.scrollTop + anchorY) / oldZoom;
+    state.zoom = clamped;
+    render();
+    wrap.scrollLeft = worldX * clamped - anchorX;
+    wrap.scrollTop = worldY * clamped - anchorY;
+  }
 
   function makePage(index){
     return { id: uid(), name: `Page ${index}`, bg: '#ffffff', layers:[{id:uid(), name:'Layer 1', objects:[]}], currentLayer:0 };
@@ -823,6 +857,7 @@ body,html{
     pushHistory();
     state.project = clone(projects[name]);
     clearSelection();
+    state.viewportCentered = false;
     syncProjectUi();
     render();
     closeLoadModal();
@@ -879,6 +914,7 @@ body,html{
     pushHistory();
     state.project.width = width;
     state.project.height = height;
+    state.viewportCentered = false;
     syncProjectUi();
     render();
     closeResolutionModal();
@@ -894,6 +930,7 @@ body,html{
       currentPage: 0
     };
     clearSelection();
+    state.viewportCentered = false;
     syncProjectUi();
     render();
   }
@@ -1126,7 +1163,7 @@ body,html{
     targetCtx.restore();
   }
 
-  function render(){
+  function render(centerViewport = false){
     const workspaceWidth = state.project.width + VIEWPORT_PADDING * 2;
     const workspaceHeight = state.project.height + VIEWPORT_PADDING * 2;
     els.canvas.width = workspaceWidth;
@@ -1189,6 +1226,9 @@ body,html{
     renderPagesList();
     updateSelectionUi();
     syncCanvasToolUi();
+    if(centerViewport || !state.viewportCentered){
+      requestAnimationFrame(centerViewportOnPage);
+    }
   }
 
   function renderPagesList(){
@@ -1557,6 +1597,7 @@ body,html{
     state.project.width = Math.max(64, +els.projectWidth.value || 1200);
     state.project.height = Math.max(64, +els.projectHeight.value || 900);
     state.project.title = els.projectTitle.value || 'PHIK Project';
+    state.viewportCentered = false;
     render();
   };
 
@@ -1709,6 +1750,7 @@ body,html{
         pushHistory();
         state.project = data.project;
         clearSelection();
+        state.viewportCentered = false;
         syncProjectUi();
         render();
       } catch(err){ alert('Could not load project: ' + err.message); }
@@ -1836,8 +1878,7 @@ render();
   let phikZoom = DEFAULT_ZOOM;
   function phikApplyViewport(){
     const resetMenu = document.getElementById('zoomResetBtn');
-    state.zoom = phikZoom;
-    render();
+    setZoom(phikZoom);
     const pct = Math.round(phikZoom * 100) + '%';
     if(resetMenu) resetMenu.textContent = pct;
   }
@@ -2026,6 +2067,19 @@ render();
   }
 
   setInterval(phikSyncCompactToolState, 600);
+  if(els.canvasWrap){
+    els.canvasWrap.addEventListener('wheel', (evt) => {
+      if(!(evt.ctrlKey || evt.metaKey)) return;
+      evt.preventDefault();
+      const rect = els.canvasWrap.getBoundingClientRect();
+      const anchor = { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+      const delta = evt.deltaY < 0 ? 0.1 : -0.1;
+      phikZoom = Math.max(0.1, Math.min(4, +(state.zoom + delta).toFixed(2)));
+      setZoom(phikZoom, anchor);
+      const resetMenu = document.getElementById('zoomResetBtn');
+      if(resetMenu) resetMenu.textContent = Math.round(phikZoom * 100) + '%';
+    }, { passive:false });
+  }
   const closeLoadModalBtn = document.getElementById('closeLoadModalBtn');
   if(closeLoadModalBtn) closeLoadModalBtn.onclick = closeLoadModal;
   const loadModalBackdrop = document.getElementById('loadModalBackdrop');
