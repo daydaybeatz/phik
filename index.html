@@ -676,7 +676,8 @@ body,html{
     <div class="hint">Resize updates all pages in the project.</div>
   </div>
 </div>
-<textarea id="inlineTextEditor" style="position:fixed;left:10px;right:82px;bottom:10px;z-index:1300;min-height:84px;display:none;" placeholder="Edit text"></textarea>
+<textarea id="inlineTextEditor" style="position:fixed;left:10px;right:120px;bottom:10px;z-index:1300;min-height:84px;display:none;" placeholder="Edit text"></textarea>
+<button id="textDoneBtn" type="button" style="position:fixed;right:10px;bottom:10px;z-index:1300;display:none;">Done</button>
 <script>
 (() => {
   const tools = [
@@ -747,7 +748,8 @@ body,html{
     },
     history: [],
     future: [],
-    imageCache: new Map()
+    imageCache: new Map(),
+    zoom: 1
   };
 
   function makePage(index){
@@ -1127,17 +1129,27 @@ body,html{
     const workspaceHeight = state.project.height + VIEWPORT_PADDING * 2;
     els.canvas.width = workspaceWidth;
     els.canvas.height = workspaceHeight;
-    els.canvas.style.width = workspaceWidth + 'px';
-    els.canvas.style.height = workspaceHeight + 'px';
-    els.canvasShell.style.width = workspaceWidth + 'px';
-    els.canvasShell.style.height = workspaceHeight + 'px';
+    const displayWidth = workspaceWidth * state.zoom;
+    const displayHeight = workspaceHeight * state.zoom;
+    els.canvas.style.width = displayWidth + 'px';
+    els.canvas.style.height = displayHeight + 'px';
+    els.canvasShell.style.width = displayWidth + 'px';
+    els.canvasShell.style.height = displayHeight + 'px';
     ctx.clearRect(0,0,els.canvas.width,els.canvas.height);
     ctx.save();
-    ctx.fillStyle = currentPage().bg || '#ffffff';
+    ctx.fillStyle = '#1f2430';
     ctx.fillRect(0,0,workspaceWidth,workspaceHeight);
     ctx.translate(VIEWPORT_PADDING, VIEWPORT_PADDING);
+    ctx.fillStyle = currentPage().bg || '#ffffff';
     ctx.fillRect(0,0,state.project.width,state.project.height);
     allObjects().forEach((obj) => drawObject(obj, ctx));
+    ctx.save();
+    ctx.fillStyle = 'rgba(16,18,22,0.35)';
+    ctx.fillRect(-VIEWPORT_PADDING, -VIEWPORT_PADDING, VIEWPORT_PADDING, state.project.height + VIEWPORT_PADDING * 2);
+    ctx.fillRect(state.project.width, -VIEWPORT_PADDING, VIEWPORT_PADDING, state.project.height + VIEWPORT_PADDING * 2);
+    ctx.fillRect(0, -VIEWPORT_PADDING, state.project.width, VIEWPORT_PADDING);
+    ctx.fillRect(0, state.project.height, state.project.width, VIEWPORT_PADDING);
+    ctx.restore();
 
     state.selectedIds.forEach((id, idx) => {
       const obj = allObjects().find(o=>o.id===id);
@@ -1253,13 +1265,16 @@ body,html{
 
   function syncInlineTextEditor(focus = false){
     const inlineEditor = document.getElementById('inlineTextEditor');
+    const doneBtn = document.getElementById('textDoneBtn');
     if(!inlineEditor) return;
     const editingText = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
     if(!editingText){
       inlineEditor.style.display = 'none';
+      if(doneBtn) doneBtn.style.display = 'none';
       return;
     }
     inlineEditor.style.display = 'block';
+    if(doneBtn) doneBtn.style.display = 'block';
     inlineEditor.value = editingText.text || '';
     if(focus){
       inlineEditor.focus();
@@ -1500,6 +1515,14 @@ body,html{
       if(!obj) return;
       obj.text = inlineTextEditor.value;
       els.textInput.value = inlineTextEditor.value;
+      render();
+    });
+  }
+  const textDoneBtn = document.getElementById('textDoneBtn');
+  if(textDoneBtn){
+    textDoneBtn.addEventListener('click', () => {
+      state.textEditingId = null;
+      syncInlineTextEditor();
       render();
     });
   }
@@ -1797,16 +1820,12 @@ render();
 
 
   // ===== PHIK mobile UI bridge =====
-  const DEFAULT_ZOOM = 0.1;
+  const DEFAULT_ZOOM = 1;
   let phikZoom = DEFAULT_ZOOM;
-  const viewPan = { x: 0, y: 0 };
   function phikApplyViewport(){
-    const shell = document.querySelector('.canvas-shell');
     const resetMenu = document.getElementById('zoomResetBtn');
-    if(shell){
-      shell.style.transformOrigin = 'top left';
-      shell.style.transform = `translate(${viewPan.x}px, ${viewPan.y}px) scale(${phikZoom})`;
-    }
+    state.zoom = phikZoom;
+    render();
     const pct = Math.round(phikZoom * 100) + '%';
     if(resetMenu) resetMenu.textContent = pct;
   }
@@ -1973,7 +1992,7 @@ render();
     }
 
     const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.1).toFixed(2)); phikApplyViewport(); };
-    const zoomOut = ()=>{ phikZoom = Math.max(0.05, +(phikZoom - 0.05).toFixed(2)); phikApplyViewport(); };
+    const zoomOut = ()=>{ phikZoom = Math.max(0.1, +(phikZoom - 0.1).toFixed(2)); phikApplyViewport(); };
     const zoomReset = ()=>{ phikZoom = 1; phikApplyViewport(); };
 
     [['zoomInBtn',zoomIn],['zoomOutBtn',zoomOut],['zoomResetBtn',zoomReset]]
@@ -2013,32 +2032,6 @@ render();
       if(evt.target === resolutionModalBackdrop) closeResolutionModal();
     };
   }
-
-  const originalOnPointerDown = onPointerDown;
-  function onPointerDownWithViewport(evt){
-    const p = getPointer(evt);
-    if(state.tool === 'pan'){
-      state.drag = { mode:'viewport-pan', startClient:{x:evt.clientX,y:evt.clientY}, startPan:{x:viewPan.x,y:viewPan.y} };
-      return;
-    }
-    originalOnPointerDown(evt, p);
-  }
-  const originalOnPointerMove = onPointerMove;
-  function onPointerMoveWithViewport(evt){
-    if(state.drag?.mode === 'viewport-pan'){
-      const dx = evt.clientX - state.drag.startClient.x;
-      const dy = evt.clientY - state.drag.startClient.y;
-      viewPan.x = state.drag.startPan.x + dx;
-      viewPan.y = state.drag.startPan.y + dy;
-      phikApplyViewport();
-      return;
-    }
-    originalOnPointerMove(evt);
-  }
-  els.canvas.removeEventListener('pointerdown', onPointerDown);
-  window.removeEventListener('pointermove', onPointerMove);
-  els.canvas.addEventListener('pointerdown', onPointerDownWithViewport);
-  window.addEventListener('pointermove', onPointerMoveWithViewport);
 
 })();
 </script>
