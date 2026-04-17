@@ -730,7 +730,11 @@ body,html{
   };
 
   const ctx = els.canvas.getContext('2d');
-  const VIEWPORT_PADDING = 2000;
+  function getViewportPadding(){
+    const maxProjectSide = Math.max(state.project.width || 0, state.project.height || 0);
+    const scaledPadding = Math.round(maxProjectSide * 0.35);
+    return Math.max(320, Math.min(1200, scaledPadding));
+  }
   const SELECTION_HANDLE_SIZE = 36;
   const SELECTION_HANDLE_HIT_RADIUS = 24;
   const state = {
@@ -756,8 +760,9 @@ body,html{
   function centerViewportOnPage(){
     const wrap = els.canvasWrap;
     if(!wrap) return;
-    const pageLeft = VIEWPORT_PADDING * state.zoom;
-    const pageTop = VIEWPORT_PADDING * state.zoom;
+    const padding = getViewportPadding();
+    const pageLeft = padding * state.zoom;
+    const pageTop = padding * state.zoom;
     const pageWidth = state.project.width * state.zoom;
     const pageHeight = state.project.height * state.zoom;
     const targetLeft = Math.max(0, pageLeft - Math.max(0, (wrap.clientWidth - pageWidth) / 2));
@@ -939,9 +944,10 @@ body,html{
     const rect = els.canvas.getBoundingClientRect();
     const scaleX = els.canvas.width / rect.width;
     const scaleY = els.canvas.height / rect.height;
+    const padding = getViewportPadding();
     return {
-      x:(evt.clientX-rect.left)*scaleX - VIEWPORT_PADDING,
-      y:(evt.clientY-rect.top)*scaleY - VIEWPORT_PADDING
+      x:(evt.clientX-rect.left)*scaleX - padding,
+      y:(evt.clientY-rect.top)*scaleY - padding
     };
   }
 
@@ -1164,8 +1170,9 @@ body,html{
   }
 
   function render(centerViewport = false){
-    const workspaceWidth = state.project.width + VIEWPORT_PADDING * 2;
-    const workspaceHeight = state.project.height + VIEWPORT_PADDING * 2;
+    const padding = getViewportPadding();
+    const workspaceWidth = state.project.width + padding * 2;
+    const workspaceHeight = state.project.height + padding * 2;
     els.canvas.width = workspaceWidth;
     els.canvas.height = workspaceHeight;
     const displayWidth = workspaceWidth * state.zoom;
@@ -1180,16 +1187,16 @@ body,html{
     ctx.save();
     ctx.fillStyle = '#1f2430';
     ctx.fillRect(0,0,workspaceWidth,workspaceHeight);
-    ctx.translate(VIEWPORT_PADDING, VIEWPORT_PADDING);
+    ctx.translate(padding, padding);
     ctx.fillStyle = currentPage().bg || '#ffffff';
     ctx.fillRect(0,0,state.project.width,state.project.height);
     allObjects().forEach((obj) => drawObject(obj, ctx));
     ctx.save();
     ctx.fillStyle = 'rgba(16,18,22,0.35)';
-    ctx.fillRect(-VIEWPORT_PADDING, -VIEWPORT_PADDING, VIEWPORT_PADDING, state.project.height + VIEWPORT_PADDING * 2);
-    ctx.fillRect(state.project.width, -VIEWPORT_PADDING, VIEWPORT_PADDING, state.project.height + VIEWPORT_PADDING * 2);
-    ctx.fillRect(0, -VIEWPORT_PADDING, state.project.width, VIEWPORT_PADDING);
-    ctx.fillRect(0, state.project.height, state.project.width, VIEWPORT_PADDING);
+    ctx.fillRect(-padding, -padding, padding, state.project.height + padding * 2);
+    ctx.fillRect(state.project.width, -padding, padding, state.project.height + padding * 2);
+    ctx.fillRect(0, -padding, state.project.width, padding);
+    ctx.fillRect(0, state.project.height, state.project.width, padding);
     ctx.restore();
 
     state.selectedIds.forEach((id, idx) => {
