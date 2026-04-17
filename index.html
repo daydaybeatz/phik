@@ -900,9 +900,11 @@ body,html{
 
   function getPointer(evt){
     const rect = els.canvas.getBoundingClientRect();
+    const scaleX = els.canvas.width / rect.width;
+    const scaleY = els.canvas.height / rect.height;
     return {
-      x:(evt.clientX-rect.left)*(els.canvas.width/rect.width) - VIEWPORT_PADDING,
-      y:(evt.clientY-rect.top)*(els.canvas.height/rect.height) - VIEWPORT_PADDING
+      x:(evt.clientX-rect.left)*scaleX - VIEWPORT_PADDING,
+      y:(evt.clientY-rect.top)*scaleY - VIEWPORT_PADDING
     };
   }
 
@@ -1131,8 +1133,10 @@ body,html{
     els.canvas.height = workspaceHeight;
     const displayWidth = workspaceWidth * state.zoom;
     const displayHeight = workspaceHeight * state.zoom;
-    els.canvas.style.width = displayWidth + 'px';
-    els.canvas.style.height = displayHeight + 'px';
+    els.canvas.style.width = workspaceWidth + 'px';
+    els.canvas.style.height = workspaceHeight + 'px';
+    els.canvas.style.transformOrigin = '0 0';
+    els.canvas.style.transform = `scale(${state.zoom})`;
     els.canvasShell.style.width = displayWidth + 'px';
     els.canvasShell.style.height = displayHeight + 'px';
     ctx.clearRect(0,0,els.canvas.width,els.canvas.height);
@@ -1292,6 +1296,10 @@ body,html{
   }
 
   function onPointerDown(evt){
+    evt.preventDefault();
+    if(typeof els.canvas.setPointerCapture === 'function'){
+      try{ els.canvas.setPointerCapture(evt.pointerId); }catch{}
+    }
     const p = getPointer(evt);
     const layer = currentLayer();
     const getResizeHandle = (b, pt) => {
@@ -1421,6 +1429,7 @@ body,html{
 
   function onPointerMove(evt){
     if(!state.drag) return;
+    evt.preventDefault();
     const p = getPointer(evt);
     const d = state.drag;
 
@@ -1473,7 +1482,10 @@ body,html{
     render();
   }
 
-  function onPointerUp(){
+  function onPointerUp(evt){
+    if(evt && typeof els.canvas.releasePointerCapture === 'function'){
+      try{ els.canvas.releasePointerCapture(evt.pointerId); }catch{}
+    }
     if(state.drag?.mode === 'marquee'){
       const r = normalizeRect(state.drag.start, state.drag.current || state.drag.start);
       const hits = allObjects().filter(obj => {
