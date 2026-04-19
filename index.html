@@ -575,17 +575,22 @@ body,html{
     <button class="rtool-btn" id="toolbarDeletePage" type="button">Del Pg</button>
     <label class="rtool-chip">Page BG<input id="bgColorCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
     <button class="rtool-btn" id="toolbarAddLayer" type="button">Add Lyr</button>
+    <button class="rtool-btn" id="toolbarPrevLayer" type="button">Prev Lyr</button>
+    <button class="rtool-btn" id="toolbarNextLayer" type="button">Next Lyr</button>
     <button class="rtool-btn" id="toolbarDeleteLayer" type="button">Del Lyr</button>
     <button class="rtool-btn danger" id="toolbarClearPage" type="button">Clear Page</button>
     <button class="rtool-btn danger" id="toolbarClearLayer" type="button">Clear Layer</button>
-    <button class="rtool-btn danger" id="toolbarDeleteSelection" type="button">Delete Sel</button>
-    <button class="rtool-btn" id="toolbarCombineSelection" type="button">Combine Sel</button>
   </div>
 </div>
 
 <div class="right-toolbar" id="rightToolbar">
   <div class="rtool-stack">
     <button class="rtool-btn" id="toolSelectCompact" type="button">Sel</button>
+    <div class="rtool-stack tool-config" id="toolConfigSelectActions">
+      <button class="rtool-btn" id="toolbarDeselect" type="button">Deselect</button>
+      <button class="rtool-btn danger" id="toolbarDeleteSelection" type="button">Delete Sel</button>
+      <button class="rtool-btn" id="toolbarCombineSelection" type="button">Combine Sel</button>
+    </div>
     <button class="rtool-btn" id="toolPanCompact" type="button">Pan</button>
     <button class="rtool-btn" id="toolBucketCompact" type="button">Fill</button>
     <div class="rtool-stack tool-config" id="toolConfigBucket">
@@ -753,7 +758,7 @@ body,html{
     history: [],
     future: [],
     imageCache: new Map(),
-    zoom: 1,
+    zoom: 0.2,
     viewportCentered: false
   };
 
@@ -813,6 +818,7 @@ body,html{
   function currentPage(){ const page = state.project.pages[state.project.currentPage]; ensurePageStructure(page); return page; }
   function currentLayer(){ const page = currentPage(); return page.layers[page.currentLayer]; }
   function allObjects(page = currentPage()){ return page.layers.flatMap(layer => layer.objects); }
+  function currentLayerObjects(){ return currentLayer().objects; }
   function clone(data){ return JSON.parse(JSON.stringify(data)); }
   function pushHistory(){ state.history.push(clone(state.project)); if(state.history.length>100) state.history.shift(); state.future.length=0; }
   function undo(){ if(!state.history.length) return; state.future.push(clone(state.project)); state.project = state.history.pop(); clearSelection(); syncProjectUi(); render(); }
@@ -1050,8 +1056,8 @@ body,html{
     return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
   }
 
-  function findObjectAtPoint(p){
-    const objs = allObjects();
+  function findObjectAtPoint(p, objects = currentLayerObjects()){
+    const objs = objects;
     for(let i=objs.length-1; i>=0; i--){ if(hitTestObject(objs[i], p)) return objs[i]; }
     return null;
   }
@@ -1208,7 +1214,7 @@ body,html{
       ctx.lineWidth = 1; ctx.setLineDash([6,4]);
       ctx.strokeRect(b.x,b.y,b.w,b.h);
       ctx.setLineDash([]);
-      if(id === state.selectedId){
+      if(state.selectedIds.length > 1 || id === state.selectedId){
         ctx.fillStyle = '#70d6ff';
         const handles = [
           {x:b.x,y:b.y},
@@ -1291,11 +1297,34 @@ body,html{
       eraser: ['toolConfigPen'],
       text: ['toolConfigText']
     };
+    const selectionTypeMap = {
+      stroke: ['toolConfigPen'],
+      eraser: ['toolConfigPen'],
+      rect: ['toolConfigRect'],
+      rectfill: ['toolConfigRectFill'],
+      circle: ['toolConfigCircle'],
+      circlefill: ['toolConfigCircleFill'],
+      text: ['toolConfigText']
+    };
     document.querySelectorAll('.tool-config').forEach((node)=>node.classList.remove('active'));
-    (toolConfigMap[state.tool] || []).forEach((id) => {
+    const activeConfigs = state.tool === 'select'
+      ? (selectionTypeMap[selected?.type] || [])
+      : (toolConfigMap[state.tool] || []);
+    activeConfigs.forEach((id) => {
       const node = document.getElementById(id);
       if(node) node.classList.add('active');
     });
+    const selectActionNode = document.getElementById('toolConfigSelectActions');
+    if(selectActionNode){
+      selectActionNode.classList.toggle('active', state.tool === 'select' && state.selectedIds.length > 0);
+    }
+    if(selected){
+      if(selected.color) els.strokeColor.value = selected.color;
+      if(selected.fill) els.fillColor.value = selected.fill;
+      if(selected.lineWidth) els.toolSize.value = Math.max(1, Math.round(selected.lineWidth));
+      if(selected.size) els.toolSize.value = Math.max(1, Math.round(selected.size));
+      els.toolSizeReadout.textContent = els.toolSize.value;
+    }
     if(selected?.type === 'text'){
       els.fontFamily.value = selected.fontFamily || els.fontFamily.value;
       els.fontSize.value = Math.max(8, +selected.fontSize || +els.fontSize.value || 32);
@@ -1446,16 +1475,25 @@ body,html{
         render();
         return;
       }
-      const additiveSelect = evt.shiftKey || (!!state.selectedIds.length && !state.selectedIds.includes(obj.id));
-      selectObject(obj.id, additiveSelect);
-      if(obj.type === 'text'){
+      const alreadySelected = state.selectedIds.includes(obj.id);
+      const isSingleSelected = state.selectedIds.length === 1 && state.selectedId === obj.id;
+      if(alreadySelected && isSingleSelected && obj.type === 'text' && !evt.shiftKey){
         state.textEditingId = obj.id;
         els.textInput.value = obj.text || '';
         syncInlineTextEditor(true);
-      } else if(!evt.shiftKey){
-        state.textEditingId = null;
-        syncInlineTextEditor();
+        render();
+        return;
       }
+      if(alreadySelected && isSingleSelected && !evt.shiftKey){
+        clearSelection();
+        syncInlineTextEditor();
+        render();
+        return;
+      }
+      const additiveSelect = evt.shiftKey || (!!state.selectedIds.length && !state.selectedIds.includes(obj.id));
+      selectObject(obj.id, additiveSelect);
+      state.textEditingId = null;
+      syncInlineTextEditor();
       const b = objectBounds(obj);
       const resizeHandle = state.selectedIds.length === 1 ? getResizeHandle(b, p) : null;
       pushHistory();
@@ -1535,7 +1573,7 @@ body,html{
     }
     if(state.drag?.mode === 'marquee'){
       const r = normalizeRect(state.drag.start, state.drag.current || state.drag.start);
-      const hits = allObjects().filter(obj => {
+      const hits = currentLayerObjects().filter(obj => {
         const b = objectBounds(obj);
         return b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y;
       }).map(obj => obj.id);
@@ -1611,16 +1649,11 @@ body,html{
   els.applySelectionBtn.onclick = applySelectionFields;
   const combineSelection = () => {
     if(state.selectedIds.length < 2) return alert('Select at least two objects to combine.');
-    const page = currentPage();
+    const layer = currentLayer();
     const selectedSet = new Set(state.selectedIds);
-    const selectedEntries = [];
-    page.layers.forEach((layer, layerIndex) => {
-      layer.objects.forEach((obj, objectIndex) => {
-        if(selectedSet.has(obj.id)){
-          selectedEntries.push({ layer, layerIndex, objectIndex, obj });
-        }
-      });
-    });
+    const selectedEntries = layer.objects
+      .map((obj, objectIndex) => ({ layer, layerIndex: currentPage().currentLayer, objectIndex, obj }))
+      .filter((entry) => selectedSet.has(entry.obj.id));
     if(selectedEntries.length < 2) return;
     const bounds = selectedEntries.reduce((acc, entry) => {
       const b = objectBounds(entry.obj);
@@ -1654,9 +1687,7 @@ body,html{
       name: 'Combined Selection'
     };
     pushHistory();
-    page.layers.forEach((layer) => {
-      layer.objects = layer.objects.filter((obj) => !selectedSet.has(obj.id));
-    });
+    layer.objects = layer.objects.filter((obj) => !selectedSet.has(obj.id));
     const topmostEntry = sortedEntries.at(-1);
     const insertLayer = topmostEntry?.layer || currentLayer();
     insertLayer.objects.push(mergedObject);
@@ -1671,9 +1702,7 @@ body,html{
   els.deleteSelectionBtn.onclick = () => {
     if(!state.selectedIds.length) return;
     pushHistory();
-    currentPage().layers.forEach(layer => {
-      layer.objects = layer.objects.filter(o=>!state.selectedIds.includes(o.id));
-    });
+    currentLayer().objects = currentLayer().objects.filter(o=>!state.selectedIds.includes(o.id));
     clearSelection();
     render();
   };
@@ -1717,6 +1746,20 @@ body,html{
     pushHistory();
     page.layers.splice(page.currentLayer, 1);
     page.currentLayer = Math.max(0, page.currentLayer - 1);
+    clearSelection();
+    render();
+  };
+  const prevLayer = () => {
+    const page = currentPage();
+    if(!page.layers.length) return;
+    page.currentLayer = (page.currentLayer - 1 + page.layers.length) % page.layers.length;
+    clearSelection();
+    render();
+  };
+  const nextLayer = () => {
+    const page = currentPage();
+    if(!page.layers.length) return;
+    page.currentLayer = (page.currentLayer + 1) % page.layers.length;
     clearSelection();
     render();
   };
@@ -1881,7 +1924,7 @@ render();
 
 
   // ===== PHIK mobile UI bridge =====
-  const DEFAULT_ZOOM = 1;
+  const DEFAULT_ZOOM = 0.2;
   let phikZoom = DEFAULT_ZOOM;
   function phikApplyViewport(){
     const resetMenu = document.getElementById('zoomResetBtn');
@@ -1982,10 +2025,21 @@ render();
     }
     const addLayerBtn = document.getElementById('toolbarAddLayer');
     if(addLayerBtn) addLayerBtn.onclick = addLayer;
+    const prevLayerBtn = document.getElementById('toolbarPrevLayer');
+    if(prevLayerBtn) prevLayerBtn.onclick = prevLayer;
+    const nextLayerBtn = document.getElementById('toolbarNextLayer');
+    if(nextLayerBtn) nextLayerBtn.onclick = nextLayer;
     const deleteLayerBtn = document.getElementById('toolbarDeleteLayer');
     if(deleteLayerBtn) deleteLayerBtn.onclick = deleteLayer;
     const clearLayerBtn = document.getElementById('toolbarClearLayer');
     if(clearLayerBtn) clearLayerBtn.onclick = clearLayer;
+    const deselectBtn = document.getElementById('toolbarDeselect');
+    if(deselectBtn){
+      deselectBtn.onclick = () => {
+        clearSelection();
+        render();
+      };
+    }
 
     const toolMap = [
       ['toolSelectCompact',['toolSelect']],
@@ -2051,9 +2105,9 @@ render();
       });
     }
 
-    const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.1).toFixed(2)); phikApplyViewport(); };
-    const zoomOut = ()=>{ phikZoom = Math.max(0.1, +(phikZoom - 0.1).toFixed(2)); phikApplyViewport(); };
-    const zoomReset = ()=>{ phikZoom = 1; phikApplyViewport(); };
+    const zoomIn = ()=>{ phikZoom = Math.min(4, +(phikZoom + 0.05).toFixed(2)); phikApplyViewport(); };
+    const zoomOut = ()=>{ phikZoom = Math.max(0.1, +(phikZoom - 0.05).toFixed(2)); phikApplyViewport(); };
+    const zoomReset = ()=>{ phikZoom = DEFAULT_ZOOM; phikApplyViewport(); };
 
     [['zoomInBtn',zoomIn],['zoomOutBtn',zoomOut],['zoomResetBtn',zoomReset]]
       .forEach(([id, fn])=>{
@@ -2080,7 +2134,7 @@ render();
       evt.preventDefault();
       const rect = els.canvasWrap.getBoundingClientRect();
       const anchor = { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
-      const delta = evt.deltaY < 0 ? 0.1 : -0.1;
+      const delta = evt.deltaY < 0 ? 0.05 : -0.05;
       phikZoom = Math.max(0.1, Math.min(4, +(state.zoom + delta).toFixed(2)));
       setZoom(phikZoom, anchor);
       const resetMenu = document.getElementById('zoomResetBtn');
