@@ -624,6 +624,34 @@ body,html{
       <label class="rtool-chip">Fill<input id="fillColorCircleFillCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
       <label class="rtool-chip">Stroke Size<input id="shapeSizeCircleFillCompact" type="range" min="1" max="64" step="1" style="display:block;width:100%;margin-top:6px;"></label>
     </div>
+    <button class="rtool-btn" id="toolBubbleCompact" type="button">Bubble</button>
+    <div class="rtool-stack tool-config" id="toolConfigBubble">
+      <label class="rtool-chip">Stroke<input id="strokeColorBubbleCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Fill<input id="fillColorBubbleCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
+      <label class="rtool-chip">Tail Position
+        <select id="bubbleTailPosCompact" style="display:block;width:100%;margin-top:6px;">
+          <option value="bottom">Bottom</option>
+          <option value="top">Top</option>
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+          <option value="top-left">Top Left</option>
+          <option value="top-right">Top Right</option>
+          <option value="bottom-left">Bottom Left</option>
+          <option value="bottom-right">Bottom Right</option>
+        </select>
+      </label>
+      <label class="rtool-chip">Bubble Style
+        <select id="bubbleStyleCompact" style="display:block;width:100%;margin-top:6px;">
+          <option value="smooth">Smooth</option>
+          <option value="spiky">Spiky</option>
+          <option value="cloudy">Cloudy</option>
+        </select>
+      </label>
+      <label class="rtool-chip">Bump Radius<input id="bubbleBumpRadiusCompact" type="number" min="2" max="80" step="1" value="14" style="display:block;width:100%;margin-top:6px;"></label>
+      <label class="rtool-chip">Tail Inner Size<input id="bubbleTailInnerCompact" type="number" min="4" max="220" step="1" value="18" style="display:block;width:100%;margin-top:6px;"></label>
+      <label class="rtool-chip">Tail Outer Size<input id="bubbleTailOuterCompact" type="number" min="8" max="320" step="1" value="34" style="display:block;width:100%;margin-top:6px;"></label>
+      <label class="rtool-chip">Font Size<input id="bubbleFontSizeCompact" type="number" min="8" max="256" step="1" value="28" style="display:block;width:100%;margin-top:6px;"></label>
+    </div>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
     <div class="rtool-stack tool-config" id="toolConfigText">
       <label class="rtool-chip">Color<input id="strokeColorTextCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
@@ -687,7 +715,7 @@ body,html{
 (() => {
   const tools = [
     ['select','Select'],['pan','Pan'],['rotate','Rotate'],['bucket','Fill'],['pen','Pen'],['rect','Rect'],['rectfill','Rect Fill'],
-    ['circle','Circ'],['circlefill','Circ Fill'],['eraser','Erase'],['text','Text']
+    ['circle','Circ'],['circlefill','Circ Fill'],['bubble','Bubble'],['eraser','Erase'],['text','Text']
   ];
 
   const els = {
@@ -973,7 +1001,8 @@ body,html{
         rect: 'toolRect',
         rectfill: 'toolRectFill',
         circle: 'toolCirc',
-        circlefill: 'toolCircFill'
+        circlefill: 'toolCircFill',
+        bubble: 'toolBubble'
       };
       b.id = compactIdMap[id] || `tool-${id}`;
       if(id===state.tool) b.classList.add('active');
@@ -1014,6 +1043,86 @@ body,html{
     targetCtx.arcTo(x+w,y+h,x,y+h,rr);
     targetCtx.arcTo(x,y+h,x,y,rr);
     targetCtx.arcTo(x,y,x+w,y,rr);
+    targetCtx.closePath();
+  }
+
+  function bubbleAnchorPoint(obj){
+    const x = obj.x, y = obj.y, w = obj.w, h = obj.h;
+    const map = {
+      top: {x:x + w/2, y},
+      bottom: {x:x + w/2, y:y + h},
+      left: {x, y:y + h/2},
+      right: {x:x + w, y:y + h/2},
+      'top-left': {x, y},
+      'top-right': {x:x + w, y},
+      'bottom-left': {x, y:y + h},
+      'bottom-right': {x:x + w, y:y + h}
+    };
+    return map[obj.tailPosition || 'bottom'] || map.bottom;
+  }
+
+  function drawBubbleBody(obj, targetCtx = ctx){
+    const style = obj.bubbleStyle || 'smooth';
+    if(style === 'smooth'){
+      drawRoundedRect(obj.x, obj.y, obj.w, obj.h, Math.max(8, +obj.bumpRadius || 14), targetCtx);
+      return;
+    }
+    const cx = obj.x + obj.w / 2;
+    const cy = obj.y + obj.h / 2;
+    const baseRx = Math.max(8, Math.abs(obj.w) / 2);
+    const baseRy = Math.max(8, Math.abs(obj.h) / 2);
+    if(style === 'spiky'){
+      const spikes = 18;
+      const inner = Math.max(4, (+obj.tailInner || 18) / 2);
+      const outer = Math.max(inner + 2, (+obj.tailOuter || 34) / 2);
+      targetCtx.beginPath();
+      for(let i = 0; i < spikes * 2; i++){
+        const t = (Math.PI * 2 * i) / (spikes * 2);
+        const r = i % 2 === 0 ? outer : inner;
+        const px = cx + Math.cos(t) * (baseRx + r * 0.2);
+        const py = cy + Math.sin(t) * (baseRy + r * 0.2);
+        if(i === 0) targetCtx.moveTo(px, py);
+        else targetCtx.lineTo(px, py);
+      }
+      targetCtx.closePath();
+      return;
+    }
+    const bumps = 18;
+    const bumpRadius = Math.max(2, +obj.bumpRadius || 14);
+    targetCtx.beginPath();
+    for(let i = 0; i <= bumps; i++){
+      const t = (Math.PI * 2 * i) / bumps;
+      const px = cx + Math.cos(t) * (baseRx + bumpRadius * 0.35);
+      const py = cy + Math.sin(t) * (baseRy + bumpRadius * 0.35);
+      if(i === 0) targetCtx.moveTo(px, py);
+      else targetCtx.lineTo(px, py);
+    }
+    targetCtx.closePath();
+  }
+
+  function drawBubbleTail(obj, targetCtx = ctx){
+    const anchor = bubbleAnchorPoint(obj);
+    const cx = obj.x + obj.w/2;
+    const cy = obj.y + obj.h/2;
+    const dx = anchor.x - cx;
+    const dy = anchor.y - cy;
+    const mag = Math.hypot(dx, dy) || 1;
+    const nx = dx / mag;
+    const ny = dy / mag;
+    const px = -ny;
+    const py = nx;
+    const inner = Math.max(4, +obj.tailInner || 18);
+    const outer = Math.max(inner + 4, +obj.tailOuter || 34);
+    const tipX = anchor.x + nx * outer;
+    const tipY = anchor.y + ny * outer;
+    const p1x = anchor.x + px * inner * 0.5;
+    const p1y = anchor.y + py * inner * 0.5;
+    const p2x = anchor.x - px * inner * 0.5;
+    const p2y = anchor.y - py * inner * 0.5;
+    targetCtx.beginPath();
+    targetCtx.moveTo(p1x, p1y);
+    targetCtx.lineTo(tipX, tipY);
+    targetCtx.lineTo(p2x, p2y);
     targetCtx.closePath();
   }
 
@@ -1140,21 +1249,17 @@ body,html{
       const lineHeight = obj.fontSize * 1.2;
       lines.forEach((line,i)=> targetCtx.fillText(line, obj.x, obj.y + i*lineHeight));
     } else if(obj.type==='bubble'){
-      drawRoundedRect(obj.x,obj.y,obj.w,obj.h,18,targetCtx);
-      targetCtx.fillStyle=obj.fill; targetCtx.fill(); targetCtx.strokeStyle=obj.color; targetCtx.lineWidth=2; targetCtx.stroke();
-      const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
-      const ang = obj.pointerAngle * Math.PI / 180;
-      const px = cx + Math.cos(ang) * (Math.max(obj.w,obj.h) * 0.42);
-      const py = cy + Math.sin(ang) * (Math.max(obj.w,obj.h) * 0.42);
-      const edgeAng = ang;
-      const leftA = edgeAng - 0.28, rightA = edgeAng + 0.28;
-      const sx1 = cx + Math.cos(leftA) * (obj.w*0.32);
-      const sy1 = cy + Math.sin(leftA) * (obj.h*0.32);
-      const sx2 = cx + Math.cos(rightA) * (obj.w*0.32);
-      const sy2 = cy + Math.sin(rightA) * (obj.h*0.32);
-      targetCtx.beginPath();
-      targetCtx.moveTo(sx1,sy1); targetCtx.lineTo(px,py); targetCtx.lineTo(sx2,sy2); targetCtx.closePath();
-      targetCtx.fillStyle=obj.fill; targetCtx.fill(); targetCtx.strokeStyle=obj.color; targetCtx.stroke();
+      drawBubbleBody(obj, targetCtx);
+      targetCtx.fillStyle=obj.fill;
+      targetCtx.fill();
+      targetCtx.strokeStyle=obj.color;
+      targetCtx.lineWidth=Math.max(1, obj.lineWidth || 2);
+      targetCtx.stroke();
+      drawBubbleTail(obj, targetCtx);
+      targetCtx.fillStyle=obj.fill;
+      targetCtx.fill();
+      targetCtx.strokeStyle=obj.color;
+      targetCtx.stroke();
       const font = `${obj.fontSize}px ${obj.fontFamily}`;
       targetCtx.font = font; targetCtx.fillStyle = obj.textColor; targetCtx.textBaseline='top';
       const pad = 18;
@@ -1294,6 +1399,7 @@ body,html{
       rectfill: ['toolConfigRectFill'],
       circle: ['toolConfigCircle'],
       circlefill: ['toolConfigCircleFill'],
+      bubble: ['toolConfigBubble'],
       eraser: ['toolConfigPen'],
       text: ['toolConfigText']
     };
@@ -1304,6 +1410,7 @@ body,html{
       rectfill: ['toolConfigRectFill'],
       circle: ['toolConfigCircle'],
       circlefill: ['toolConfigCircleFill'],
+      bubble: ['toolConfigBubble'],
       text: ['toolConfigText']
     };
     document.querySelectorAll('.tool-config').forEach((node)=>node.classList.remove('active'));
@@ -1335,6 +1442,20 @@ body,html{
       if(compactTextColor) compactTextColor.value = selected.color || compactTextColor.value;
       const compactFontSize = document.getElementById('fontSizeCompact');
       if(compactFontSize) compactFontSize.value = Math.max(8, +selected.fontSize || +compactFontSize.value || 32);
+    }
+    if(selected?.type === 'bubble'){
+      const tail = document.getElementById('bubbleTailPosCompact');
+      const style = document.getElementById('bubbleStyleCompact');
+      const bump = document.getElementById('bubbleBumpRadiusCompact');
+      const inner = document.getElementById('bubbleTailInnerCompact');
+      const outer = document.getElementById('bubbleTailOuterCompact');
+      const size = document.getElementById('bubbleFontSizeCompact');
+      if(tail) tail.value = selected.tailPosition || tail.value;
+      if(style) style.value = selected.bubbleStyle || style.value;
+      if(bump) bump.value = Math.max(2, +selected.bumpRadius || +bump.value || 14);
+      if(inner) inner.value = Math.max(4, +selected.tailInner || +inner.value || 18);
+      if(outer) outer.value = Math.max(8, +selected.tailOuter || +outer.value || 34);
+      if(size) size.value = Math.max(8, +selected.fontSize || +size.value || 28);
     }
     const editingText = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
     if(editingText){
@@ -1369,6 +1490,16 @@ body,html{
     updateSelectionUi();
     syncCanvasToolUi();
     render();
+  }
+
+  function getBubbleUiSettings(){
+    const bubbleStyle = document.getElementById('bubbleStyleCompact')?.value || 'smooth';
+    const tailPosition = document.getElementById('bubbleTailPosCompact')?.value || 'bottom';
+    const bumpRadius = Math.max(2, +(document.getElementById('bubbleBumpRadiusCompact')?.value || 14));
+    const tailInner = Math.max(4, +(document.getElementById('bubbleTailInnerCompact')?.value || 18));
+    const tailOuter = Math.max(tailInner + 4, +(document.getElementById('bubbleTailOuterCompact')?.value || 34));
+    const fontSize = Math.max(8, +(document.getElementById('bubbleFontSizeCompact')?.value || els.fontSize.value || 28));
+    return { bubbleStyle, tailPosition, bumpRadius, tailInner, tailOuter, fontSize };
   }
 
   function onPointerDown(evt){
@@ -1446,6 +1577,32 @@ body,html{
       return;
     }
 
+    if(state.tool === 'bubble'){
+      pushHistory();
+      const opts = getBubbleUiSettings();
+      const obj = {
+        id:uid(),
+        type:'bubble',
+        x:p.x, y:p.y, w:1, h:1,
+        color:els.strokeColor.value,
+        fill:els.fillColor.value,
+        lineWidth:Math.max(1, +els.toolSize.value),
+        text:els.textInput.value || 'Speech',
+        textColor:els.strokeColor.value,
+        fontFamily:els.fontFamily.value,
+        fontSize:opts.fontSize,
+        bubbleStyle:opts.bubbleStyle,
+        tailPosition:opts.tailPosition,
+        bumpRadius:opts.bumpRadius,
+        tailInner:opts.tailInner,
+        tailOuter:opts.tailOuter
+      };
+      layer.objects.push(obj);
+      state.drag = { mode:'shape', start:p, obj };
+      selectObject(obj.id);
+      return;
+    }
+
     if(state.tool === 'text'){
       const clicked = findObjectAtPoint(p);
       if(clicked?.type === 'text'){
@@ -1484,14 +1641,12 @@ body,html{
         render();
         return;
       }
-      if(alreadySelected && isSingleSelected && !evt.shiftKey){
-        clearSelection();
-        syncInlineTextEditor();
-        render();
-        return;
+      if(!(alreadySelected && !evt.shiftKey)){
+        const additiveSelect = evt.shiftKey || (!!state.selectedIds.length && !state.selectedIds.includes(obj.id));
+        selectObject(obj.id, additiveSelect);
+      } else {
+        state.selectedId = obj.id;
       }
-      const additiveSelect = evt.shiftKey || (!!state.selectedIds.length && !state.selectedIds.includes(obj.id));
-      selectObject(obj.id, additiveSelect);
       state.textEditingId = null;
       syncInlineTextEditor();
       const b = objectBounds(obj);
@@ -1635,6 +1790,39 @@ body,html{
   };
   els.fontFamily.addEventListener('change', applyTextStyleToSelection);
   els.fontSize.addEventListener('change', applyTextStyleToSelection);
+  const bubbleControlIds = [
+    'bubbleStyleCompact',
+    'bubbleTailPosCompact',
+    'bubbleBumpRadiusCompact',
+    'bubbleTailInnerCompact',
+    'bubbleTailOuterCompact',
+    'bubbleFontSizeCompact'
+  ];
+  const applyBubbleStyleToSelection = () => {
+    const selectedBubbles = allObjects().filter(o => state.selectedIds.includes(o.id) && o.type === 'bubble');
+    if(!selectedBubbles.length) return;
+    const opts = getBubbleUiSettings();
+    pushHistory();
+    selectedBubbles.forEach((obj) => {
+      obj.bubbleStyle = opts.bubbleStyle;
+      obj.tailPosition = opts.tailPosition;
+      obj.bumpRadius = opts.bumpRadius;
+      obj.tailInner = opts.tailInner;
+      obj.tailOuter = opts.tailOuter;
+      obj.fontSize = opts.fontSize;
+    });
+    render();
+  };
+  bubbleControlIds.forEach((id) => {
+    const node = document.getElementById(id);
+    if(!node) return;
+    node.addEventListener('change', applyBubbleStyleToSelection);
+    node.addEventListener('input', () => {
+      if(state.selectedIds.some((selId) => allObjects().some(o => o.id === selId && o.type === 'bubble'))){
+        applyBubbleStyleToSelection();
+      }
+    });
+  });
   els.undoBtn.onclick = undo;
   els.redoBtn.onclick = redo;
   els.applyResolutionBtn.onclick = () => {
@@ -1875,6 +2063,36 @@ function wrapTextLines(text, maxWidth, font){
   if(line) lines.push(line); ctx.restore(); return lines;
 }
 function drawRoundedRect(x,y,w,h,r){ const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); }
+function bubbleAnchorPoint(obj){
+  const x = obj.x, y = obj.y, w = obj.w, h = obj.h;
+  const map = {
+    top: {x:x + w/2, y}, bottom: {x:x + w/2, y:y + h}, left: {x, y:y + h/2}, right: {x:x + w, y:y + h/2},
+    'top-left': {x, y}, 'top-right': {x:x + w, y}, 'bottom-left': {x, y:y + h}, 'bottom-right': {x:x + w, y:y + h}
+  };
+  return map[obj.tailPosition || 'bottom'] || map.bottom;
+}
+function drawBubbleBody(obj){
+  const style = obj.bubbleStyle || 'smooth';
+  if(style === 'smooth'){ drawRoundedRect(obj.x,obj.y,obj.w,obj.h,Math.max(8,+obj.bumpRadius||14)); return; }
+  const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2, baseRx = Math.max(8,Math.abs(obj.w)/2), baseRy = Math.max(8,Math.abs(obj.h)/2);
+  if(style === 'spiky'){
+    const spikes = 18, inner = Math.max(4,(+obj.tailInner||18)/2), outer = Math.max(inner+2,(+obj.tailOuter||34)/2);
+    ctx.beginPath();
+    for(let i=0;i<spikes*2;i++){ const t=(Math.PI*2*i)/(spikes*2), r=i%2===0?outer:inner, px=cx+Math.cos(t)*(baseRx+r*0.2), py=cy+Math.sin(t)*(baseRy+r*0.2); if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+    ctx.closePath(); return;
+  }
+  const bumps = 18, bumpRadius = Math.max(2,+obj.bumpRadius||14);
+  ctx.beginPath();
+  for(let i=0;i<=bumps;i++){ const t=(Math.PI*2*i)/bumps, px=cx+Math.cos(t)*(baseRx+bumpRadius*0.35), py=cy+Math.sin(t)*(baseRy+bumpRadius*0.35); if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
+  ctx.closePath();
+}
+function drawBubbleTail(obj){
+  const anchor = bubbleAnchorPoint(obj), cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
+  const dx = anchor.x - cx, dy = anchor.y - cy, mag = Math.hypot(dx,dy) || 1, nx = dx/mag, ny = dy/mag, px = -ny, py = nx;
+  const inner = Math.max(4,+obj.tailInner||18), outer = Math.max(inner+4,+obj.tailOuter||34);
+  const tipX = anchor.x + nx*outer, tipY = anchor.y + ny*outer, p1x = anchor.x + px*inner*0.5, p1y = anchor.y + py*inner*0.5, p2x = anchor.x - px*inner*0.5, p2y = anchor.y - py*inner*0.5;
+  ctx.beginPath(); ctx.moveTo(p1x,p1y); ctx.lineTo(tipX,tipY); ctx.lineTo(p2x,p2y); ctx.closePath();
+}
 function applyStrokePattern(targetCtx,obj){
   const size = Math.max(1,+obj.size||1);
   targetCtx.lineCap = 'round';
@@ -1900,7 +2118,7 @@ function drawObject(obj){
   else if(obj.type==='rectfill'){ ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='circle' || obj.type==='circlefill'){ ctx.beginPath(); ctx.ellipse(obj.x+obj.w/2,obj.y+obj.h/2,Math.abs(obj.w/2),Math.abs(obj.h/2),0,0,Math.PI*2); if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); } ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.stroke(); }
   else if(obj.type==='text'){ const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.color; ctx.textBaseline='top'; const lines = wrapTextLines(obj.text,obj.w||99999,font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x,obj.y+i*lh)); }
-  else if(obj.type==='bubble'){ drawRoundedRect(obj.x,obj.y,obj.w,obj.h,18); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=2; ctx.stroke(); const cx=obj.x+obj.w/2, cy=obj.y+obj.h/2, ang=obj.pointerAngle*Math.PI/180; const px=cx+Math.cos(ang)*(Math.max(obj.w,obj.h)*0.42), py=cy+Math.sin(ang)*(Math.max(obj.w,obj.h)*0.42); const leftA=ang-0.28, rightA=ang+0.28; const sx1=cx+Math.cos(leftA)*(obj.w*0.32), sy1=cy+Math.sin(leftA)*(obj.h*0.32), sx2=cx+Math.cos(rightA)*(obj.w*0.32), sy2=cy+Math.sin(rightA)*(obj.h*0.32); ctx.beginPath(); ctx.moveTo(sx1,sy1); ctx.lineTo(px,py); ctx.lineTo(sx2,sy2); ctx.closePath(); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke(); const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.textColor; ctx.textBaseline='top'; const pad=18; const lines=wrapTextLines(obj.text,Math.max(10,obj.w-pad*2),font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x+pad,obj.y+pad+i*lh)); }
+  else if(obj.type==='bubble'){ drawBubbleBody(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=Math.max(1,obj.lineWidth||2); ctx.stroke(); drawBubbleTail(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke(); const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.textColor; ctx.textBaseline='top'; const pad=18; const lines=wrapTextLines(obj.text,Math.max(10,obj.w-pad*2),font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x+pad,obj.y+pad+i*lh)); }
   else if(obj.type==='image'){ let img = cache.get(obj.src); if(!img){ img = new Image(); img.onload = render; img.src = obj.src; cache.set(obj.src,img); } if(img.complete) ctx.drawImage(img,obj.x,obj.y,obj.w,obj.h); }
   ctx.restore();
 }
@@ -1968,7 +2186,8 @@ render();
       toolRectCompact:['toolRect'],
       toolRectFillCompact:['toolRectFill'],
       toolCircCompact:['toolCirc'],
-      toolCircFillCompact:['toolCircFill']
+      toolCircFillCompact:['toolCircFill'],
+      toolBubbleCompact:['toolBubble']
     };
     for(const [compactId, targets] of Object.entries(activeIds)){
       const btn = document.getElementById(compactId);
@@ -2052,7 +2271,8 @@ render();
       ['toolRectCompact',['toolRect']],
       ['toolRectFillCompact',['toolRectFill']],
       ['toolCircCompact',['toolCirc']],
-      ['toolCircFillCompact',['toolCircFill']]
+      ['toolCircFillCompact',['toolCircFill']],
+      ['toolBubbleCompact',['toolBubble']]
     ];
     toolMap.forEach(([compactId, targets])=>{
       const compact = document.getElementById(compactId);
@@ -2080,10 +2300,12 @@ render();
     bindMirror('strokeColorRectFillCompact',['strokeColor','stroke']);
     bindMirror('strokeColorCircleCompact',['strokeColor','stroke']);
     bindMirror('strokeColorCircleFillCompact',['strokeColor','stroke']);
+    bindMirror('strokeColorBubbleCompact',['strokeColor','stroke']);
     bindMirror('strokeColorTextCompact',['strokeColor','stroke']);
     bindMirror('fillColorCompact',['fillColor','fill']);
     bindMirror('fillColorRectFillCompact',['fillColor','fill']);
     bindMirror('fillColorCircleFillCompact',['fillColor','fill']);
+    bindMirror('fillColorBubbleCompact',['fillColor','fill']);
     bindMirror('brushSizeCompact',['toolSize']);
     bindMirror('shapeSizeRectCompact',['toolSize']);
     bindMirror('shapeSizeRectFillCompact',['toolSize']);
