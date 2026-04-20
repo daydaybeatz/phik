@@ -1895,7 +1895,13 @@ body,html{
     render();
   };
 
-  els.addPageBtn.onclick = () => { pushHistory(); state.project.pages.push(makePage(state.project.pages.length+1)); state.project.currentPage = state.project.pages.length-1; render(); };
+  els.addPageBtn.onclick = () => {
+    pushHistory();
+    const insertIndex = state.project.currentPage + 1;
+    state.project.pages.splice(insertIndex, 0, makePage(state.project.pages.length + 1));
+    state.project.currentPage = insertIndex;
+    render();
+  };
   els.deletePageBtn.onclick = () => {
     if(state.project.pages.length===1) return alert('Project needs at least one page.');
     if(!confirm('Delete the current page? This cannot be undone except with Undo.')) return;
