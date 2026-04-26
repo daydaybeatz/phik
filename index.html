@@ -1785,6 +1785,42 @@ body,html{
   window.addEventListener('pointerup', onPointerUp);
 
   els.toolSize.oninput = () => els.toolSizeReadout.textContent = els.toolSize.value;
+
+  function applyToolbarStyleToSelection(changes){
+    const selected = allObjects().filter(o => state.selectedIds.includes(o.id));
+    if(!selected.length) return;
+    const strokeTypes = new Set(['stroke','rect','rectfill','circle','circlefill','bubble','text']);
+    const fillTypes = new Set(['rectfill','circlefill','bubble']);
+    const lineWidthTypes = new Set(['rect','rectfill','circle','circlefill','bubble']);
+    const nextSize = Math.max(1, +els.toolSize.value || 1);
+
+    const willMutate = selected.some((obj) => {
+      if(changes.stroke && strokeTypes.has(obj.type) && obj.color !== els.strokeColor.value) return true;
+      if(changes.fill && fillTypes.has(obj.type) && obj.fill !== els.fillColor.value) return true;
+      if(changes.size){
+        if(lineWidthTypes.has(obj.type) && obj.lineWidth !== nextSize) return true;
+        if((obj.type === 'stroke' || obj.type === 'eraser') && obj.size !== nextSize) return true;
+      }
+      return false;
+    });
+    if(!willMutate) return;
+
+    pushHistory();
+    selected.forEach((obj) => {
+      if(changes.stroke && strokeTypes.has(obj.type)) obj.color = els.strokeColor.value;
+      if(changes.fill && fillTypes.has(obj.type)) obj.fill = els.fillColor.value;
+      if(changes.size){
+        if(lineWidthTypes.has(obj.type)) obj.lineWidth = nextSize;
+        if(obj.type === 'stroke' || obj.type === 'eraser') obj.size = nextSize;
+      }
+    });
+    render();
+  }
+
+  els.strokeColor.addEventListener('change', () => applyToolbarStyleToSelection({ stroke:true }));
+  els.fillColor.addEventListener('change', () => applyToolbarStyleToSelection({ fill:true }));
+  els.toolSize.addEventListener('change', () => applyToolbarStyleToSelection({ size:true }));
+
   els.textInput.addEventListener('input', () => {
     if(!state.textEditingId) return;
     const obj = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
