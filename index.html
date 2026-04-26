@@ -439,6 +439,26 @@ body,html{
   color:#eaf7ff;
   font:600 12px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
+.slider-pop{
+  position:relative;
+}
+.slider-pop input[type="range"]{
+  display:none;
+}
+.slider-pop.active input[type="range"]{
+  display:block;
+  position:absolute;
+  right:calc(100% + 8px);
+  top:50%;
+  transform:translateY(-50%);
+  width:220px !important;
+  max-width:none;
+  background:rgba(40,48,72,.98);
+  border:1px solid rgba(120,160,255,.35);
+  border-radius:12px;
+  padding:8px;
+  z-index:1200;
+}
 .topbar .group{
   display:flex;
   gap:8px;
@@ -496,7 +516,7 @@ body,html{
         <option>Arial</option><option>Georgia</option><option>Verdana</option><option>Tahoma</option>
         <option>Times New Roman</option><option>Courier New</option><option>Comic Sans MS</option><option>Impact</option>
       </select></label>
-      <label>Font Size <input id="fontSize" type="number" min="8" max="300" value="32" style="width:80px"></label>
+      <label>Font Size <input id="fontSize" type="number" min="8" max="300" value="18" style="width:80px"></label>
     </div>
     <div class="group footer-actions">
       <button id="undoBtn">Undo</button>
@@ -659,15 +679,17 @@ body,html{
           <option value="cloudy">Cloudy</option>
         </select>
       </label>
-      <label class="rtool-chip">Bump Radius<input id="bubbleBumpRadiusCompact" type="number" min="2" max="80" step="1" value="14" style="display:block;width:100%;margin-top:6px;"></label>
-      <label class="rtool-chip">Tail Inner Size<input id="bubbleTailInnerCompact" type="number" min="4" max="220" step="1" value="18" style="display:block;width:100%;margin-top:6px;"></label>
-      <label class="rtool-chip">Tail Outer Size<input id="bubbleTailOuterCompact" type="number" min="8" max="320" step="1" value="34" style="display:block;width:100%;margin-top:6px;"></label>
-      <label class="rtool-chip">Font Size<input id="bubbleFontSizeCompact" type="number" min="8" max="256" step="1" value="28" style="display:block;width:100%;margin-top:6px;"></label>
+      <label class="rtool-chip">Bump Radius<input id="bubbleBumpRadiusCompact" type="range" min="2" max="80" step="1" value="14" style="display:block;width:100%;margin-top:6px;"></label>
+      <label class="rtool-chip">Tail Base<input id="bubbleTailBaseCompact" type="range" min="8" max="220" step="1" value="46" style="display:block;width:100%;margin-top:6px;"></label>
+      <label class="rtool-chip">Tail Length<input id="bubbleTailLengthCompact" type="range" min="12" max="360" step="1" value="78" style="display:block;width:100%;margin-top:6px;"></label>
     </div>
     <button class="rtool-btn" id="toolTextCompact" type="button">Text</button>
     <div class="rtool-stack tool-config" id="toolConfigText">
       <label class="rtool-chip">Color<input id="strokeColorTextCompact" type="color" style="display:block;width:100%;height:28px;margin-top:6px;"></label>
-      <label class="rtool-chip">Font Size<input id="fontSizeCompact" type="number" min="8" max="256" step="1" style="display:block;width:100%;margin-top:6px;"></label>
+      <div class="rtool-chip slider-pop" id="fontSizeCompactWrap" data-slider-init="1">
+        <button class="rtool-btn" id="fontSizeCompactToggle" type="button">Size-18</button>
+        <input id="fontSizeCompact" type="range" min="8" max="256" step="1" value="18" style="display:block;width:100%;margin-top:6px;">
+      </div>
       <label class="rtool-chip" id="textFontFamilyChip" style="display:none;">Font
         <select id="fontFamilyCompact" style="display:block;width:100%;margin-top:6px;">
           <option>Arial</option><option>Georgia</option><option>Verdana</option><option>Tahoma</option>
@@ -1021,8 +1043,8 @@ body,html{
       b.id = compactIdMap[id] || `tool-${id}`;
       if(id===state.tool) b.classList.add('active');
       b.onclick = () => {
-        state.tool = id;
-        [...els.toolButtons.children].forEach(x=>x.classList.toggle('active', x.dataset.tool===id));
+        state.tool = state.tool === id ? 'select' : id;
+        [...els.toolButtons.children].forEach(x=>x.classList.toggle('active', x.dataset.tool===state.tool));
         syncCanvasToolUi();
       };
       els.toolButtons.appendChild(b);
@@ -1096,8 +1118,8 @@ body,html{
     const baseRy = Math.max(8, Math.abs(obj.h) / 2);
     if(style === 'spiky'){
       const spikes = 18;
-      const inner = Math.max(4, (+obj.tailInner || 18) / 2);
-      const outer = Math.max(inner + 2, (+obj.tailOuter || 34) / 2);
+      const inner = Math.max(4, (+obj.tailBase || 46) / 4);
+      const outer = Math.max(inner + 2, (+obj.tailLength || 78) / 2);
       targetCtx.beginPath();
       for(let i = 0; i < spikes * 2; i++){
         const t = (Math.PI * 2 * i) / (spikes * 2);
@@ -1134,14 +1156,14 @@ body,html{
     const ny = dy / mag;
     const px = -ny;
     const py = nx;
-    const inner = Math.max(4, +obj.tailInner || 18);
-    const outer = Math.max(inner + 4, +obj.tailOuter || 34);
-    const tipX = anchor.x + nx * outer;
-    const tipY = anchor.y + ny * outer;
-    const p1x = anchor.x + px * inner * 0.5;
-    const p1y = anchor.y + py * inner * 0.5;
-    const p2x = anchor.x - px * inner * 0.5;
-    const p2y = anchor.y - py * inner * 0.5;
+    const tailBase = Math.max(8, +obj.tailBase || 46);
+    const tailLength = Math.max(12, +obj.tailLength || 78);
+    const tipX = anchor.x + nx * tailLength;
+    const tipY = anchor.y + ny * tailLength;
+    const p1x = anchor.x + px * tailBase * 0.5;
+    const p1y = anchor.y + py * tailBase * 0.5;
+    const p2x = anchor.x - px * tailBase * 0.5;
+    const p2y = anchor.y - py * tailBase * 0.5;
     targetCtx.beginPath();
     targetCtx.moveTo(p1x, p1y);
     targetCtx.lineTo(tipX, tipY);
@@ -1277,23 +1299,17 @@ body,html{
       lines.forEach((line,i)=> targetCtx.fillText(line, obj.x, obj.y + i*lineHeight));
       targetCtx.restore();
     } else if(obj.type==='bubble'){
-      drawBubbleBody(obj, targetCtx);
+      drawBubbleTail(obj, targetCtx);
       targetCtx.fillStyle=obj.fill;
       targetCtx.fill();
       targetCtx.strokeStyle=obj.color;
       targetCtx.lineWidth=Math.max(1, obj.lineWidth || 2);
       targetCtx.stroke();
-      drawBubbleTail(obj, targetCtx);
+      drawBubbleBody(obj, targetCtx);
       targetCtx.fillStyle=obj.fill;
       targetCtx.fill();
       targetCtx.strokeStyle=obj.color;
       targetCtx.stroke();
-      const font = `${obj.fontSize}px ${obj.fontFamily}`;
-      targetCtx.font = font; targetCtx.fillStyle = obj.textColor; targetCtx.textBaseline='top';
-      const pad = 18;
-      const lines = wrapTextLines(obj.text, Math.max(10, obj.w - pad*2), font, targetCtx);
-      const lineHeight = obj.fontSize * 1.2;
-      lines.forEach((line,i)=> targetCtx.fillText(line, obj.x + pad, obj.y + pad + i*lineHeight));
     } else if(obj.type==='image'){
       let img = state.imageCache.get(obj.src);
       if(!img){
@@ -1463,34 +1479,33 @@ body,html{
     }
     if(selected?.type === 'text'){
       els.fontFamily.value = selected.fontFamily || els.fontFamily.value;
-      els.fontSize.value = Math.max(8, +selected.fontSize || +els.fontSize.value || 32);
+      els.fontSize.value = Math.max(8, +selected.fontSize || +els.fontSize.value || 18);
       els.strokeColor.value = selected.color || els.strokeColor.value;
       const compactFont = document.getElementById('fontFamilyCompact');
       if(compactFont) compactFont.value = selected.fontFamily || compactFont.value;
       const compactTextColor = document.getElementById('strokeColorTextCompact');
       if(compactTextColor) compactTextColor.value = selected.color || compactTextColor.value;
       const compactFontSize = document.getElementById('fontSizeCompact');
-      if(compactFontSize) compactFontSize.value = Math.max(8, +selected.fontSize || +compactFontSize.value || 32);
+      if(compactFontSize) compactFontSize.value = Math.max(8, +selected.fontSize || +compactFontSize.value || 18);
     }
     if(selected?.type === 'bubble'){
       const tail = document.getElementById('bubbleTailPosCompact');
       const style = document.getElementById('bubbleStyleCompact');
       const bump = document.getElementById('bubbleBumpRadiusCompact');
-      const inner = document.getElementById('bubbleTailInnerCompact');
-      const outer = document.getElementById('bubbleTailOuterCompact');
-      const size = document.getElementById('bubbleFontSizeCompact');
+      const base = document.getElementById('bubbleTailBaseCompact');
+      const length = document.getElementById('bubbleTailLengthCompact');
       if(tail) tail.value = selected.tailPosition || tail.value;
       if(style) style.value = selected.bubbleStyle || style.value;
       if(bump) bump.value = Math.max(2, +selected.bumpRadius || +bump.value || 14);
-      if(inner) inner.value = Math.max(4, +selected.tailInner || +inner.value || 18);
-      if(outer) outer.value = Math.max(8, +selected.tailOuter || +outer.value || 34);
-      if(size) size.value = Math.max(8, +selected.fontSize || +size.value || 28);
+      if(base) base.value = Math.max(8, +selected.tailBase || +base.value || 46);
+      if(length) length.value = Math.max(12, +selected.tailLength || +length.value || 78);
     }
     const editingText = allObjects().find(o => o.id === state.textEditingId && o.type === 'text');
     if(editingText){
       els.textInput.value = editingText.text || '';
     }
     syncInlineTextEditor();
+    updateTextSizeButtonLabel();
   }
 
   function syncInlineTextEditor(focus = false){
@@ -1511,24 +1526,15 @@ body,html{
       inlineEditor.select();
     }
   }
+  function updateTextSizeButtonLabel(){
+    const size = Math.max(8, +els.fontSize.value || 18);
+    const toggle = document.getElementById('fontSizeCompactToggle');
+    if(toggle) toggle.textContent = `Size-${size}`;
+  }
 
   function syncTextEditButton(){
     const btn = els.textEditBtn;
-    if(!btn) return;
-    const selected = allObjects().find(o => o.id === state.selectedId);
-    const show = state.selectedIds.length === 1 && selected?.type === 'text' && state.textEditingId !== selected.id;
-    if(!show){
-      btn.style.display = 'none';
-      return;
-    }
-    const b = objectBounds(selected);
-    const canvasRect = els.canvas.getBoundingClientRect();
-    const wrapRect = els.canvasWrap.getBoundingClientRect();
-    const top = canvasRect.top - wrapRect.top + (b.y * state.zoom) - 34;
-    const left = canvasRect.left - wrapRect.left + ((b.x + (b.w / 2)) * state.zoom);
-    btn.style.left = `${Math.max(8, left - 24)}px`;
-    btn.style.top = `${Math.max(8, top)}px`;
-    btn.style.display = 'block';
+    if(btn) btn.style.display = 'none';
   }
 
   function selectObject(id, additive = false){
@@ -1544,10 +1550,9 @@ body,html{
     const bubbleStyle = document.getElementById('bubbleStyleCompact')?.value || 'smooth';
     const tailPosition = document.getElementById('bubbleTailPosCompact')?.value || 'bottom';
     const bumpRadius = Math.max(2, +(document.getElementById('bubbleBumpRadiusCompact')?.value || 14));
-    const tailInner = Math.max(4, +(document.getElementById('bubbleTailInnerCompact')?.value || 18));
-    const tailOuter = Math.max(tailInner + 4, +(document.getElementById('bubbleTailOuterCompact')?.value || 34));
-    const fontSize = Math.max(8, +(document.getElementById('bubbleFontSizeCompact')?.value || els.fontSize.value || 28));
-    return { bubbleStyle, tailPosition, bumpRadius, tailInner, tailOuter, fontSize };
+    const tailBase = Math.max(8, +(document.getElementById('bubbleTailBaseCompact')?.value || 46));
+    const tailLength = Math.max(12, +(document.getElementById('bubbleTailLengthCompact')?.value || 78));
+    return { bubbleStyle, tailPosition, bumpRadius, tailBase, tailLength };
   }
 
   function onPointerDown(evt){
@@ -1635,15 +1640,11 @@ body,html{
         color:els.strokeColor.value,
         fill:els.fillColor.value,
         lineWidth:Math.max(1, +els.toolSize.value),
-        text:els.textInput.value || 'Speech',
-        textColor:els.strokeColor.value,
-        fontFamily:els.fontFamily.value,
-        fontSize:opts.fontSize,
         bubbleStyle:opts.bubbleStyle,
         tailPosition:opts.tailPosition,
         bumpRadius:opts.bumpRadius,
-        tailInner:opts.tailInner,
-        tailOuter:opts.tailOuter
+        tailBase:opts.tailBase,
+        tailLength:opts.tailLength
       };
       layer.objects.push(obj);
       state.drag = { mode:'shape', start:p, obj };
@@ -1659,13 +1660,11 @@ body,html{
         return;
       }
       pushHistory();
-      const size = Math.max(8, +els.fontSize.value || 32);
+      const size = Math.max(8, +els.fontSize.value || 18);
       const obj = { id:uid(), type:'text', x:p.x, y:p.y, w:280, h:size*2, text:els.textInput.value || 'Text', color:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size };
       layer.objects.push(obj);
       state.textEditingId = null;
       selectObject(obj.id);
-      state.tool = 'select';
-      [...els.toolButtons.children].forEach(x=>x.classList.toggle('active', x.dataset.tool==='select'));
       syncCanvasToolUi();
       return;
     }
@@ -1834,19 +1833,31 @@ body,html{
     pushHistory();
     selectedTexts.forEach((obj) => {
       obj.fontFamily = els.fontFamily.value;
-      obj.fontSize = Math.max(8, +els.fontSize.value || obj.fontSize || 32);
+      obj.fontSize = Math.max(8, +els.fontSize.value || obj.fontSize || 18);
     });
     render();
   };
   els.fontFamily.addEventListener('change', applyTextStyleToSelection);
   els.fontSize.addEventListener('change', applyTextStyleToSelection);
+  els.fontSize.addEventListener('input', updateTextSizeButtonLabel);
+  const fontSizeCompactToggle = document.getElementById('fontSizeCompactToggle');
+  const fontSizeCompactWrap = document.getElementById('fontSizeCompactWrap');
+  const fontSizeCompactRange = document.getElementById('fontSizeCompact');
+  if(fontSizeCompactToggle && fontSizeCompactWrap){
+    fontSizeCompactToggle.addEventListener('click', (evt) => {
+      evt.preventDefault();
+      fontSizeCompactWrap.classList.toggle('active');
+    });
+  }
+  if(fontSizeCompactRange && fontSizeCompactWrap){
+    fontSizeCompactRange.addEventListener('change', () => fontSizeCompactWrap.classList.remove('active'));
+  }
   const bubbleControlIds = [
     'bubbleStyleCompact',
     'bubbleTailPosCompact',
     'bubbleBumpRadiusCompact',
-    'bubbleTailInnerCompact',
-    'bubbleTailOuterCompact',
-    'bubbleFontSizeCompact'
+    'bubbleTailBaseCompact',
+    'bubbleTailLengthCompact'
   ];
   const applyBubbleStyleToSelection = () => {
     const selectedBubbles = allObjects().filter(o => state.selectedIds.includes(o.id) && o.type === 'bubble');
@@ -1857,9 +1868,8 @@ body,html{
       obj.bubbleStyle = opts.bubbleStyle;
       obj.tailPosition = opts.tailPosition;
       obj.bumpRadius = opts.bumpRadius;
-      obj.tailInner = opts.tailInner;
-      obj.tailOuter = opts.tailOuter;
-      obj.fontSize = opts.fontSize;
+      obj.tailBase = opts.tailBase;
+      obj.tailLength = opts.tailLength;
     });
     render();
   };
@@ -2132,7 +2142,7 @@ function drawBubbleBody(obj){
   if(style === 'smooth'){ drawRoundedRect(obj.x,obj.y,obj.w,obj.h,Math.max(8,+obj.bumpRadius||14)); return; }
   const cx = obj.x + obj.w/2, cy = obj.y + obj.h/2, baseRx = Math.max(8,Math.abs(obj.w)/2), baseRy = Math.max(8,Math.abs(obj.h)/2);
   if(style === 'spiky'){
-    const spikes = 18, inner = Math.max(4,(+obj.tailInner||18)/2), outer = Math.max(inner+2,(+obj.tailOuter||34)/2);
+    const spikes = 18, inner = Math.max(4,(+obj.tailBase||46)/4), outer = Math.max(inner+2,(+obj.tailLength||78)/2);
     ctx.beginPath();
     for(let i=0;i<spikes*2;i++){ const t=(Math.PI*2*i)/(spikes*2), r=i%2===0?outer:inner, px=cx+Math.cos(t)*(baseRx+r*0.2), py=cy+Math.sin(t)*(baseRy+r*0.2); if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); }
     ctx.closePath(); return;
@@ -2145,8 +2155,8 @@ function drawBubbleBody(obj){
 function drawBubbleTail(obj){
   const anchor = bubbleAnchorPoint(obj), cx = obj.x + obj.w/2, cy = obj.y + obj.h/2;
   const dx = anchor.x - cx, dy = anchor.y - cy, mag = Math.hypot(dx,dy) || 1, nx = dx/mag, ny = dy/mag, px = -ny, py = nx;
-  const inner = Math.max(4,+obj.tailInner||18), outer = Math.max(inner+4,+obj.tailOuter||34);
-  const tipX = anchor.x + nx*outer, tipY = anchor.y + ny*outer, p1x = anchor.x + px*inner*0.5, p1y = anchor.y + py*inner*0.5, p2x = anchor.x - px*inner*0.5, p2y = anchor.y - py*inner*0.5;
+  const tailBase = Math.max(8,+obj.tailBase||46), tailLength = Math.max(12,+obj.tailLength||78);
+  const tipX = anchor.x + nx*tailLength, tipY = anchor.y + ny*tailLength, p1x = anchor.x + px*tailBase*0.5, p1y = anchor.y + py*tailBase*0.5, p2x = anchor.x - px*tailBase*0.5, p2y = anchor.y - py*tailBase*0.5;
   ctx.beginPath(); ctx.moveTo(p1x,p1y); ctx.lineTo(tipX,tipY); ctx.lineTo(p2x,p2y); ctx.closePath();
 }
 function applyStrokePattern(targetCtx,obj){
@@ -2174,7 +2184,7 @@ function drawObject(obj){
   else if(obj.type==='rectfill'){ ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='circle' || obj.type==='circlefill'){ ctx.beginPath(); ctx.ellipse(obj.x+obj.w/2,obj.y+obj.h/2,Math.abs(obj.w/2),Math.abs(obj.h/2),0,0,Math.PI*2); if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); } ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.stroke(); }
   else if(obj.type==='text'){ const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.color; ctx.textBaseline='top'; const lines = wrapTextLines(obj.text,obj.w||99999,font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x,obj.y+i*lh)); }
-  else if(obj.type==='bubble'){ drawBubbleBody(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=Math.max(1,obj.lineWidth||2); ctx.stroke(); drawBubbleTail(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke(); const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.textColor; ctx.textBaseline='top'; const pad=18; const lines=wrapTextLines(obj.text,Math.max(10,obj.w-pad*2),font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x+pad,obj.y+pad+i*lh)); }
+  else if(obj.type==='bubble'){ drawBubbleTail(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=Math.max(1,obj.lineWidth||2); ctx.stroke(); drawBubbleBody(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke(); }
   else if(obj.type==='image'){ let img = cache.get(obj.src); if(!img){ img = new Image(); img.onload = render; img.src = obj.src; cache.set(obj.src,img); } if(img.complete) ctx.drawImage(img,obj.x,obj.y,obj.w,obj.h); }
   ctx.restore();
 }
@@ -2255,7 +2265,40 @@ render();
     }
   }
 
+  function initSliderPopControls(){
+    document.querySelectorAll('.tool-config input[type="range"]').forEach((range) => {
+      const parent = range.closest('.rtool-chip, .slider-pop');
+      if(!parent || parent.dataset.sliderInit === '1') return;
+      parent.dataset.sliderInit = '1';
+      parent.classList.add('slider-pop');
+      let toggle = parent.querySelector('.slider-toggle-btn');
+      if(!toggle){
+        toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'rtool-btn slider-toggle-btn';
+        parent.insertBefore(toggle, range);
+      }
+      const labelText = (parent.textContent || 'Size').replace(/\s+/g, ' ').trim().split(' ')[0] || 'Size';
+      const update = () => { toggle.textContent = `${labelText}-${range.value}`; };
+      toggle.addEventListener('click', (evt) => {
+        evt.preventDefault();
+        parent.classList.toggle('active');
+      });
+      range.addEventListener('input', () => {
+        update();
+      });
+      range.addEventListener('change', () => parent.classList.remove('active'));
+      update();
+    });
+    document.addEventListener('pointerdown', (evt) => {
+      document.querySelectorAll('.slider-pop.active').forEach((node) => {
+        if(!node.contains(evt.target)) node.classList.remove('active');
+      });
+    });
+  }
+
   function phikWireMobileUI(){
+    initSliderPopControls();
     const ribbonMap = [
       ['fileNewBtn', newProjectWithConfirm],
       ['fileSaveBtn', saveProjectWithPrompt],
@@ -2395,6 +2438,7 @@ render();
 
     setTimeout(()=>{
       phikSyncCompactToolState();
+      updateTextSizeButtonLabel();
       phikApplyViewport();
     }, 120);
   }
