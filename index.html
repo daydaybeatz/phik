@@ -696,6 +696,8 @@ body,html{
           <option>Times New Roman</option><option>Courier New</option><option>Comic Sans MS</option><option>Impact</option>
         </select>
       </label>
+      <button class="rtool-btn" id="toolbarEditText" type="button" style="display:none;">Edit Text</button>
+      <button class="rtool-btn" id="toolbarTextAlignToggle" type="button" style="display:none;">Align: Left</button>
     </div>
     <button class="rtool-btn" id="toolbarImportImage" type="button">Image</button>
     <button class="rtool-btn" id="toolRotateCompact" type="button">Rot</button>
@@ -795,7 +797,9 @@ body,html{
     resolutionModalBackdrop: document.getElementById('resolutionModalBackdrop'),
     resolutionWidthInput: document.getElementById('resolutionWidthInput'),
     resolutionHeightInput: document.getElementById('resolutionHeightInput'),
-    textEditBtn: document.getElementById('textEditBtn')
+    textEditBtn: document.getElementById('textEditBtn'),
+    toolbarEditText: document.getElementById('toolbarEditText'),
+    toolbarTextAlignToggle: document.getElementById('toolbarTextAlignToggle')
   };
 
   const ctx = els.canvas.getContext('2d');
@@ -1289,6 +1293,8 @@ body,html{
       targetCtx.strokeStyle=obj.color; targetCtx.lineWidth=obj.lineWidth || 2; targetCtx.stroke();
     } else if(obj.type==='text'){
       const { font, lines, lineHeight } = getTextMetrics(obj, targetCtx);
+      const textAlign = ['left','center','right'].includes(obj.textAlign) ? obj.textAlign : 'left';
+      const anchorX = textAlign === 'center' ? obj.x + (obj.w || 0) / 2 : (textAlign === 'right' ? obj.x + (obj.w || 0) : obj.x);
       targetCtx.save();
       targetCtx.beginPath();
       targetCtx.rect(obj.x, obj.y, Math.max(1, obj.w || 1), Math.max(1, obj.h || lineHeight));
@@ -1296,7 +1302,8 @@ body,html{
       targetCtx.font = font;
       targetCtx.fillStyle = obj.color;
       targetCtx.textBaseline='top';
-      lines.forEach((line,i)=> targetCtx.fillText(line, obj.x, obj.y + i*lineHeight));
+      targetCtx.textAlign = textAlign;
+      lines.forEach((line,i)=> targetCtx.fillText(line, anchorX, obj.y + i*lineHeight));
       targetCtx.restore();
     } else if(obj.type==='bubble'){
       drawBubbleTail(obj, targetCtx);
@@ -1504,6 +1511,7 @@ body,html{
     if(editingText){
       els.textInput.value = editingText.text || '';
     }
+    syncTextHotbarButtons(selected);
     syncInlineTextEditor();
     updateTextSizeButtonLabel();
   }
@@ -1530,6 +1538,21 @@ body,html{
     const size = Math.max(8, +els.fontSize.value || 18);
     const toggle = document.getElementById('fontSizeCompactToggle');
     if(toggle) toggle.textContent = `Size-${size}`;
+  }
+  function getTextAlignLabel(align){
+    const safe = ['left','center','right'].includes(align) ? align : 'left';
+    return safe[0].toUpperCase() + safe.slice(1);
+  }
+  function syncTextHotbarButtons(selected){
+    const textObj = selected?.type === 'text' ? selected : null;
+    if(els.toolbarEditText){
+      els.toolbarEditText.style.display = textObj ? '' : 'none';
+    }
+    if(els.toolbarTextAlignToggle){
+      els.toolbarTextAlignToggle.style.display = textObj ? '' : 'none';
+      const label = getTextAlignLabel(textObj?.textAlign);
+      els.toolbarTextAlignToggle.textContent = `Align: ${label}`;
+    }
   }
 
   function syncTextEditButton(){
@@ -1661,7 +1684,7 @@ body,html{
       }
       pushHistory();
       const size = Math.max(8, +els.fontSize.value || 18);
-      const obj = { id:uid(), type:'text', x:p.x, y:p.y, w:280, h:size*2, text:els.textInput.value || 'Text', color:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size };
+      const obj = { id:uid(), type:'text', x:p.x, y:p.y, w:280, h:size*2, text:els.textInput.value || 'Text', color:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size, textAlign:'left' };
       layer.objects.push(obj);
       state.textEditingId = null;
       selectObject(obj.id);
@@ -1856,15 +1879,35 @@ body,html{
       render();
     });
   }
-  if(els.textEditBtn){
-    els.textEditBtn.addEventListener('click', (evt) => {
+  function startEditingSelectedText(evt){
+    if(evt){
       evt.preventDefault();
       evt.stopPropagation();
-      const selected = allObjects().find(o => o.id === state.selectedId);
-      if(!selected || selected.type !== 'text') return;
-      state.textEditingId = selected.id;
-      els.textInput.value = selected.text || '';
-      syncInlineTextEditor(true);
+    }
+    const selected = allObjects().find(o => o.id === state.selectedId);
+    if(!selected || selected.type !== 'text') return;
+    state.textEditingId = selected.id;
+    els.textInput.value = selected.text || '';
+    syncInlineTextEditor(true);
+    render();
+  }
+  if(els.textEditBtn){
+    els.textEditBtn.addEventListener('click', startEditingSelectedText);
+  }
+  if(els.toolbarEditText){
+    els.toolbarEditText.addEventListener('click', startEditingSelectedText);
+  }
+  if(els.toolbarTextAlignToggle){
+    els.toolbarTextAlignToggle.addEventListener('click', (evt) => {
+      evt.preventDefault();
+      const selectedTexts = allObjects().filter(o => state.selectedIds.includes(o.id) && o.type === 'text');
+      if(!selectedTexts.length) return;
+      const cycle = { left:'center', center:'right', right:'left' };
+      const base = ['left','center','right'].includes(selectedTexts[0].textAlign) ? selectedTexts[0].textAlign : 'left';
+      const nextAlign = cycle[base] || 'left';
+      pushHistory();
+      selectedTexts.forEach((obj) => { obj.textAlign = nextAlign; });
+      syncCanvasToolUi();
       render();
     });
   }
@@ -2224,7 +2267,7 @@ function drawObject(obj){
   else if(obj.type==='rect'){ ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='rectfill'){ ctx.fillStyle=obj.fill; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); }
   else if(obj.type==='circle' || obj.type==='circlefill'){ ctx.beginPath(); ctx.ellipse(obj.x+obj.w/2,obj.y+obj.h/2,Math.abs(obj.w/2),Math.abs(obj.h/2),0,0,Math.PI*2); if(obj.type==='circlefill'){ ctx.fillStyle=obj.fill; ctx.fill(); } ctx.strokeStyle=obj.color; ctx.lineWidth=obj.lineWidth||2; ctx.stroke(); }
-  else if(obj.type==='text'){ const font = obj.fontSize+'px '+obj.fontFamily; ctx.font=font; ctx.fillStyle=obj.color; ctx.textBaseline='top'; const lines = wrapTextLines(obj.text,obj.w||99999,font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,obj.x,obj.y+i*lh)); }
+  else if(obj.type==='text'){ const font = obj.fontSize+'px '+obj.fontFamily; const textAlign = ['left','center','right'].includes(obj.textAlign) ? obj.textAlign : 'left'; const anchorX = textAlign==='center' ? obj.x + (obj.w||0)/2 : (textAlign==='right' ? obj.x + (obj.w||0) : obj.x); ctx.font=font; ctx.fillStyle=obj.color; ctx.textBaseline='top'; ctx.textAlign=textAlign; const lines = wrapTextLines(obj.text,obj.w||99999,font); const lh=obj.fontSize*1.2; lines.forEach((line,i)=>ctx.fillText(line,anchorX,obj.y+i*lh)); }
   else if(obj.type==='bubble'){ drawBubbleTail(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.lineWidth=Math.max(1,obj.lineWidth||2); ctx.stroke(); drawBubbleBody(obj); ctx.fillStyle=obj.fill; ctx.fill(); ctx.strokeStyle=obj.color; ctx.stroke(); }
   else if(obj.type==='image'){ let img = cache.get(obj.src); if(!img){ img = new Image(); img.onload = render; img.src = obj.src; cache.set(obj.src,img); } if(img.complete) ctx.drawImage(img,obj.x,obj.y,obj.w,obj.h); }
   ctx.restore();
