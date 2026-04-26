@@ -427,6 +427,18 @@ body,html{
 .modal-backdrop.open{display:flex}
 .modal{width:min(560px,95vw);max-height:80vh;overflow:auto;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
 .project-load-item{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0;background:#151a22}
+.text-edit-btn{
+  position:absolute;
+  z-index:1500;
+  display:none;
+  pointer-events:auto;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(112,214,255,.85);
+  background:rgba(25,33,48,.94);
+  color:#eaf7ff;
+  font:600 12px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
 .topbar .group{
   display:flex;
   gap:8px;
@@ -684,6 +696,7 @@ body,html{
         <canvas id="canvas"></canvas>
       </div>
     </div>
+    <button id="textEditBtn" class="text-edit-btn" type="button">Edit</button>
   </div>
 </div>
 <div class="modal-backdrop" id="loadModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="loadModalTitle">
@@ -759,7 +772,8 @@ body,html{
     textFontFamilyChip: document.getElementById('textFontFamilyChip'),
     resolutionModalBackdrop: document.getElementById('resolutionModalBackdrop'),
     resolutionWidthInput: document.getElementById('resolutionWidthInput'),
-    resolutionHeightInput: document.getElementById('resolutionHeightInput')
+    resolutionHeightInput: document.getElementById('resolutionHeightInput'),
+    textEditBtn: document.getElementById('textEditBtn')
   };
 
   const ctx = els.canvas.getContext('2d');
@@ -1035,6 +1049,15 @@ body,html{
     return lines;
   }
 
+  function getTextMetrics(obj, targetCtx = ctx){
+    const font = `${obj.fontSize}px ${obj.fontFamily}`;
+    const maxWidth = Math.max(12, obj.w || 12);
+    const lines = wrapTextLines(obj.text || '', maxWidth, font, targetCtx);
+    const safeLines = lines.length ? lines : [''];
+    const lineHeight = Math.max(1, obj.fontSize * 1.2);
+    return { font, lines: safeLines, lineHeight };
+  }
+
   function drawRoundedRect(x,y,w,h,r, targetCtx = ctx){
     const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
     targetCtx.beginPath();
@@ -1243,11 +1266,16 @@ body,html{
       if(obj.type==='circlefill'){ targetCtx.fillStyle=obj.fill; targetCtx.fill(); }
       targetCtx.strokeStyle=obj.color; targetCtx.lineWidth=obj.lineWidth || 2; targetCtx.stroke();
     } else if(obj.type==='text'){
-      const font = `${obj.fontSize}px ${obj.fontFamily}`;
-      targetCtx.font = font; targetCtx.fillStyle = obj.color; targetCtx.textBaseline='top';
-      const lines = wrapTextLines(obj.text, obj.w || 99999, font, targetCtx);
-      const lineHeight = obj.fontSize * 1.2;
+      const { font, lines, lineHeight } = getTextMetrics(obj, targetCtx);
+      targetCtx.save();
+      targetCtx.beginPath();
+      targetCtx.rect(obj.x, obj.y, Math.max(1, obj.w || 1), Math.max(1, obj.h || lineHeight));
+      targetCtx.clip();
+      targetCtx.font = font;
+      targetCtx.fillStyle = obj.color;
+      targetCtx.textBaseline='top';
       lines.forEach((line,i)=> targetCtx.fillText(line, obj.x, obj.y + i*lineHeight));
+      targetCtx.restore();
     } else if(obj.type==='bubble'){
       drawBubbleBody(obj, targetCtx);
       targetCtx.fillStyle=obj.fill;
@@ -1343,6 +1371,7 @@ body,html{
     ctx.restore();
     renderPagesList();
     updateSelectionUi();
+    syncTextEditButton();
     syncCanvasToolUi();
     if(centerViewport || !state.viewportCentered){
       requestAnimationFrame(centerViewportOnPage);
@@ -1483,6 +1512,25 @@ body,html{
     }
   }
 
+  function syncTextEditButton(){
+    const btn = els.textEditBtn;
+    if(!btn) return;
+    const selected = allObjects().find(o => o.id === state.selectedId);
+    const show = state.tool === 'select' && state.selectedIds.length === 1 && selected?.type === 'text' && state.textEditingId !== selected.id;
+    if(!show){
+      btn.style.display = 'none';
+      return;
+    }
+    const b = objectBounds(selected);
+    const canvasRect = els.canvas.getBoundingClientRect();
+    const wrapRect = els.canvasWrap.getBoundingClientRect();
+    const top = canvasRect.top - wrapRect.top + (b.y * state.zoom) - 34;
+    const left = canvasRect.left - wrapRect.left + ((b.x + (b.w / 2)) * state.zoom);
+    btn.style.left = `${Math.max(8, left - 24)}px`;
+    btn.style.top = `${Math.max(8, top)}px`;
+    btn.style.display = 'block';
+  }
+
   function selectObject(id, additive = false){
     if(!additive) state.selectedIds = [];
     if(id && !state.selectedIds.includes(id)) state.selectedIds.push(id);
@@ -1606,11 +1654,8 @@ body,html{
     if(state.tool === 'text'){
       const clicked = findObjectAtPoint(p);
       if(clicked?.type === 'text'){
-        state.textEditingId = clicked.id;
+        state.textEditingId = null;
         selectObject(clicked.id);
-        els.textInput.value = clicked.text || '';
-        syncInlineTextEditor(true);
-        render();
         return;
       }
       pushHistory();
@@ -1633,14 +1678,6 @@ body,html{
         return;
       }
       const alreadySelected = state.selectedIds.includes(obj.id);
-      const isSingleSelected = state.selectedIds.length === 1 && state.selectedId === obj.id;
-      if(alreadySelected && isSingleSelected && obj.type === 'text' && !evt.shiftKey){
-        state.textEditingId = obj.id;
-        els.textInput.value = obj.text || '';
-        syncInlineTextEditor(true);
-        render();
-        return;
-      }
       if(!(alreadySelected && !evt.shiftKey)){
         const additiveSelect = evt.shiftKey || (!!state.selectedIds.length && !state.selectedIds.includes(obj.id));
         selectObject(obj.id, additiveSelect);
@@ -1775,6 +1812,18 @@ body,html{
     textDoneBtn.addEventListener('click', () => {
       state.textEditingId = null;
       syncInlineTextEditor();
+      render();
+    });
+  }
+  if(els.textEditBtn){
+    els.textEditBtn.addEventListener('click', (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      const selected = allObjects().find(o => o.id === state.selectedId);
+      if(!selected || selected.type !== 'text') return;
+      state.textEditingId = selected.id;
+      els.textInput.value = selected.text || '';
+      syncInlineTextEditor(true);
       render();
     });
   }
