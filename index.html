@@ -1817,9 +1817,14 @@ body,html{
     render();
   }
 
-  els.strokeColor.addEventListener('change', () => applyToolbarStyleToSelection({ stroke:true }));
-  els.fillColor.addEventListener('change', () => applyToolbarStyleToSelection({ fill:true }));
-  els.toolSize.addEventListener('change', () => applyToolbarStyleToSelection({ size:true }));
+  const bindStyleControl = (node, changes) => {
+    if(!node) return;
+    node.addEventListener('input', () => applyToolbarStyleToSelection(changes));
+    node.addEventListener('change', () => applyToolbarStyleToSelection(changes));
+  };
+  bindStyleControl(els.strokeColor, { stroke:true });
+  bindStyleControl(els.fillColor, { fill:true });
+  bindStyleControl(els.toolSize, { size:true });
 
   els.textInput.addEventListener('input', () => {
     if(!state.textEditingId) return;
