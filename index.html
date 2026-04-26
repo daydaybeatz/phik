@@ -1516,7 +1516,7 @@ body,html{
     const btn = els.textEditBtn;
     if(!btn) return;
     const selected = allObjects().find(o => o.id === state.selectedId);
-    const show = state.tool === 'select' && state.selectedIds.length === 1 && selected?.type === 'text' && state.textEditingId !== selected.id;
+    const show = state.selectedIds.length === 1 && selected?.type === 'text' && state.textEditingId !== selected.id;
     if(!show){
       btn.style.display = 'none';
       return;
@@ -1662,10 +1662,11 @@ body,html{
       const size = Math.max(8, +els.fontSize.value || 32);
       const obj = { id:uid(), type:'text', x:p.x, y:p.y, w:280, h:size*2, text:els.textInput.value || 'Text', color:els.strokeColor.value, fontFamily:els.fontFamily.value, fontSize:size };
       layer.objects.push(obj);
-      state.textEditingId = obj.id;
+      state.textEditingId = null;
       selectObject(obj.id);
-      els.textInput.focus();
-      syncInlineTextEditor(true);
+      state.tool = 'select';
+      [...els.toolButtons.children].forEach(x=>x.classList.toggle('active', x.dataset.tool==='select'));
+      syncCanvasToolUi();
       return;
     }
 
